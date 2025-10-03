@@ -1,0 +1,19 @@
+# Texte : Git va gérer automatiquement les fins de ligne selon le système de l'utilisateur
+* text=auto
+
+# Forcer les scripts shell (bash, sh) à avoir des fins de ligne LF (Linux/Mac style)
+*.sh text eol=lf
+
+# Forcer les fichiers batch Windows (.bat) à avoir des fins de ligne CRLF
+*.bat text eol=crlf
+
+# Forcer les fichiers SQL à LF (optionnel, selon préférence)
+*.sql text eol=lf
+
+# Forcer les fichiers JSON et JS à LF (optionnel, pour frontend React)
+*.json text eol=lf
+*.js text eol=lf
+
+# Forcer les fichiers Maven et propriétés à LF (backend)
+*.xml text eol=lf
+*.properties text eol=lf

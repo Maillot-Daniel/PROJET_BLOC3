@@ -1,0 +1,307 @@
+/* Variables */
+:root {
+  --olympic-blue: #0085C7;
+  --olympic-yellow: #F4C300;
+  --olympic-black: #000000;
+  --olympic-green: #009F3D;
+  --olympic-red: #DF0024;
+  --light-gray: #F5F5F5;
+  --dark-gray: #333333;
+  --medium-gray: #666666;
+}
+
+/* Reset et styles de base */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Arial', sans-serif;
+  line-height: 1.6;
+  color: var(--dark-gray);
+}
+
+h1, h2, h3, h4 {
+  color: var(--olympic-blue);
+  margin-bottom: 1rem;
+}
+
+p {
+  margin-bottom: 1.5rem;
+  color: var(--medium-gray);
+}
+
+a {
+  text-decoration: none;
+  color: var(--olympic-blue);
+}
+
+button {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+/* Layout */
+.homepage {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+section {
+  padding: 60px 0;
+}
+
+.section-subtitle {
+  color: var(--medium-gray);
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+}
+
+/* Hero Section */
+.hero {
+  background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)),
+              url('https://example.com/path/to/olympic-image.jpg') no-repeat center center/cover;
+  color: white;
+  text-align: center;
+  padding: 100px 20px;
+  border-radius: 8px;
+  margin: 20px 0;
+}
+
+.hero h1 {
+  color: white;
+  font-size: 2.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.hero-description {
+  max-width: 800px;
+  margin: 0 auto 2rem;
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.hero-values {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin: 2rem 0;
+  flex-wrap: wrap;
+}
+
+.hero-values span {
+  font-weight: bold;
+  font-size: 1.2rem;
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.hero-cta {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 2rem;
+}
+
+/* Boutons */
+.cta-primary {
+  background-color: var(--olympic-blue);
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.cta-primary:hover {
+  background-color: #0067A3;
+  transform: translateY(-2px);
+}
+
+.cta-secondary {
+  background-color: transparent;
+  color: white;
+  border: 2px solid white;
+  padding: 10px 23px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.cta-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Section Épreuves phares */
+.featured-events {
+  text-align: center;
+}
+
+.events-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+  margin-top: 40px;
+}
+
+.event-card {
+  background-color: white;
+  border-radius: 8px;
+  padding: 30px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.event-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.event-card h3 {
+  color: var(--olympic-blue);
+  margin-bottom: 0.5rem;
+}
+
+/* Section Rejoignez l'aventure */
+.join-adventure {
+  background-color: var(--light-gray);
+  border-radius: 8px;
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.adventure-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.highlights {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin: 40px 0;
+  flex-wrap: wrap;
+}
+
+.highlight-item {
+  background-color: white;
+  border-radius: 8px;
+  padding: 30px;
+  width: 300px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.highlight-item:hover {
+  transform: translateY(-5px);
+}
+
+.highlight-item h4 {
+  color: var(--olympic-blue);
+  margin-bottom: 0.5rem;
+}
+
+.adventure-cta {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 2rem;
+}
+
+/* Section Billetterie */
+.ticketing {
+  text-align: center;
+}
+
+.ticketing-description {
+  max-width: 600px;
+  margin: 0 auto 2rem;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+  margin-top: 40px;
+}
+
+.step {
+  background-color: white;
+  border-radius: 8px;
+  padding: 30px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.step:hover {
+  transform: translateY(-5px);
+}
+
+.step-number {
+  background-color: var(--olympic-blue);
+  color: white;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 30px 0;
+  border-top: 1px solid #eee;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.footer-links a:hover {
+  text-decoration: underline;
+}
+
+.copyright {
+  color: var(--medium-gray);
+  font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hero {
+    padding: 60px 20px;
+  }
+  
+  .hero h1 {
+    font-size: 2rem;
+  }
+  
+  .hero-cta, .adventure-cta {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .hero-values, .highlights {
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+  }
+  
+  .highlight-item {
+    width: 100%;
+  }
+}

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vos billets pour les Jeux Olympiques</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .ticket {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+            background-color: #f9f9f9;
+        }
+        .ticket-title {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        .qr-code {
+            display: block;
+            margin: 15px auto;
+            border: 1px solid #ddd;
+            padding: 5px;
+            background: white;
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 0.9em;
+            color: #7f8c8d;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>Merci pour votre achat !</h1>
+    <p>Voici vos billets pour les Jeux Olympiques :</p>
+</div>
+
+<div th:each="ticket : ${tickets}" class="ticket">
+    <h3 class="ticket-title" th:text="${ticket.event.title}">Événement</h3>
+    <p><strong>Type :</strong> <span th:text="${ticket.offerType}">Type</span></p>
+    <p><strong>Date :</strong> <span th:text="${#temporals.format(ticket.event.date, 'dd/MM/yyyy HH:mm')}">Date</span></p>
+    <p><strong>Lieu :</strong> <span th:text="${ticket.event.location}">Lieu</span></p>
+    <p><strong>Numéro de billet :</strong> <span th:text="${ticket.ticketNumber}">Numéro</span></p>
+
+    <img th:src="${ticket.qrCodeUrl}"
+         alt="QR Code d'accès"
+         class="qr-code"
+         width="200"
+         height="200"/>
+</div>
+
+<div class="footer">
+    <p>Présentez ce QR code à l'entrée de l'événement.</p>
+    <p>Pour toute question, contactez-nous à support@olympics.com</p>
+    <p>&copy; 2024 Comité Olympique. Tous droits réservés.</p>
+</div>
+</body>
+</html>

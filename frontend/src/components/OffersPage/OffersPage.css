@@ -1,0 +1,34 @@
+.offers-page {
+  padding: 2rem;
+  font-family: 'Arial', sans-serif;
+  background-color: #f5f5f5;
+}
+
+.offer-list {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.offer-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  padding: 1.5rem;
+  max-width: 300px;
+  text-align: center;
+}
+
+.offer-card h2 {
+  color: #004080;
+}
+
+.offer-card ul {
+  list-style: none;
+  padding: 0;
+}
+
+.offer-card ul li {
+  margin: 0.5rem 0;
+}

@@ -1,0 +1,165 @@
+.user-management-container {
+  max-width: 1200px;
+  margin: 100px auto 40px;
+  padding: 2rem;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.user-management-container h2 {
+  color: #2d3748;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  font-size: 2rem;
+  position: relative;
+  padding-bottom: 0.5rem;
+}
+
+.user-management-container h2::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100px;
+  height: 3px;
+  background-color: #4299e1;
+}
+
+.reg-button {
+  display: inline-block;
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  background-color: #38a169;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.reg-button:hover {
+  background-color: #2f855a;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(56, 161, 105, 0.3);
+}
+
+.reg-button a {
+  color: white;
+  text-decoration: none;
+  display: block;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+th, td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+th {
+  background-color: #2d3748;
+  color: white;
+  font-weight: 500;
+}
+
+tr:hover {
+  background-color: #f8fafc;
+}
+
+.delete-button, .update-button {
+  padding: 0.5rem 1rem;
+  margin: 0 0.3rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.delete-button {
+  background-color: #e53e3e;
+  color: white;
+}
+
+.delete-button:hover {
+  background-color: #c53030;
+  transform: translateY(-1px);
+}
+
+.update-button {
+  background-color: #3182ce;
+  color: white;
+}
+
+.update-button:hover {
+  background-color: #2c5282;
+  transform: translateY(-1px);
+}
+
+.update-button a {
+  color: white;
+  text-decoration: none;
+  display: block;
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+  .user-management-container {
+    padding: 1.5rem;
+  }
+  
+  th, td {
+    padding: 0.8rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .user-management-container {
+    margin: 80px 20px 30px;
+  }
+  
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  
+  .reg-button {
+    width: 100%;
+    max-width: none;
+    margin-bottom: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .user-management-container {
+    margin: 80px 10px 20px;
+    padding: 1rem;
+  }
+  
+  .user-management-container h2 {
+    font-size: 1.6rem;
+  }
+  
+  th, td {
+    padding: 0.6rem;
+    font-size: 0.9rem;
+  }
+  
+  .delete-button, .update-button {
+    padding: 0.4rem 0.8rem;
+    margin: 0.2rem;
+    font-size: 0.8rem;
+  }
+}

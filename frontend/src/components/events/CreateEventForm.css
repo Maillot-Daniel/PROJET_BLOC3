@@ -1,0 +1,12 @@
+input, textarea {
+  border-radius: 15px;
+  box-shadow: 0 8px 15px rgba(37, 117, 252, 0.3);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+  padding: 18px 20px;
+}
+input:focus, textarea:focus {
+  box-shadow: 0 12px 20px rgba(255, 111, 97, 0.5);
+  transform: translateY(-3px);
+  border: none;
+  outline: none;
+}
