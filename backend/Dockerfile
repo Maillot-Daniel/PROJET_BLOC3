@@ -1,14 +1,13 @@
-# Utilise OpenJDK 17 slim
-FROM openjdk:17-jdk-slim
-
-# Crée le répertoire de travail dans le conteneur
+# Étape 1 : construire le JAR
+FROM maven:3.9.1-eclipse-temurin-17 AS build
 WORKDIR /app
+COPY pom.xml .
+COPY src ./src
+RUN mvn clean package -DskipTests
 
-# Copie le JAR généré par Maven dans le conteneur
+# Étape 2 : exécuter le JAR
+FROM openjdk:17-jdk-slim
+WORKDIR /app
 COPY target/backend-0.0.1-SNAPSHOT.jar app.jar
-
-# Expose le port 8080 pour Render
 EXPOSE 8080
-
-# Commande pour démarrer l'application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java","-jar","app.jar"]
