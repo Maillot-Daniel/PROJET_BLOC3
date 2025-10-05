@@ -8,7 +8,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class CorsConfig {
 
-    @Bean
+    @Bean(name = "corsConfigurerBackend") // renommer le bean pour éviter le conflit
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
