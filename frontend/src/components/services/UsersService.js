@@ -1,7 +1,7 @@
 import axios from "axios";
 
 class UsersService {
-  static BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8080";
+  static BASE_URL = process.env.REACT_APP_API_URL || "https://projet-bloc3.onrender.com";
   static TOKEN_KEY = "olympics_auth_token";
   static ROLE_KEY = "olympics_user_role";
   static USER_ID_KEY = "olympics_user_id";
