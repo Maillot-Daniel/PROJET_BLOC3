@@ -3,15 +3,18 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 const OffersGestion = () => {
-  const API_URL = 'http://localhost:8080/api/offer_types';
+  const API_URL = process.env.REACT_APP_API_URL
+    ? `${process.env.REACT_APP_API_URL}/api/offer_types`
+    : 'http://localhost:8080/api/offer_types';
+
   const [offers, setOffers] = useState([]);
   const [formData, setFormData] = useState({ name: '' });
   const [editingId, setEditingId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+
   const navigate = useNavigate();
 
-  // Mémorisation de getAuthHeaders avec useCallback
   const getAuthHeaders = useCallback(() => {
     const token = localStorage.getItem('olympics_auth_token');
     if (!token) {
@@ -22,7 +25,7 @@ const OffersGestion = () => {
     return {
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
       }
     };
   }, [navigate]);
@@ -34,11 +37,11 @@ const OffersGestion = () => {
     setIsLoading(true);
     try {
       const response = await axios.get(API_URL, headers);
-      setOffers(response.data);
+      setOffers(Array.isArray(response.data) ? response.data : []);
       setError(null);
     } catch (err) {
-      setError('Erreur lors du chargement des offres');
       console.error(err);
+      setError('Erreur lors du chargement des offres');
     } finally {
       setIsLoading(false);
     }
@@ -50,10 +53,7 @@ const OffersGestion = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -71,8 +71,8 @@ const OffersGestion = () => {
       resetForm();
       await fetchOffers();
     } catch (err) {
-      setError(editingId ? 'Erreur lors de la mise à jour' : 'Erreur lors de la création');
       console.error(err);
+      setError(editingId ? 'Erreur lors de la mise à jour' : 'Erreur lors de la création');
     } finally {
       setIsLoading(false);
     }
@@ -95,8 +95,8 @@ const OffersGestion = () => {
       await axios.delete(`${API_URL}/${id}`, headers);
       await fetchOffers();
     } catch (err) {
-      setError('Erreur lors de la suppression');
       console.error(err);
+      setError('Erreur lors de la suppression');
     } finally {
       setIsLoading(false);
     }
@@ -111,19 +111,19 @@ const OffersGestion = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8 text-center">Gestion des Offres</h1>
-      
+
       {/* Formulaire */}
       <div className="bg-white shadow-md rounded-lg p-6 mb-8">
         <h2 className="text-xl font-semibold mb-4">
           {editingId ? 'Modifier une Offre' : 'Ajouter une Nouvelle Offre'}
         </h2>
-        
+
         {error && (
           <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
             <p>{error}</p>
           </div>
         )}
-        
+
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label className="block text-gray-700 mb-2">Nom de l'offre</label>
@@ -136,7 +136,7 @@ const OffersGestion = () => {
               required
             />
           </div>
-          
+
           <div className="flex flex-wrap gap-2">
             <button
               type="submit"
@@ -145,7 +145,7 @@ const OffersGestion = () => {
             >
               {isLoading ? 'Chargement...' : editingId ? 'Mettre à jour' : 'Créer'}
             </button>
-            
+
             {editingId && (
               <button
                 type="button"
@@ -159,11 +159,11 @@ const OffersGestion = () => {
           </div>
         </form>
       </div>
-      
+
       {/* Liste des offres */}
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
         <h2 className="text-xl font-semibold p-6 border-b">Liste des Offres</h2>
-        
+
         {isLoading && !offers.length ? (
           <div className="p-6 text-center">Chargement en cours...</div>
         ) : offers.length === 0 ? (

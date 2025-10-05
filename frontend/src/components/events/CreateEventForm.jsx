@@ -13,6 +13,7 @@ function CreateEventForm() {
   });
 
   const navigate = useNavigate();
+  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -32,7 +33,6 @@ function CreateEventForm() {
       return;
     }
 
-    // Validation que la date est dans le futur
     const today = new Date();
     const eventDate = new Date(event.date);
     if (eventDate <= today) {
@@ -40,16 +40,13 @@ function CreateEventForm() {
       return;
     }
 
-    // Formatage de la date au format ISO complet
     const formattedEvent = {
       ...event,
       date: event.date ? event.date + "T00:00:00" : null
     };
 
-    console.log("Données envoyées au serveur :", formattedEvent);
-
     try {
-      await axios.post('http://localhost:8080/api/events', formattedEvent, {
+      await axios.post(`${API_URL}/api/events`, formattedEvent, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

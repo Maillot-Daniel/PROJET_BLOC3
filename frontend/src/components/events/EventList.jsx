@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { useLocation } from 'react-router-dom';
 import './EventList.css';
 
 function EventList() {
@@ -16,14 +15,36 @@ function EventList() {
     totalTickets: 0
   });
 
-  const location = useLocation();
   const navigate = useNavigate();
+  const location = useLocation();
   const refs = useRef({}); // Pour scroller vers un event
+
+  // URL backend
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+
+  // Récupération des événements
+  const fetchEvents = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/events`);
+      const rawEvents = res.data.content || res.data;
+
+      const eventsWithTickets = rawEvents.map(ev => {
+        const remaining = ev.remaining_tickets ?? ev.remainingTickets ?? ev.tickets_remaining;
+        return { ...ev, totalTickets: Number(remaining) || 0 };
+      });
+
+      setEvents(eventsWithTickets);
+    } catch (err) {
+      console.error('Erreur lors de la récupération des événements :', err);
+    }
+  };
 
   useEffect(() => {
     fetchEvents();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Se déclenche une seule fois au montage
 
+  // Scroll vers un événement si ID présent dans l'URL
   useEffect(() => {
     const query = new URLSearchParams(location.search);
     const id = query.get('id');
@@ -36,40 +57,20 @@ function EventList() {
     }
   }, [events, location.search]);
 
-  const fetchEvents = () => {
-    axios.get('http://localhost:8080/api/events')
-      .then(res => {
-        const rawEvents = res.data.content || res.data;
-        console.log('Events bruts reçus:', rawEvents);
-
-        const eventsWithTickets = rawEvents.map(ev => {
-          const remaining = ev.remaining_tickets ?? ev.remainingTickets ?? ev.tickets_remaining;
-          return {
-            ...ev,
-            totalTickets: Number(remaining) || 0,
-          };
-        });
-
-        setEvents(eventsWithTickets);
-      })
-      .catch(err => console.error('Erreur lors de la récupération des événements :', err));
-  };
-
   const handleDelete = async (id) => {
     const token = localStorage.getItem('olympics_auth_token');
-    if (!token) {
-      alert("Veuillez vous connecter");
-      navigate('/login');
-      return;
-    }
+    if (!token) return navigate('/login');
+
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cet événement ?')) return;
+
     try {
-      await axios.delete(`http://localhost:8080/api/events/${id}`, {
+      await axios.delete(`${API_URL}/api/events/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setEvents(events.filter(event => event.id !== id));
       alert('Événement supprimé avec succès');
-    } catch (error) {
-      console.error('Erreur lors de la suppression de l’événement :', error);
+    } catch (err) {
+      console.error('Erreur lors de la suppression de l’événement :', err);
       alert('Erreur lors de la suppression');
     }
   };
@@ -99,16 +100,12 @@ function EventList() {
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-   const token = localStorage.getItem('olympics_auth_token');
-    if (!token) {
-      alert("Veuillez vous connecter");
-      navigate('/login');
-      return;
-    }
+    const token = localStorage.getItem('olympics_auth_token');
+    if (!token) return navigate('/login');
 
     try {
-      const response = await axios.put(
-        `http://localhost:8080/api/events/${editEvent.id}`,
+      const res = await axios.put(
+        `${API_URL}/api/events/${editEvent.id}`,
         editFormData,
         {
           headers: {
@@ -118,14 +115,12 @@ function EventList() {
         }
       );
 
-      setEvents(events.map(event =>
-        event.id === editEvent.id ? response.data : event
-      ));
+      setEvents(events.map(ev => ev.id === editEvent.id ? res.data : ev));
       setEditEvent(null);
       alert('Événement mis à jour avec succès');
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour :', error);
-      alert(error.response?.data?.message || 'Erreur lors de la mise à jour');
+    } catch (err) {
+      console.error('Erreur lors de la mise à jour :', err);
+      alert(err.response?.data?.message || 'Erreur lors de la mise à jour');
     }
   };
 
@@ -140,85 +135,39 @@ function EventList() {
             <form onSubmit={handleEditSubmit}>
               <div className="form-group">
                 <label>Titre :</label>
-                <input
-                  type="text"
-                  name="title"
-                  value={editFormData.title}
-                  onChange={handleEditChange}
-                  required
-                />
+                <input type="text" name="title" value={editFormData.title} onChange={handleEditChange} required />
               </div>
 
               <div className="form-group">
                 <label>Description :</label>
-                <textarea
-                  name="description"
-                  value={editFormData.description}
-                  onChange={handleEditChange}
-                  required
-                />
+                <textarea name="description" value={editFormData.description} onChange={handleEditChange} required />
               </div>
 
               <div className="form-row">
                 <div className="form-group">
                   <label>Date et Heure :</label>
-                  <input
-                    type="datetime-local"
-                    name="date"
-                    value={editFormData.date}
-                    onChange={handleEditChange}
-                    required
-                  />
+                  <input type="datetime-local" name="date" value={editFormData.date} onChange={handleEditChange} required />
                 </div>
-
                 <div className="form-group">
                   <label>Lieu :</label>
-                  <input
-                    type="text"
-                    name="location"
-                    value={editFormData.location}
-                    onChange={handleEditChange}
-                    required
-                  />
+                  <input type="text" name="location" value={editFormData.location} onChange={handleEditChange} required />
                 </div>
               </div>
 
               <div className="form-row">
                 <div className="form-group">
                   <label>Prix (€) :</label>
-                  <input
-                    type="number"
-                    name="price"
-                    min="0"
-                    step="0.01"
-                    value={editFormData.price}
-                    onChange={handleEditChange}
-                    required
-                  />
+                  <input type="number" name="price" min="0" step="0.01" value={editFormData.price} onChange={handleEditChange} required />
                 </div>
-
                 <div className="form-group">
                   <label>Places restantes :</label>
-                  <input
-                    type="number"
-                    name="totalTickets"
-                    min="0"
-                    value={editFormData.totalTickets}
-                    onChange={handleEditChange}
-                    required
-                  />
+                  <input type="number" name="totalTickets" min="0" value={editFormData.totalTickets} onChange={handleEditChange} required />
                 </div>
               </div>
 
               <div className="form-actions">
                 <button type="submit" className="save-btn">Enregistrer</button>
-                <button
-                  type="button"
-                  className="cancel-btn"
-                  onClick={() => setEditEvent(null)}
-                >
-                  Annuler
-                </button>
+                <button type="button" className="cancel-btn" onClick={() => setEditEvent(null)}>Annuler</button>
               </div>
             </form>
           </div>
@@ -228,11 +177,7 @@ function EventList() {
       <div className="events-grid">
         {events.length > 0 ? (
           events.map(event => (
-            <div
-              className="event-card"
-              key={event.id}
-              ref={el => (refs.current[event.id] = el)}
-            >
+            <div className="event-card" key={event.id} ref={el => (refs.current[event.id] = el)}>
               <div className="card-header">
                 <h3>{event.title}</h3>
                 <p className="event-date">
@@ -246,36 +191,19 @@ function EventList() {
                   })}
                 </p>
               </div>
-
               <div className="card-body">
                 <p className="event-description">{event.description}</p>
                 <div className="event-details">
                   <p><strong>Lieu:</strong> {event.location}</p>
                   <p><strong>Prix:</strong> {event.price.toFixed(2)} €</p>
-                  <p
-                    className={
-                      event.totalTickets === 0
-                        ? 'sold-out'
-                        : event.totalTickets < 10
-                        ? 'low-tickets'
-                        : ''
-                    }
-                  >
-                    <strong>Places restantes :</strong>{' '}
-                    {event.totalTickets === 0 ? 'Complet' : event.totalTickets}
+                  <p className={event.totalTickets === 0 ? 'sold-out' : event.totalTickets < 10 ? 'low-tickets' : ''}>
+                    <strong>Places restantes :</strong> {event.totalTickets === 0 ? 'Complet' : event.totalTickets}
                   </p>
                 </div>
               </div>
-
               <div className="card-actions">
                 <button className="edit-btn" onClick={() => handleEditClick(event)}>Modifier</button>
-                <button className="delete-btn" onClick={() => {
-                  if (window.confirm('Êtes-vous sûr de vouloir supprimer cet événement ?')) {
-                    handleDelete(event.id);
-                  }
-                }}>
-                  Supprimer
-                </button>
+                <button className="delete-btn" onClick={() => handleDelete(event.id)}>Supprimer</button>
               </div>
             </div>
           ))

@@ -15,23 +15,19 @@ class UsersService {
   });
 
   static init() {
+    // Interceptor pour ajouter le token à chaque requête
     this.apiClient.interceptors.request.use(
       (config) => {
         const token = this.getToken();
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
+        if (token) config.headers.Authorization = `Bearer ${token}`;
         return config;
       },
-      (error) => {
-        return Promise.reject(error);
-      }
+      (error) => Promise.reject(error)
     );
 
+    // Interceptor pour gérer l'expiration du token
     this.apiClient.interceptors.response.use(
-      (response) => {
-        return response;
-      },
+      (response) => response,
       (error) => {
         if (error.response?.status === 401) {
           this.clearAuth();
@@ -43,8 +39,7 @@ class UsersService {
   }
 
   static getToken() {
-    const token = localStorage.getItem(this.TOKEN_KEY);
-    return token;
+    return localStorage.getItem(this.TOKEN_KEY);
   }
 
   static setAuthData(token, role, userId) {
@@ -55,7 +50,6 @@ class UsersService {
   }
 
   static clearAuth() {
-    console.log("[UsersService] clearAuth called");
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.ROLE_KEY);
     localStorage.removeItem(this.USER_ID_KEY);
@@ -63,38 +57,29 @@ class UsersService {
   }
 
   static isAuthenticated() {
-    const isAuth = !!this.getToken();
-    return isAuth;
+    return !!this.getToken();
   }
 
   static isAdmin() {
     const role = localStorage.getItem(this.ROLE_KEY);
-    const isAdmin = role && role.toLowerCase() === "admin";
-    console.log("[UsersService] isAdmin:", isAdmin, "(role:", role, ")");
-    return isAdmin;
+    return role?.toLowerCase() === "admin";
   }
 
   static getCurrentUserId() {
-    const userId = localStorage.getItem(this.USER_ID_KEY);
-    return userId;
+    return localStorage.getItem(this.USER_ID_KEY);
   }
 
-  // Authentification
+  // Auth
   static async login(email, password) {
     try {
-      const response = await this.apiClient.post("/auth/login", {
-        email,
-        password
-      });
+      const response = await this.apiClient.post("/auth/login", { email, password });
       return response.data;
     } catch (error) {
       throw this.normalizeError(error, "Échec de la connexion");
     }
   }
 
-  // Inscription
   static async register(registrationData) {
-    console.log("[UsersService] register called");
     try {
       const response = await this.apiClient.post("/auth/register", registrationData);
       return response.data;
@@ -103,81 +88,64 @@ class UsersService {
     }
   }
 
-  // Récupérer le profil utilisateur connecté
   static async getProfile() {
     try {
       const response = await this.apiClient.get("/adminuser/get-profile");
       return response.data;
     } catch (error) {
-
       throw this.normalizeError(error, "Échec de la récupération du profil");
     }
   }
 
+  // Utilisateurs
   static async getAllUsers() {
-
     try {
       const response = await this.apiClient.get("/admin/get-all-users");
-
       return response.data;
     } catch (error) {
-
       throw this.normalizeError(error, "Erreur lors de la récupération des utilisateurs");
     }
   }
 
   static async getUserById(userId) {
-
     try {
       const response = await this.apiClient.get(`/admin/get-users/${userId}`);
-
       return response.data;
     } catch (error) {
-
       throw this.normalizeError(error, "Erreur lors de la récupération de l'utilisateur");
     }
   }
 
-  static async deleteUser(userId) {
-
-    try {
-      const response = await this.apiClient.delete(`/admin/delete/${userId}`);
-
-      return response.data;
-    } catch (error) {
-
-      throw this.normalizeError(error, "Erreur lors de la suppression de l'utilisateur");
-    }
-  }
-
   static async updateUser(userId, userData) {
-
     try {
       const response = await this.apiClient.put(`/admin/update/${userId}`, userData);
-
       return response.data;
     } catch (error) {
-
       throw this.normalizeError(error, "Erreur lors de la mise à jour de l'utilisateur");
     }
   }
 
-  // Mot de passe oublié - envoyer mail réinitialisation
-  static async requestPasswordReset(email) {
-
+  static async deleteUser(userId) {
     try {
-      const response = await this.apiClient.post("/auth/password-reset-request", { email });
-
+      const response = await this.apiClient.delete(`/admin/delete/${userId}`);
       return response.data;
     } catch (error) {
+      throw this.normalizeError(error, "Erreur lors de la suppression de l'utilisateur");
+    }
+  }
 
+  // Mot de passe oublié
+  static async requestPasswordReset(email) {
+    try {
+      const response = await this.apiClient.post("/auth/password-reset-request", { email });
+      return response.data;
+    } catch (error) {
       throw this.normalizeError(error, "Erreur lors de la demande de réinitialisation");
     }
   }
 
-  // Normalisation des erreurs pour UI
+  // Normalisation des erreurs
   static normalizeError(error, customMessage = "") {
-    console.log("[UsersService] normalizeError called:", customMessage || error.message);
     const normalizedError = new Error(customMessage || error.message);
     if (error.response) {
       normalizedError.status = error.response.status;
@@ -191,6 +159,7 @@ class UsersService {
   }
 }
 
+// Initialisation
 UsersService.init();
 
 export default UsersService;

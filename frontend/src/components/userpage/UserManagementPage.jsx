@@ -9,21 +9,23 @@ function UserManagementPage() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  const isAdmin = UsersService.isAdmin(); // Stocké une fois ici
+  const isAdmin = UsersService.isAdmin();
 
-  // Fonction pour récupérer tous les utilisateurs
+  // Récupération des utilisateurs
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
+
       const usersData = await UsersService.getAllUsers();
       console.log("Users fetched:", usersData);
       setUsers(usersData.ourUsersList || []);
     } catch (err) {
       console.error("Fetch users error:", err);
       setError(err.message || "Erreur lors de la récupération des utilisateurs");
-      if (err.response?.status === 401) {
-        UsersService.logout();
+
+      if (err.status === 401) {
+        UsersService.clearAuth();
         navigate("/login");
       }
     } finally {
@@ -31,7 +33,7 @@ function UserManagementPage() {
     }
   }, [navigate]);
 
-  // Vérification des accès au chargement du composant
+  // Vérification de l'accès et récupération au chargement
   useEffect(() => {
     const checkAccess = async () => {
       if (!UsersService.isAuthenticated()) {
@@ -45,20 +47,7 @@ function UserManagementPage() {
         return;
       }
 
-      try {
-        await UsersService.getProfile(); // Appelle correcte
-        fetchUsers();
-      } catch (err) {
-        if (err.response?.status === 403) {
-          navigate("/unauthorized");
-        } else if (err.response?.status === 401) {
-          UsersService.logout();
-          navigate("/login");
-        } else {
-          setError(err.message || "Erreur lors de la vérification des permissions");
-          setLoading(false);
-        }
-      }
+      fetchUsers();
     };
 
     checkAccess();
@@ -66,32 +55,28 @@ function UserManagementPage() {
 
   // Suppression d'un utilisateur
   const deleteUser = async (userId) => {
+    const confirmDelete = window.confirm(
+      "Êtes-vous sûr de vouloir supprimer cet utilisateur ?"
+    );
+    if (!confirmDelete) return;
+
     try {
-      const confirmDelete = window.confirm(
-        "Êtes-vous sûr de vouloir supprimer cet utilisateur ?"
-      );
-      if (confirmDelete) {
-        await UsersService.deleteUser(userId);
-        fetchUsers();
-      }
-    } catch (error) {
-      setError(error.message || "Erreur lors de la suppression de l'utilisateur");
-      console.error("Error deleting user:", error);
+      await UsersService.deleteUser(userId);
+      fetchUsers(); // rafraîchir la liste après suppression
+    } catch (err) {
+      console.error("Error deleting user:", err);
+      setError(err.message || "Erreur lors de la suppression de l'utilisateur");
     }
   };
 
-  if (loading) {
-    return <div className="loading">Chargement en cours...</div>;
-  }
+  if (loading) return <div className="loading">Chargement en cours...</div>;
 
-  if (error) {
+  if (error)
     return (
       <div className="error-container">
         <h2>Erreur</h2>
         <p>{error}</p>
-        {error.includes("expirée") ||
-        error.includes("Accès refusé") ||
-        error.includes("Accès réservé") ? (
+        {error.includes("Accès") ? (
           <Link to="/login" className="login-link">
             Se connecter
           </Link>
@@ -102,7 +87,6 @@ function UserManagementPage() {
         )}
       </div>
     );
-  }
 
   return (
     <div className="user-management-container">
@@ -124,30 +108,33 @@ function UserManagementPage() {
           </thead>
           <tbody>
             {users.length > 0 ? (
-              users.map((user) => (
-                <tr key={user.id || user._id}>
-                  <td>{user.id || user._id}</td>
-                  <td>{user.name || user.username || "Non renseigné"}</td>
-                  <td>{user.email}</td>
-                  <td>{user.role}</td>
-                  <td className="actions-cell">
-                    <button
-                      type="button"
-                      className="delete-button"
-                      onClick={() => deleteUser(user.id || user._id)}
-                      disabled={!isAdmin}
-                    >
-                      Supprimer
-                    </button>
-                    <Link
-                      to={`/admin/update-user/${user.id || user._id}`}
-                      className="update-button"
-                    >
-                      Modifier
-                    </Link>
-                  </td>
-                </tr>
-              ))
+              users.map((user) => {
+                const userId = user.id || user._id;
+                return (
+                  <tr key={userId}>
+                    <td>{userId}</td>
+                    <td>{user.name || user.username || "Non renseigné"}</td>
+                    <td>{user.email}</td>
+                    <td>{user.role}</td>
+                    <td className="actions-cell">
+                      <button
+                        type="button"
+                        className="delete-button"
+                        onClick={() => deleteUser(userId)}
+                        disabled={!isAdmin}
+                      >
+                        Supprimer
+                      </button>
+                      <Link
+                        to={`/admin/update-user/${userId}`}
+                        className="update-button"
+                      >
+                        Modifier
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })
             ) : (
               <tr>
                 <td colSpan="5">Aucun utilisateur trouvé</td>

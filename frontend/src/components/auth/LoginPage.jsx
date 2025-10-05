@@ -10,17 +10,17 @@ import "./LoginPage.css";
 function LoginPage() {
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Si déjà connecté, redirige automatiquement
   useEffect(() => {
     if (isAuthenticated) {
-      if (window.location.pathname !== "/profile") {
-        navigate("/profile");
-      }
+      navigate("/profile", { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
@@ -36,25 +36,29 @@ function LoginPage() {
     setError("");
 
     try {
+      // Appel à UsersService.login
       const userData = await UsersService.login(email, password);
 
       if (userData?.token) {
+        // Sauvegarde des données dans le contexte
         login({
           token: userData.token,
           id: userData.userId,
           role: userData.role,
         });
 
+        // Redirection selon rôle
         if (userData.role?.toLowerCase() === "admin") {
-          navigate("/admin/user-management");
+          navigate("/admin/user-management", { replace: true });
         } else {
-          navigate("/profile");
+          navigate("/profile", { replace: true });
         }
       } else {
         setError(userData.error || "Échec de l'authentification");
       }
-    } catch (error) {
-      setError(error.message || "Identifiants incorrects");
+    } catch (err) {
+      console.error("Login error:", err);
+      setError(err.message || "Identifiants incorrects");
     } finally {
       setIsLoading(false);
     }

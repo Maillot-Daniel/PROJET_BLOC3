@@ -21,52 +21,36 @@ function Events() {
   const { addItem } = useCart();
   const navigate = useNavigate();
 
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+
   useEffect(() => {
-    async function fetchEvents() {
+    const fetchEvents = async () => {
       try {
-        const res = await axios.get('http://localhost:8080/api/events');
-        const data = Array.isArray(res.data.content) ? res.data.content : [];
+        const res = await axios.get(`${API_URL}/api/events`);
+        const data = Array.isArray(res.data.content) ? res.data.content : res.data;
         setEvents(data);
       } catch (err) {
+        console.error(err);
         setError("Erreur lors du chargement des événements");
       } finally {
         setLoading(false);
       }
-    }
+    };
     fetchEvents();
-  }, []);
+  }, [API_URL]);
 
-  const formatter = new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-  });
+  const formatter = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
 
   const handleAddToCart = () => {
-    if (!selectedOfferId) {
-      alert("Choisissez une offre");
-      return;
-    }
-    if (quantity < 1 || !Number.isInteger(quantity)) {
-      alert("Veuillez saisir une quantité valide (entier >= 1)");
-      return;
-    }
-    if (!selectedEvent) {
-      alert("Aucun événement sélectionné");
-      return;
-    }
+    if (!selectedOfferId) return alert("Choisissez une offre");
+    if (quantity < 1 || !Number.isInteger(quantity)) return alert("Veuillez saisir une quantité valide (entier >= 1)");
+    if (!selectedEvent) return alert("Aucun événement sélectionné");
 
     const offer = OFFERS.find(o => o.id === parseInt(selectedOfferId));
-    if (!offer) {
-      alert("Offre invalide");
-      return;
-    }
+    if (!offer) return alert("Offre invalide");
 
-    // Vérification stock côté frontend (préventive)
     const maxAllowed = Math.floor(selectedEvent.remainingTickets / offer.people);
-    if (quantity > maxAllowed) {
-      alert(`Quantité trop élevée. Maximum possible pour cette offre : ${maxAllowed}`);
-      return;
-    }
+    if (quantity > maxAllowed) return alert(`Quantité trop élevée. Maximum possible pour cette offre : ${maxAllowed}`);
 
     const token = localStorage.getItem('olympics_auth_token');
     if (!token) {
@@ -75,24 +59,20 @@ function Events() {
       return;
     }
 
-    // Ajout dans le panier via le contexte
     const itemToAdd = {
       eventId: selectedEvent.id,
       eventTitle: selectedEvent.title,
       offerTypeId: offer.id,
       offerName: offer.name,
-      quantity: quantity,
+      quantity,
       priceUnit: selectedEvent.price * offer.multiplier
     };
 
     addItem(itemToAdd);
-
     alert("Ajouté au panier !");
     setSelectedEvent(null);
     setSelectedOfferId('');
     setQuantity(1);
-
-    // Redirection vers la page panier
     navigate('/cart');
   };
 
@@ -105,18 +85,10 @@ function Events() {
       <ul className="events-list">
         {events.map(event => (
           <li key={event.id}>
-            <img 
-              src={event.image_url} 
-              alt={event.title} 
-              loading="lazy"
-            />
+            <img src={event.image_url} alt={event.title} loading="lazy" />
             <strong>{event.title}</strong> - {formatter.format(event.price)}
             <p>Places disponibles : {event.remainingTickets}</p>
-            <button onClick={() => {
-              setSelectedEvent(event);
-              setSelectedOfferId('');
-              setQuantity(1);
-            }}>
+            <button onClick={() => { setSelectedEvent(event); setSelectedOfferId(''); setQuantity(1); }}>
               Acheter
             </button>
           </li>
@@ -130,10 +102,7 @@ function Events() {
             Offre : 
             <select
               value={selectedOfferId}
-              onChange={e => {
-                setSelectedOfferId(e.target.value);
-                setQuantity(1); // reset qty on offer change
-              }}
+              onChange={e => { setSelectedOfferId(e.target.value); setQuantity(1); }}
             >
               <option value="">-- Choisir une offre --</option>
               {OFFERS.map(offer => (
@@ -152,13 +121,11 @@ function Events() {
               step="1"
               value={quantity} 
               onChange={e => {
-                const val = Number(e.target.value);
-                if (!selectedOfferId) return; // pas d'offre choisie => pas de modif
+                if (!selectedOfferId) return;
+                const val = Math.floor(Number(e.target.value));
                 const offer = OFFERS.find(o => o.id === parseInt(selectedOfferId));
                 const maxQty = Math.floor(selectedEvent.remainingTickets / offer.people);
-                if (val >= 1 && val <= maxQty) setQuantity(Math.floor(val));
-                else if (val > maxQty) setQuantity(maxQty);
-                else setQuantity(1);
+                setQuantity(Math.max(1, Math.min(val, maxQty)));
               }}
             />
           </label>
@@ -168,19 +135,12 @@ function Events() {
               ? formatter.format(selectedEvent.price * OFFERS.find(o => o.id === parseInt(selectedOfferId)).multiplier * quantity) 
               : formatter.format(0)}
           </p>
-          <button 
-            onClick={handleAddToCart}
-            disabled={!selectedOfferId || quantity < 1}
-          >
-            Ajouter au panier
-          </button>
-          <button onClick={() => setSelectedEvent(null)} className="cancel-button">
-            Annuler
-          </button>
+          <button onClick={handleAddToCart} disabled={!selectedOfferId || quantity < 1}>Ajouter au panier</button>
+          <button onClick={() => setSelectedEvent(null)} className="cancel-button">Annuler</button>
         </div>
       )}
     </div>
   );
 }
 
-export default Events; 
+export default Events;

@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import '../homepage/HomePage.css';
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import "../homepage/HomePage.css";
 
 const HomePage = () => {
   const navigate = useNavigate();
   const [lastThreeEvents, setLastThreeEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // ✅ URL backend avec variable d'environnement CRA
+  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
 
   useEffect(() => {
     fetchLastThreeEvents();
@@ -17,37 +20,38 @@ const HomePage = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get('http://localhost:8080/api/events');
+      const response = await axios.get(`${API_URL}/api/events`, {
+        headers: { "Content-Type": "application/json" },
+      });
+
       const events = response.data.content || response.data;
 
-      // Trier les événements par date décroissante (plus récent en premier)
+      // Trier par date décroissante
       const sorted = events
-        .filter(event => event.date && !isNaN(new Date(event.date))) // filtre dates valides
+        .filter((event) => event.date && !isNaN(new Date(event.date)))
         .sort((a, b) => new Date(b.date) - new Date(a.date));
 
-      // Garder seulement les 3 derniers
+      // Garder les 3 derniers événements
       setLastThreeEvents(sorted.slice(0, 3));
     } catch (err) {
-      console.error("Erreur lors du chargement des événements récents :", err);
-      setError("Impossible de charger les événements. Veuillez réessayer plus tard.");
+      console.error("❌ Erreur lors du chargement des événements :", err);
+      setError(
+        "Impossible de charger les événements. Veuillez réessayer plus tard."
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  
-  // Navigation générique vers la page events (sans ID)
-  const handleReserveClick = () => navigate('/public-events');
-const handleLearnMore = () => navigate('/public-events');
-const handleAdventureReserve = () => navigate('/public-events');
-
-const handleEventClick = (id) => {
-  navigate(`/public-events?id=${id}`);
-};
+  // Navigation
+  const handleReserveClick = () => navigate("/public-events");
+  const handleLearnMore = () => navigate("/public-events");
+  const handleAdventureReserve = () => navigate("/public-events");
+  const handleEventClick = (id) => navigate(`/public-events?id=${id}`);
 
   return (
     <div className="homepage">
-      {/* Section Hero */}
+      {/* 🏅 Section Hero */}
       <section className="hero">
         <div className="hero-content">
           <h1>Bienvenue aux Jeux Olympiques France 2024</h1>
@@ -74,36 +78,44 @@ const handleEventClick = (id) => {
         </div>
       </section>
 
-      {/* Section Épreuves phares */}
+      {/* 🎯 Section Épreuves phares */}
       <section className="featured-events">
         <h2>Les épreuves phares</h2>
-        <p className="section-subtitle">Découvrez les moments les plus attendus des Jeux Olympiques 2024</p>
+        <p className="section-subtitle">
+          Découvrez les moments les plus attendus des Jeux Olympiques 2024
+        </p>
 
         <div className="events-grid">
           {loading && <p>Chargement des événements...</p>}
           {error && <p className="error-message">{error}</p>}
-          {!loading && !error && lastThreeEvents.length === 0 && <p>Aucun événement disponible.</p>}
-          {!loading && !error && lastThreeEvents.map(event => (
-            <div 
-              key={event.id}
-              className="event-card"
-              onClick={() => handleEventClick(event.id)}
-              style={{ cursor: "pointer" }}
-            >
-              <h3>{event.title}</h3>
-              <p>{event.description}</p>
-            </div>
-          ))}
+          {!loading && !error && lastThreeEvents.length === 0 && (
+            <p>Aucun événement disponible.</p>
+          )}
+          {!loading &&
+            !error &&
+            lastThreeEvents.map((event) => (
+              <div
+                key={event.id}
+                className="event-card"
+                onClick={() => handleEventClick(event.id)}
+                style={{ cursor: "pointer" }}
+              >
+                <h3>{event.title}</h3>
+                <p>{event.description}</p>
+              </div>
+            ))}
         </div>
       </section>
 
       <hr className="separator" />
 
-      {/* Section Rejoignez l'aventure */}
+      {/* 🌍 Section Rejoignez l'aventure */}
       <section className="join-adventure">
         <div className="adventure-content">
           <h2>Rejoignez l'aventure des Jeux Olympiques</h2>
-          <p>Vivez l'excitation, soutenez vos athlètes favoris et faites partie de l'histoire.</p>
+          <p>
+            Vivez l'excitation, soutenez vos athlètes favoris et faites partie de l'histoire.
+          </p>
 
           <div className="highlights">
             <div className="highlight-item">
@@ -127,7 +139,7 @@ const handleEventClick = (id) => {
         </div>
       </section>
 
-      {/* Section Billetterie */}
+      {/* 🎟️ Section Billetterie */}
       <section className="ticketing">
         <h2>BILLETTERIE</h2>
         <p className="section-subtitle">Comment réserver vos places</p>

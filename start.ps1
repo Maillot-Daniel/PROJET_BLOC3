@@ -1,11 +1,15 @@
-# Charger les variables d'environnement depuis .env
-Get-Content .env | ForEach-Object {
-    if ($_ -match "^\s*([^#][\w]+)=(.*)$") {
-        $key = $matches[1].Trim()
+# start.ps1
+
+# Lire le fichier dev.env ligne par ligne
+Get-Content .\dev.env | ForEach-Object {
+    if ($_ -match "^\s*([^#][^=]*)=(.*)$") {
+        $name = $matches[1].Trim()
         $value = $matches[2].Trim()
-        [System.Environment]::SetEnvironmentVariable($key, $value, "Process")
+        # Définir la variable d'environnement pour la session PowerShell
+        [System.Environment]::SetEnvironmentVariable($name, $value, "Process")
     }
 }
 
-# Lancer l'application Spring Boot avec Maven
-./mvnw spring-boot:run
+# Lancer le backend
+cd .\backend
+mvn spring-boot:run
