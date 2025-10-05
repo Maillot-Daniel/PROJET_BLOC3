@@ -50,9 +50,7 @@ public class SecurityConfig {
                                 "/public/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/api/events/**", // ← AJOUT IMPORTANT
-                                "/api/offers/**"  // ← AJOUT IMPORTANT
+                                "/swagger-ui.html"
                         ).permitAll()
 
                         // Autorisations pour les événements
@@ -79,17 +77,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // ✅ TOUTES LES ORIGINES AUTORISÉES
-        configuration.setAllowedOrigins(Arrays.asList(
-            "https://projet-bloc-3.vercel.app", // Votre frontend en production
-            "http://localhost:3000",            // React local
-            "http://localhost:5173"             // Vite/React moderne
-        ));
-        // ✅ TOUTES LES MÉTHODES AUTORISÉES
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        // ✅ TOUS LES HEADERS AUTORISÉS
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setExposedHeaders(Arrays.asList("Authorization"));
+        configuration.setAllowedOrigins(List.of("http://localhost:3000"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
