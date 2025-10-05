@@ -1,4 +1,4 @@
-package com.yourpackage.config;
+package com.olympics.tickets.backend.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,8 +15,8 @@ public class CorsConfig {
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
                         .allowedOrigins(
-                                "https://projet-bloc-3.vercel.app",
-                                "http://localhost:3000"
+                                "https://projet-bloc-3.vercel.app", // frontend production
+                                "http://localhost:3000"             // frontend local dev
                         )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
@@ -25,5 +25,3 @@ public class CorsConfig {
         };
     }
 }
-
-
