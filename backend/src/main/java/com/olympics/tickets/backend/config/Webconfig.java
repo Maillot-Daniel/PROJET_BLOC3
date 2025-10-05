@@ -14,10 +14,13 @@ public class Webconfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("http://localhost:3000") // adresse React
+                        .allowedOrigins(
+                            "http://localhost:3000",           // développement
+                            "https://ton-frontend.vercel.app"  // production (remplace par ton URL exacte)
+                        )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                        .allowedHeaders("*");
-
+                        .allowedHeaders("*")
+                        .allowCredentials(true); // nécessaire si tu envoies JWT ou cookies
             }
         };
     }
