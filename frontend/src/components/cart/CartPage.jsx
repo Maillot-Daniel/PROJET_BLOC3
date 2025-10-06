@@ -1,27 +1,59 @@
-// src/pages/cart/CartPage.jsx
-import React from "react";
+import { useState } from "react";
 import { useCart } from "../../context/CartContext";
 import { useNavigate } from "react-router-dom";
 import "./CartPage.css";
 
 const CartPage = () => {
-  const { items, removeItem, clearCart, validateCart, loading } = useCart();
+  const { items, removeItem, clearCart } = useCart();
+  const [loading, setLoading] = useState(false);
+  const [checkoutComplete, setCheckoutComplete] = useState(false);
   const navigate = useNavigate();
 
+  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+
   const totalPrice = items.reduce(
-    (acc, item) => acc + item.unitPrice * item.quantity,
+    (acc, item) => acc + item.priceUnit * item.quantity,
     0
   );
 
-  const handleContinueShopping = () => {
-    navigate("/public-events");
-  };
+  /** Valide le panier et redirige vers Stripe */
+  const handleValidateOrder = async () => {
+    const token = localStorage.getItem("olympics_auth_token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
 
-  const handleRemoveItem = (eventId, offerTypeId) => {
-    if (window.confirm("Voulez-vous vraiment supprimer cet article ?")) {
-      removeItem(eventId, offerTypeId);
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/cart/validate`, {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + token,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erreur serveur lors de la validation: ${errorText}`);
+      }
+
+      const checkoutUrl = await response.text(); // backend retourne l'URL Stripe
+      clearCart();
+      setCheckoutComplete(true);
+
+      // Redirection vers Stripe
+      window.location.href = checkoutUrl;
+    } catch (error) {
+      alert(error.message);
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
+
+  const handleContinueShopping = () => navigate("/public-events");
 
   const handleClearCart = () => {
     if (window.confirm("Voulez-vous vraiment vider le panier ?")) {
@@ -29,21 +61,21 @@ const CartPage = () => {
     }
   };
 
-  const handleValidateOrder = () => {
-    if (items.length === 0) {
-      alert("Le panier est vide.");
-      return;
-    }
-    validateCart(); // Redirection vers Stripe si tout va bien
-  };
-
-  if (items.length === 0) {
+  if (items.length === 0 && !checkoutComplete) {
     return (
       <div className="cart-container">
         <h2>Votre panier est vide.</h2>
-        <button onClick={handleContinueShopping} disabled={loading}>
-          Continuer mes achats
-        </button>
+        <button onClick={handleContinueShopping}>Continuer mes achats</button>
+      </div>
+    );
+  }
+
+  if (checkoutComplete) {
+    return (
+      <div className="cart-container">
+        <h2>Merci pour votre commande ! 🎉</h2>
+        <p>Vous allez être redirigé vers Stripe pour finaliser le paiement.</p>
+        <button onClick={handleContinueShopping}>Retour à la boutique</button>
       </div>
     );
   }
@@ -54,12 +86,12 @@ const CartPage = () => {
       <ul style={{ listStyle: "none", padding: 0 }}>
         {items.map((item, idx) => (
           <li key={item.id || idx} className="cart-item">
-            <strong>{item.eventTitle}</strong> - {item.offerTypeName}
+            <strong>{item.eventTitle}</strong> - {item.offerName}
             <br />
-            Quantité : {item.quantity} x {item.unitPrice.toFixed(2)} €
+            Quantité : {item.quantity} x {item.priceUnit.toFixed(2)} €
             <br />
             <button
-              onClick={() => handleRemoveItem(item.eventId, item.offerTypeId)}
+              onClick={() => removeItem(item.eventId, item.offerTypeId)}
               style={{ marginTop: "0.5rem", color: "red" }}
               disabled={loading}
             >
