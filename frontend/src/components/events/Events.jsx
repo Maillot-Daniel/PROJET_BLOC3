@@ -20,7 +20,6 @@ function Events() {
 
   const { addItem } = useCart();
   const navigate = useNavigate();
-
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
   useEffect(() => {
@@ -28,7 +27,14 @@ function Events() {
       try {
         const res = await axios.get(`${API_URL}/api/events`);
         const data = Array.isArray(res.data.content) ? res.data.content : res.data;
-        setEvents(data);
+
+        // Assurer que remainingTickets est un nombre
+        const eventsWithTickets = data.map(ev => ({
+          ...ev,
+          remainingTickets: Number(ev.remainingTickets ?? ev.remaining_tickets ?? ev.tickets_remaining) || 0
+        }));
+
+        setEvents(eventsWithTickets);
       } catch (err) {
         console.error(err);
         setError("Erreur lors du chargement des événements");
@@ -43,7 +49,6 @@ function Events() {
 
   const handleAddToCart = () => {
     if (!selectedOfferId) return alert("Choisissez une offre");
-    if (quantity < 1 || !Number.isInteger(quantity)) return alert("Veuillez saisir une quantité valide (entier >= 1)");
     if (!selectedEvent) return alert("Aucun événement sélectionné");
 
     const offer = OFFERS.find(o => o.id === parseInt(selectedOfferId));

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import UsersService from "../services/UsersService";
 import { useAuth } from "../../context/AuthContext";
@@ -10,17 +10,17 @@ import "./LoginPage.css";
 function LoginPage() {
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Si déjà connecté, redirige automatiquement
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/profile", { replace: true });
+      if (window.location.pathname !== "/profile") {
+        navigate("/profile");
+      }
     }
   }, [isAuthenticated, navigate]);
 
@@ -36,29 +36,25 @@ function LoginPage() {
     setError("");
 
     try {
-      // Appel à UsersService.login
       const userData = await UsersService.login(email, password);
 
       if (userData?.token) {
-        // Sauvegarde des données dans le contexte
         login({
           token: userData.token,
           id: userData.userId,
           role: userData.role,
         });
 
-        // Redirection selon rôle
         if (userData.role?.toLowerCase() === "admin") {
-          navigate("/admin/user-management", { replace: true });
+          navigate("/admin/user-management");
         } else {
-          navigate("/profile", { replace: true });
+          navigate("/profile");
         }
       } else {
         setError(userData.error || "Échec de l'authentification");
       }
-    } catch (err) {
-      console.error("Login error:", err);
-      setError(err.message || "Identifiants incorrects");
+    } catch (error) {
+      setError(error.message || "Identifiants incorrects");
     } finally {
       setIsLoading(false);
     }

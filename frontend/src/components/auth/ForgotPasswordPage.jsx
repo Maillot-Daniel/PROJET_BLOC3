@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import UsersService from '../services/UsersService';
 
 function ForgotPasswordPage() {

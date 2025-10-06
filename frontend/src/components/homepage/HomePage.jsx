@@ -9,44 +9,39 @@ const HomePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ✅ URL backend avec variable d'environnement CRA
   const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
 
   useEffect(() => {
+    const fetchLastThreeEvents = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await axios.get(`${API_URL}/api/events`, {
+          headers: { "Content-Type": "application/json" },
+        });
+
+        const events = response.data.content || response.data;
+
+        // Trier par date décroissante et filtrer les dates valides
+        const sorted = events
+          .filter((event) => event.date && !isNaN(new Date(event.date)))
+          .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        setLastThreeEvents(sorted.slice(0, 3));
+      } catch (err) {
+        console.error("❌ Erreur lors du chargement des événements :", err);
+        setError(
+          "Impossible de charger les événements. Veuillez réessayer plus tard."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchLastThreeEvents();
-  }, []);
+  }, [API_URL]);
 
-  const fetchLastThreeEvents = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await axios.get(`${API_URL}/api/events`, {
-        headers: { "Content-Type": "application/json" },
-      });
-
-      const events = response.data.content || response.data;
-
-      // Trier par date décroissante
-      const sorted = events
-        .filter((event) => event.date && !isNaN(new Date(event.date)))
-        .sort((a, b) => new Date(b.date) - new Date(a.date));
-
-      // Garder les 3 derniers événements
-      setLastThreeEvents(sorted.slice(0, 3));
-    } catch (err) {
-      console.error("❌ Erreur lors du chargement des événements :", err);
-      setError(
-        "Impossible de charger les événements. Veuillez réessayer plus tard."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Navigation
-  const handleReserveClick = () => navigate("/public-events");
-  const handleLearnMore = () => navigate("/public-events");
-  const handleAdventureReserve = () => navigate("/public-events");
+  const handleNavigate = (path) => navigate(path);
   const handleEventClick = (id) => navigate(`/public-events?id=${id}`);
 
   return (
@@ -68,10 +63,10 @@ const HomePage = () => {
           </div>
 
           <div className="hero-cta">
-            <button className="cta-primary" onClick={handleReserveClick}>
+            <button className="cta-primary" onClick={() => handleNavigate("/public-events")}>
               RÉSERVEZ VOS BILLETS →
             </button>
-            <button className="cta-secondary" onClick={handleLearnMore}>
+            <button className="cta-secondary" onClick={() => handleNavigate("/public-events")}>
               EN SAVOIR PLUS
             </button>
           </div>
@@ -91,8 +86,7 @@ const HomePage = () => {
           {!loading && !error && lastThreeEvents.length === 0 && (
             <p>Aucun événement disponible.</p>
           )}
-          {!loading &&
-            !error &&
+          {!loading && !error &&
             lastThreeEvents.map((event) => (
               <div
                 key={event.id}
@@ -103,7 +97,8 @@ const HomePage = () => {
                 <h3>{event.title}</h3>
                 <p>{event.description}</p>
               </div>
-            ))}
+            ))
+          }
         </div>
       </section>
 
@@ -129,10 +124,10 @@ const HomePage = () => {
           </div>
 
           <div className="adventure-cta">
-            <button className="cta-primary" onClick={handleAdventureReserve}>
+            <button className="cta-primary" onClick={() => handleNavigate("/public-events")}>
               Réservez vos billets
             </button>
-            <button className="cta-secondary" onClick={handleLearnMore}>
+            <button className="cta-secondary" onClick={() => handleNavigate("/public-events")}>
               En savoir plus
             </button>
           </div>

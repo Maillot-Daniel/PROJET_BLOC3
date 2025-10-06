@@ -19,48 +19,45 @@ function EventList() {
   const location = useLocation();
   const refs = useRef({}); // Pour scroller vers un event
 
-  // URL backend
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+  const token = localStorage.getItem('olympics_auth_token');
 
-  // Récupération des événements
+  // 🔹 Récupération des événements
   const fetchEvents = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/events`);
       const rawEvents = res.data.content || res.data;
 
-      const eventsWithTickets = rawEvents.map(ev => {
-        const remaining = ev.remaining_tickets ?? ev.remainingTickets ?? ev.tickets_remaining;
-        return { ...ev, totalTickets: Number(remaining) || 0 };
-      });
+      const eventsWithTickets = rawEvents.map(ev => ({
+        ...ev,
+        totalTickets: Number(ev.remainingTickets ?? ev.remaining_tickets ?? ev.tickets_remaining) || 0
+      }));
 
       setEvents(eventsWithTickets);
     } catch (err) {
       console.error('Erreur lors de la récupération des événements :', err);
+      alert('Impossible de récupérer les événements.');
     }
   };
 
   useEffect(() => {
     fetchEvents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Se déclenche une seule fois au montage
+  }, []);
 
-  // Scroll vers un événement si ID présent dans l'URL
+  // 🔹 Scroll vers un événement si ID dans l'URL
   useEffect(() => {
     const query = new URLSearchParams(location.search);
     const id = query.get('id');
     if (id && refs.current[id]) {
       refs.current[id].scrollIntoView({ behavior: 'smooth', block: 'center' });
       refs.current[id].classList.add('highlight-event');
-      setTimeout(() => {
-        refs.current[id]?.classList.remove('highlight-event');
-      }, 3000);
+      setTimeout(() => refs.current[id]?.classList.remove('highlight-event'), 3000);
     }
   }, [events, location.search]);
 
+  // 🔹 Supprimer un événement
   const handleDelete = async (id) => {
-    const token = localStorage.getItem('olympics_auth_token');
     if (!token) return navigate('/login');
-
     if (!window.confirm('Êtes-vous sûr de vouloir supprimer cet événement ?')) return;
 
     try {
@@ -70,11 +67,12 @@ function EventList() {
       setEvents(events.filter(event => event.id !== id));
       alert('Événement supprimé avec succès');
     } catch (err) {
-      console.error('Erreur lors de la suppression de l’événement :', err);
+      console.error('Erreur lors de la suppression :', err);
       alert('Erreur lors de la suppression');
     }
   };
 
+  // 🔹 Cliquer sur modifier
   const handleEditClick = (event) => {
     setEditEvent(event);
     const formattedDate = new Date(event.date).toISOString().slice(0, 16);
@@ -88,6 +86,7 @@ function EventList() {
     });
   };
 
+  // 🔹 Modifier formulaire
   const handleEditChange = (e) => {
     const { name, value } = e.target;
     setEditFormData({
@@ -100,21 +99,12 @@ function EventList() {
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('olympics_auth_token');
     if (!token) return navigate('/login');
 
     try {
-      const res = await axios.put(
-        `${API_URL}/api/events/${editEvent.id}`,
-        editFormData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
+      const res = await axios.put(`${API_URL}/api/events/${editEvent.id}`, editFormData, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+      });
       setEvents(events.map(ev => ev.id === editEvent.id ? res.data : ev));
       setEditEvent(null);
       alert('Événement mis à jour avec succès');
@@ -175,41 +165,33 @@ function EventList() {
       )}
 
       <div className="events-grid">
-        {events.length > 0 ? (
-          events.map(event => (
-            <div className="event-card" key={event.id} ref={el => (refs.current[event.id] = el)}>
-              <div className="card-header">
-                <h3>{event.title}</h3>
-                <p className="event-date">
-                  {new Date(event.date).toLocaleString('fr-FR', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
+        {events.length > 0 ? events.map(event => (
+          <div className="event-card" key={event.id} ref={el => (refs.current[event.id] = el)}>
+            <div className="card-header">
+              <h3>{event.title}</h3>
+              <p className="event-date">
+                {new Date(event.date).toLocaleString('fr-FR', {
+                  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                  hour: '2-digit', minute: '2-digit'
+                })}
+              </p>
+            </div>
+            <div className="card-body">
+              <p className="event-description">{event.description}</p>
+              <div className="event-details">
+                <p><strong>Lieu:</strong> {event.location}</p>
+                <p><strong>Prix:</strong> {event.price.toFixed(2)} €</p>
+                <p className={event.totalTickets === 0 ? 'sold-out' : event.totalTickets < 10 ? 'low-tickets' : ''}>
+                  <strong>Places restantes :</strong> {event.totalTickets === 0 ? 'Complet' : event.totalTickets}
                 </p>
               </div>
-              <div className="card-body">
-                <p className="event-description">{event.description}</p>
-                <div className="event-details">
-                  <p><strong>Lieu:</strong> {event.location}</p>
-                  <p><strong>Prix:</strong> {event.price.toFixed(2)} €</p>
-                  <p className={event.totalTickets === 0 ? 'sold-out' : event.totalTickets < 10 ? 'low-tickets' : ''}>
-                    <strong>Places restantes :</strong> {event.totalTickets === 0 ? 'Complet' : event.totalTickets}
-                  </p>
-                </div>
-              </div>
-              <div className="card-actions">
-                <button className="edit-btn" onClick={() => handleEditClick(event)}>Modifier</button>
-                <button className="delete-btn" onClick={() => handleDelete(event.id)}>Supprimer</button>
-              </div>
             </div>
-          ))
-        ) : (
-          <p>Aucun événement trouvé.</p>
-        )}
+            <div className="card-actions">
+              <button className="edit-btn" onClick={() => handleEditClick(event)}>Modifier</button>
+              <button className="delete-btn" onClick={() => handleDelete(event.id)}>Supprimer</button>
+            </div>
+          </div>
+        )) : <p>Aucun événement trouvé.</p>}
       </div>
     </div>
   );

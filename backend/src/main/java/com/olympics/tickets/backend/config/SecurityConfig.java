@@ -55,7 +55,7 @@ public class SecurityConfig {
 
                 // Autorisations pour les événements
                 .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/events").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/events/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/events/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasRole("ADMIN")
 
@@ -77,16 +77,20 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
+
+        // 🔹 Liste de tous les domaines autorisés
         configuration.setAllowedOrigins(List.of(
-            "https://projet-bloc-3.vercel.app",                                    // production
-            "https://projet-bloc-3-git-main-daniel-maillots-projects.vercel.app",  // preview branch main
-            "https://projet-bloc-3-f6j9iq6id-daniel-maillots-projects.vercel.app", // preview auto
-            "http://localhost:3000"                                                 // développement local
+            "http://localhost:3000",
+            "https://projet-bloc-3.vercel.app",
+            "https://projet-bloc-3-git-main-daniel-maillots-projects.vercel.app",
+            "https://projet-bloc-3-f6j9iq6id-daniel-maillots-projects.vercel.app",
+            "https://projet-bloc-3-mccczb463-daniel-maillots-projects.vercel.app"
         ));
+
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(List.of("Authorization"));
-        configuration.setAllowCredentials(true);
+        configuration.setAllowedHeaders(List.of("*")); 
+        configuration.setExposedHeaders(List.of("Authorization")); 
+        configuration.setAllowCredentials(true); 
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -108,8 +112,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration config) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 }

@@ -8,8 +8,8 @@ function CreateEventForm() {
     description: '',
     date: '',
     location: '',
-    price: null,
-    totalTickets: null
+    price: '',
+    totalTickets: ''
   });
 
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ function CreateEventForm() {
     const { name, value } = e.target;
     setEvent(prev => ({
       ...prev,
-      [name]: (name === 'price' || name === 'totalTickets') ? (value === '' ? null : Number(value)) : value
+      [name]: name === 'price' || name === 'totalTickets' ? (value === '' ? '' : Number(value)) : value
     }));
   };
 
@@ -33,6 +33,11 @@ function CreateEventForm() {
       return;
     }
 
+    if (!event.title || !event.description || !event.date || !event.location || event.price === '' || event.totalTickets === '') {
+      alert("Tous les champs sont obligatoires");
+      return;
+    }
+
     const today = new Date();
     const eventDate = new Date(event.date);
     if (eventDate <= today) {
@@ -42,7 +47,7 @@ function CreateEventForm() {
 
     const formattedEvent = {
       ...event,
-      date: event.date ? event.date + "T00:00:00" : null
+      date: event.date + "T00:00:00"
     };
 
     try {
@@ -58,21 +63,22 @@ function CreateEventForm() {
         description: '',
         date: '',
         location: '',
-        price: null,
-        totalTickets: null
+        price: '',
+        totalTickets: ''
       });
     } catch (err) {
       console.error("Erreur API création événement :", err.response?.data || err.message);
+      const message = err.response?.data?.message || err.message;
       if (err.response?.status === 403) {
         alert('Permission refusée : vous devez être administrateur.');
       } else {
-        alert('Erreur lors de la création de l’événement : ' + (err.response?.data?.message || err.message));
+        alert('Erreur lors de la création de l’événement : ' + message);
       }
     }
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className="create-event-form">
       <h2>Créer un événement</h2>
 
       <input
@@ -111,7 +117,7 @@ function CreateEventForm() {
         type="number"
         name="price"
         placeholder="Prix"
-        value={event.price !== null ? event.price : ''}
+        value={event.price}
         onChange={handleChange}
         min="0"
         step="0.01"
@@ -122,7 +128,7 @@ function CreateEventForm() {
         type="number"
         name="totalTickets"
         placeholder="Nombre total de tickets"
-        value={event.totalTickets !== null ? event.totalTickets : ''}
+        value={event.totalTickets}
         onChange={handleChange}
         min="0"
         required
