@@ -1,60 +1,25 @@
-import { useState } from "react";
+// src/pages/cart/CartPage.jsx
+import React from "react";
 import { useCart } from "../../context/CartContext";
 import { useNavigate } from "react-router-dom";
 import "./CartPage.css";
 
 const CartPage = () => {
-  const { items, removeItem, clearCart } = useCart();
-  const [loading, setLoading] = useState(false);
+  const { items, removeItem, clearCart, validateCart, loading } = useCart();
   const navigate = useNavigate();
 
-  // ✅ URL backend avec variable d'environnement CRA
-  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
-
   const totalPrice = items.reduce(
-    (acc, item) => acc + item.priceUnit * item.quantity,
+    (acc, item) => acc + item.unitPrice * item.quantity,
     0
   );
 
-  const handleValidateOrder = async () => {
-    const token = localStorage.getItem("olympics_auth_token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/api/cart/validate`, {
-        method: "POST",
-        headers: {
-          Authorization: "Bearer " + token,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Erreur serveur lors de la validation: ${errorText}`);
-      }
-
-      alert("Commande validée !");
-      clearCart();
-      navigate("/public-events");
-    } catch (error) {
-      alert(error.message);
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
+  const handleContinueShopping = () => {
+    navigate("/public-events");
   };
 
-  const handleContinueShopping = () => {
-    const token = localStorage.getItem("olympics_auth_token");
-    if (!token) {
-      navigate("/login");
-    } else {
-      navigate("/public-events");
+  const handleRemoveItem = (eventId, offerTypeId) => {
+    if (window.confirm("Voulez-vous vraiment supprimer cet article ?")) {
+      removeItem(eventId, offerTypeId);
     }
   };
 
@@ -64,11 +29,21 @@ const CartPage = () => {
     }
   };
 
+  const handleValidateOrder = () => {
+    if (items.length === 0) {
+      alert("Le panier est vide.");
+      return;
+    }
+    validateCart(); // Redirection vers Stripe si tout va bien
+  };
+
   if (items.length === 0) {
     return (
       <div className="cart-container">
         <h2>Votre panier est vide.</h2>
-        <button onClick={handleContinueShopping}>Continuer mes achats</button>
+        <button onClick={handleContinueShopping} disabled={loading}>
+          Continuer mes achats
+        </button>
       </div>
     );
   }
@@ -79,12 +54,12 @@ const CartPage = () => {
       <ul style={{ listStyle: "none", padding: 0 }}>
         {items.map((item, idx) => (
           <li key={item.id || idx} className="cart-item">
-            <strong>{item.eventTitle}</strong> - {item.offerName}
+            <strong>{item.eventTitle}</strong> - {item.offerTypeName}
             <br />
-            Quantité : {item.quantity} x {item.priceUnit.toFixed(2)} €
+            Quantité : {item.quantity} x {item.unitPrice.toFixed(2)} €
             <br />
             <button
-              onClick={() => removeItem(item.eventId, item.offerTypeId)}
+              onClick={() => handleRemoveItem(item.eventId, item.offerTypeId)}
               style={{ marginTop: "0.5rem", color: "red" }}
               disabled={loading}
             >
@@ -136,6 +111,7 @@ const CartPage = () => {
 
         <button
           onClick={handleClearCart}
+          disabled={loading}
           style={{
             backgroundColor: "orange",
             color: "white",
@@ -146,7 +122,6 @@ const CartPage = () => {
             cursor: "pointer",
             marginLeft: "1em",
           }}
-          disabled={loading}
         >
           Vider le panier
         </button>
