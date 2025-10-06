@@ -75,28 +75,24 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
+public CorsConfigurationSource corsConfigurationSource() {
+    CorsConfiguration configuration = new CorsConfiguration();
+    configuration.setAllowedOrigins(List.of(
+        "http://localhost:3000",
+        "https://projet-bloc-3.vercel.app",
+        "https://projet-bloc-3-git-main-daniel-maillots-projects.vercel.app"
+        // ajoute ici toutes les URL Vercel nécessaires
+    ));
+    configuration.setAllowedMethods(Arrays.asList("GET","POST","PUT","DELETE","OPTIONS"));
+    configuration.setAllowedHeaders(List.of("*"));
+    configuration.setExposedHeaders(List.of("Authorization"));
+    configuration.setAllowCredentials(true); // ou false si pas besoin de cookies
+    configuration.setMaxAge(3600L);
 
-        // 🔹 Liste de tous les domaines autorisés
-        configuration.setAllowedOrigins(List.of(
-            "http://localhost:3000",
-            "https://projet-bloc-3.vercel.app",
-            "https://projet-bloc-3-git-main-daniel-maillots-projects.vercel.app",
-            "https://projet-bloc-3-f6j9iq6id-daniel-maillots-projects.vercel.app",
-            "https://projet-bloc-3-mccczb463-daniel-maillots-projects.vercel.app"
-        ));
-
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*")); 
-        configuration.setExposedHeaders(List.of("Authorization")); 
-        configuration.setAllowCredentials(true); 
-        configuration.setMaxAge(3600L);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", configuration);
+    return source;
+}
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
