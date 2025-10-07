@@ -17,15 +17,15 @@ const HomePage = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get('http://localhost:8080/api/events'); // adapte si API différente
+      const response = await axios.get('http://localhost:8080/api/events');
       const events = response.data.content || response.data;
 
-      // Trier par date décroissante
+      // Trier les événements par date décroissante (plus récent en premier)
       const sorted = events
-        .filter(event => event.date && !isNaN(new Date(event.date)))
+        .filter(event => event.date && !isNaN(new Date(event.date))) // filtre dates valides
         .sort((a, b) => new Date(b.date) - new Date(a.date));
 
-      // Garder les 3 derniers
+      // Garder seulement les 3 derniers
       setLastThreeEvents(sorted.slice(0, 3));
     } catch (err) {
       console.error("Erreur lors du chargement des événements récents :", err);
@@ -35,10 +35,14 @@ const HomePage = () => {
     }
   };
 
+  // Navigation générique vers la page events (sans ID)
   const handleReserveClick = () => navigate('/public-events');
   const handleLearnMore = () => navigate('/public-events');
   const handleAdventureReserve = () => navigate('/public-events');
-  const handleEventClick = (id) => navigate(`/public-events?id=${id}`);
+
+  const handleEventClick = (id) => {
+    navigate(`/public-events?id=${id}`);
+  };
 
   return (
     <div className="homepage">
@@ -85,15 +89,6 @@ const HomePage = () => {
               onClick={() => handleEventClick(event.id)}
               style={{ cursor: "pointer" }}
             >
-              {/* Image de l'événement */}
-              {event.imageFileName && (
-                <img
-                  src={`/images/${event.imageFileName}`}
-                  alt={event.title}
-                  style={{ width: "100%", height: "200px", objectFit: "cover", borderRadius: "8px" }}
-                />
-              )}
-
               <h3>{event.title}</h3>
               <p>{event.description}</p>
             </div>
