@@ -9,6 +9,9 @@ const HomePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Récupérer l'URL du backend depuis l'environnement
+  const API_URL = process.env.REACT_APP_API_URL;
+
   useEffect(() => {
     fetchLastThreeEvents();
   }, []);
@@ -17,15 +20,15 @@ const HomePage = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get('http://localhost:8080/api/events');
+      const response = await axios.get(`${API_URL}/api/events`);
       const events = response.data.content || response.data;
 
-      // Trier les événements par date décroissante (plus récent en premier)
+      // Trier par date décroissante
       const sorted = events
-        .filter(event => event.date && !isNaN(new Date(event.date))) // filtre dates valides
+        .filter(event => event.date && !isNaN(new Date(event.date)))
         .sort((a, b) => new Date(b.date) - new Date(a.date));
 
-      // Garder seulement les 3 derniers
+      // Garder les 3 derniers
       setLastThreeEvents(sorted.slice(0, 3));
     } catch (err) {
       console.error("Erreur lors du chargement des événements récents :", err);
@@ -35,7 +38,6 @@ const HomePage = () => {
     }
   };
 
-  // Navigation générique vers la page events (sans ID)
   const handleReserveClick = () => navigate('/public-events');
   const handleLearnMore = () => navigate('/public-events');
   const handleAdventureReserve = () => navigate('/public-events');
@@ -76,7 +78,9 @@ const HomePage = () => {
       {/* Section Épreuves phares */}
       <section className="featured-events">
         <h2>Les épreuves phares</h2>
-        <p className="section-subtitle">Découvrez les moments les plus attendus des Jeux Olympiques 2024</p>
+        <p className="section-subtitle">
+          Découvrez les moments les plus attendus des Jeux Olympiques 2024
+        </p>
 
         <div className="events-grid">
           {loading && <p>Chargement des événements...</p>}
@@ -89,6 +93,13 @@ const HomePage = () => {
               onClick={() => handleEventClick(event.id)}
               style={{ cursor: "pointer" }}
             >
+              {event.imageUrl && (
+                <img 
+                  src={`${API_URL}/${event.imageUrl}`} 
+                  alt={event.title} 
+                  className="event-image"
+                />
+              )}
               <h3>{event.title}</h3>
               <p>{event.description}</p>
             </div>
