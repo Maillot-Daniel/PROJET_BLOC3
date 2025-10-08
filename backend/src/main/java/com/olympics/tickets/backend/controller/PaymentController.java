@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PaymentController {
 
-    @Value("${stripe.api.key}")
+    @Value("${stripe.secret.key}")
     private String stripeKey;
 
     private final CartService cartService;
