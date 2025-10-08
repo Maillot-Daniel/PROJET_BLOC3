@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class StripeService {
 
-    @Value("${stripe.api.key}")
+    @Value("${stripe.secret.key}")
     private String stripeApiKey;
 
     @Value("${frontend.success-url}")
