@@ -16,8 +16,6 @@ import java.util.UUID;
 @ToString
 public class Ticket {
 
-
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -26,7 +24,8 @@ public class Ticket {
     private String ticketNumber; // UUID
 
     @Column(name = "qr_code_url", nullable = false)
-    private String qrCodeUrl;
+    @Builder.Default
+    private String qrCodeUrl = "";
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id", nullable = false)
@@ -44,6 +43,7 @@ public class Ticket {
     private LocalDateTime purchaseDate;
 
     @Column(name = "validated", nullable = false)
+    @Builder.Default
     private boolean validated = false;
 
     @Column(nullable = false)
@@ -80,5 +80,30 @@ public class Ticket {
         };
         return basePrice.multiply(priceMultiplier)
                 .multiply(BigDecimal.valueOf(quantity));
+    }
+
+    // Méthodes utilitaires
+    public boolean isValid() {
+        return !validated && purchaseDate.isBefore(LocalDateTime.now().plusMonths(1));
+    }
+
+    public void validate() {
+        this.validated = true;
+    }
+
+    public BigDecimal getUnitPrice() {
+        return price.divide(BigDecimal.valueOf(quantity));
+    }
+
+    public String getEventTitle() {
+        return event != null ? event.getTitle() : "";
+    }
+
+    public String getUserEmail() {
+        return user != null ? user.getEmail() : "";
+    }
+
+    public String getOfferTypeName() {
+        return offerType != null ? offerType.getName() : "";
     }
 }

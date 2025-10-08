@@ -10,45 +10,45 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class CartService {
+
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final EventRepository eventRepository;
     private final OfferTypeRepository offerTypeRepository;
-    private final UsersRepo userRepository;
+    private final UsersRepository usersRepository; // CORRIGÉ
+
+    // MÉTHODE POUR LE PAYMENT CONTROLLER
+    public Cart getCartById(Long cartId) {
+        return cartRepository.findById(cartId)
+                .orElseThrow(() -> new NotFoundException("Cart not found with id: " + cartId));
+    }
 
     @Transactional
     public CartDTO addItemToCart(Long userId, CartItemDTO dto) {
-        // 1. Ajouter l'article au panier
         CartItem item = addToCart(dto, userId);
 
-        // 2. Récupérer le panier complet mis à jour
         Cart cart = cartRepository.findByUserIdAndActiveTrue(userId)
                 .orElseThrow(() -> new NotFoundException("Panier non trouvé"));
 
-        // 3. Retourner le DTO complet du panier
         return convertToDTO(cart);
     }
 
     @Transactional
     protected CartItem addToCart(CartItemDTO dto, Long userId) {
-        // Trouver ou créer le panier
         Cart cart = cartRepository.findByUserIdAndActiveTrue(userId)
                 .orElseGet(() -> createNewCart(userId));
 
-        // Valider et convertir le DTO
         Event event = eventRepository.findById(dto.getEventId())
                 .orElseThrow(() -> new NotFoundException("Événement non trouvé"));
 
         OfferType offerType = offerTypeRepository.findById(dto.getOfferTypeId())
                 .orElseThrow(() -> new NotFoundException("Type d'offre non trouvé"));
 
-        // Créer l'item de panier
         CartItem item = new CartItem();
         item.setCart(cart);
         item.setEvent(event);
@@ -56,12 +56,7 @@ public class CartService {
         item.setQuantity(dto.getQuantity());
         item.setUnitPrice(calculatePrice(event.getPrice(), offerType.getName()));
 
-        // Initialiser la liste si nécessaire
-        if (cart.getItems() == null) {
-            cart.setItems(new ArrayList<>());
-        }
-
-        cart.getItems().add(item);
+        cart.addItem(item);
         cartItemRepository.save(item);
         cartRepository.save(cart);
 
@@ -119,7 +114,7 @@ public class CartService {
     }
 
     private Cart createNewCart(Long userId) {
-        OurUsers user = userRepository.findById(userId)
+        OurUsers user = usersRepository.findById(userId) // CORRIGÉ
                 .orElseThrow(() -> new NotFoundException("Utilisateur non trouvé"));
 
         Cart cart = new Cart();

@@ -1,8 +1,9 @@
 package com.olympics.tickets.backend.service;
 
 import com.olympics.tickets.backend.entity.*;
-import com.olympics.tickets.backend.exception.NotFoundException;
-import com.olympics.tickets.backend.repository.*;
+import com.olympics.tickets.backend.repository.EventRepository;
+import com.olympics.tickets.backend.repository.TicketRepository;
+import com.olympics.tickets.backend.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,62 +16,54 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class TicketService {
+
     private final TicketRepository ticketRepository;
-    private final OfferTypeRepository offerTypeRepository;
     private final EventRepository eventRepository;
-    private final UsersRepo ourUsersRepository;
+    private final UsersRepository usersRepository;
+    private final EmailService emailService;
+    private final PdfGenerator pdfGenerator;
 
     @Transactional
-    public Ticket createTicket(Long userId, Long eventId,
-                               Integer offerTypeId, Integer quantity,
-                               BigDecimal price) {
-        // Validation des entités existantes
-        OurUsers user = ourUsersRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("Utilisateur non trouvé"));
-
+    public Ticket createTicket(Long userId, Long eventId, Integer quantity, OfferType offerType, BigDecimal price) {
+        OurUsers user = usersRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable : " + userId));
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new NotFoundException("Événement non trouvé"));
+                .orElseThrow(() -> new IllegalArgumentException("Événement introuvable : " + eventId));
 
-        OfferType offerType = offerTypeRepository.findById(offerTypeId)
-                .orElseThrow(() -> new NotFoundException("Type d'offre invalide"));
+        if (event.getRemainingTickets() < quantity) {
+            throw new IllegalStateException("Stock insuffisant pour l'événement : " + eventId);
+        }
 
-        // Création du ticket
+        event.setRemainingTickets(event.getRemainingTickets() - quantity);
+        eventRepository.save(event);
+
         Ticket ticket = Ticket.builder()
-                .user(user)
-                .event(event)
-                .offerType(offerType)
-                .quantity(quantity)
-                .price(calculateFinalPrice(price, offerType.getName(), quantity))
                 .ticketNumber(UUID.randomUUID().toString())
-                .qrCodeUrl(generateQrCodeUrl())
+                .event(event)
+                .user(user)
+                .quantity(quantity)
+                .offerType(offerType)
                 .purchaseDate(LocalDateTime.now())
                 .validated(false)
+                .price(price)
                 .build();
 
         return ticketRepository.save(ticket);
     }
 
     public List<Ticket> getUserTickets(Long userId) {
-        return ticketRepository.findByUserId(userId);
+        OurUsers user = usersRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable : " + userId));
+        return ticketRepository.findByUser(user);
     }
 
-    public BigDecimal getUserTotalSpending(Long userId) {
-        return ticketRepository.findByUserId(userId)
-                .stream()
-                .map(t -> t.getPrice().multiply(BigDecimal.valueOf(t.getQuantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    @Transactional
+    public void processSuccessfulPayment(Long cartId) throws Exception {
+        // Implémentation spécifique à ton projet
     }
 
-    private String generateQrCodeUrl() {
-        return "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" + UUID.randomUUID();
-    }
-
-    private BigDecimal calculateFinalPrice(BigDecimal basePrice, String offerType, Integer quantity) {
-        BigDecimal multipliedPrice = switch (offerType.toUpperCase()) {
-            case "DUO" -> basePrice.multiply(BigDecimal.valueOf(1.8));
-            case "FAMILLE" -> basePrice.multiply(BigDecimal.valueOf(3.2));
-            default -> basePrice;
-        };
-        return multipliedPrice.multiply(BigDecimal.valueOf(quantity));
+    @Transactional
+    public void processSuccessfulPayment(com.stripe.model.checkout.Session session) throws Exception {
+        // Implémentation spécifique à ton projet
     }
 }
