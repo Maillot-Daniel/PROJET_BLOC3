@@ -10,17 +10,17 @@ import "./LoginPage.css";
 function LoginPage() {
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Rediriger si déjà connecté
   useEffect(() => {
     if (isAuthenticated) {
-      if (window.location.pathname !== "/profile") {
-        navigate("/profile");
-      }
+      navigate("/profile");
     }
   }, [isAuthenticated, navigate]);
 
@@ -39,12 +39,19 @@ function LoginPage() {
       const userData = await UsersService.login(email, password);
 
       if (userData?.token) {
+        // Connexion réussie
         login({
           token: userData.token,
           id: userData.userId,
           role: userData.role,
         });
 
+        // 🔹 Réinitialiser les champs et l'erreur
+        setEmail("");
+        setPassword("");
+        setError("");
+
+        // Redirection selon le rôle
         if (userData.role?.toLowerCase() === "admin") {
           navigate("/admin/user-management");
         } else {
@@ -53,8 +60,8 @@ function LoginPage() {
       } else {
         setError(userData.error || "Échec de l'authentification");
       }
-    } catch (error) {
-      setError(error.message || "Identifiants incorrects");
+    } catch (err) {
+      setError(err.message || "Identifiants incorrects");
     } finally {
       setIsLoading(false);
     }
