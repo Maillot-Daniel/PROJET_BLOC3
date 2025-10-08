@@ -1,9 +1,14 @@
 package com.olympics.tickets.backend.entity;
 
 import jakarta.persistence.*;
+import lombok.Data;
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Table(name = "cart")
+@Data
 public class Cart {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -18,47 +23,54 @@ public class Cart {
     @Enumerated(EnumType.STRING)
     private CartStatus status;
 
-    @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL)
-    private List<CartItem> items;
+    @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<CartItem> items = new ArrayList<>();
 
-    // Getters and Setters
-    public Long getId() {
-        return id;
+    // Méthode de compatibilité pour le PaymentController
+    public List<CartItem> getCartItems() {
+        return this.items;
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    public void setCartItems(List<CartItem> cartItems) {
+        this.items = cartItems;
     }
 
-    public OurUsers getUser() {
-        return user;
+    // Méthodes utilitaires
+    public BigDecimal getTotalAmount() {
+        if (items == null || items.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        return items.stream()
+                .map(item -> item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    public void setUser(OurUsers user) {
-        this.user = user;
+    public int getTotalItems() {
+        return items != null ? items.size() : 0;
     }
 
-    public boolean isActive() {
-        return active;
+    public boolean isEmpty() {
+        return items == null || items.isEmpty();
     }
 
-    public void setActive(boolean active) {
-        this.active = active;
+    public void clear() {
+        if (items != null) {
+            items.clear();
+        }
     }
 
-    public CartStatus getStatus() {
-        return status;
+    public void addItem(CartItem item) {
+        if (items == null) {
+            items = new ArrayList<>();
+        }
+        item.setCart(this);
+        items.add(item);
     }
 
-    public void setStatus(CartStatus status) {
-        this.status = status;
-    }
-
-    public List<CartItem> getItems() {
-        return items;
-    }
-
-    public void setItems(List<CartItem> items) {
-        this.items = items;
+    public void removeItem(CartItem item) {
+        if (items != null) {
+            items.remove(item);
+            item.setCart(null);
+        }
     }
 }

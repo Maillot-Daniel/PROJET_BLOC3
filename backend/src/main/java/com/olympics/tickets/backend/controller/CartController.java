@@ -1,42 +1,50 @@
 package com.olympics.tickets.backend.controller;
 
+import com.olympics.tickets.backend.dto.CartDTO;
+import com.olympics.tickets.backend.service.StripeService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.security.core.Authentication;
-import lombok.RequiredArgsConstructor;
-
-import com.olympics.tickets.backend.dto.CartDTO;
-import com.olympics.tickets.backend.dto.CartItemDTO;
-import com.olympics.tickets.backend.service.CartService;
-import com.olympics.tickets.backend.entity.OurUsers;
-import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/cart")
 @RequiredArgsConstructor
 public class CartController {
 
-    private final CartService cartService;
+    private final StripeService stripeService;
 
-    // Récupère le panier de l'utilisateur connecté
-    @GetMapping
-    public ResponseEntity<CartDTO> getCurrentUserCart(Authentication authentication) {
-        OurUsers user = (OurUsers) authentication.getPrincipal();
-        return ResponseEntity.ok(cartService.getUserCart(user.getId()));
+    /**
+     * Valide le panier et crée une session Stripe Checkout
+     */
+    @PostMapping("/validate")
+    public ResponseEntity<?> validateCart(@RequestBody CartDTO cart,
+                                          @RequestHeader("Authorization") String authHeader) {
+        try {
+            // Ici tu peux vérifier le token si nécessaire
+            String customerEmail = extractEmailFromToken(authHeader);
+
+            // Crée la session Stripe
+            String checkoutUrl = stripeService.createCheckoutSession(cart, customerEmail);
+
+            // Retourne l'URL à ton frontend
+            return ResponseEntity.ok().body(new CheckoutResponse(checkoutUrl));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("An unexpected error occurred: " + e.getMessage());
+        }
     }
 
-    // Ajoute un item au panier de l'utilisateur connecté
-    @PostMapping("/items")
-    public ResponseEntity<CartDTO> addItemToCart(
-            @Valid @RequestBody CartItemDTO itemDTO,
-            Authentication authentication) {
-        OurUsers user = (OurUsers) authentication.getPrincipal();
-        return ResponseEntity.ok(cartService.addItemToCart(user.getId(), itemDTO));
+    // Méthode fictive pour récupérer l'email depuis le token JWT
+    private String extractEmailFromToken(String authHeader) {
+        // TODO: Implémente la vraie récupération de l'email à partir du JWT
+        return "client@example.com";
     }
 
-    // Endpoint admin pour récupérer le panier d'un utilisateur spécifique
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<CartDTO> getUserCartById(@PathVariable Long userId) {
-        return ResponseEntity.ok(cartService.getUserCart(userId));
+    // Classe interne pour la réponse JSON
+    @lombok.Data
+    @lombok.AllArgsConstructor
+    static class CheckoutResponse {
+        private String url;
     }
 }
