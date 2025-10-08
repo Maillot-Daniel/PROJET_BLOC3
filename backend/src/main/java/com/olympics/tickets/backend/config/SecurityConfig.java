@@ -40,19 +40,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // Désactiver CSRF pour les APIs REST
             .csrf(AbstractHttpConfigurer::disable)
-
-            // Activer la configuration CORS
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
-            // Configuration des autorisations
             .authorizeHttpRequests(auth -> auth
-
-                // Autoriser les requêtes "préflight" CORS
+                // Autoriser les requêtes préflight
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // Endpoints publics (login, docs, etc.)
+                // Endpoints publics
                 .requestMatchers(
                     "/auth/**",
                     "/public/**",
@@ -61,7 +55,7 @@ public class SecurityConfig {
                     "/swagger-ui.html"
                 ).permitAll()
 
-                // Événements : lecture publique, gestion admin
+                // Événements
                 .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/events/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/events/**").hasRole("ADMIN")
@@ -70,59 +64,41 @@ public class SecurityConfig {
                 // Routes admin
                 .requestMatchers("/admin/**").hasRole("ADMIN")
 
-                // Toutes les autres requêtes nécessitent un token JWT
+                // Toutes les autres requêtes nécessitent authentification
                 .anyRequest().authenticated()
             )
-
-            // Pas de session, API stateless
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
-
-            // Ajouter les filtres d'authentification
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    /**
-     * Configuration CORS globale
-     * Autorise le frontend local + domaines Vercel à accéder à l'API.
-     */
+    // Configuration CORS globale
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // 🔹 Autoriser toutes les origines pendant le dev (localhost + vercel)
+        // Autoriser le frontend en prod
         configuration.setAllowedOriginPatterns(List.of(
-            "http://localhost:*",
-            "https://*.vercel.app"
+            "http://localhost:*",           // pour dev local
+            "https://*.vercel.app"          // pour prod frontend
         ));
 
-        // 🔹 Méthodes HTTP autorisées
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-
-        // 🔹 En-têtes autorisés
+        configuration.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
-
-        // 🔹 En-têtes exposés au frontend
         configuration.setExposedHeaders(List.of("Authorization"));
-
-        // 🔹 Si tu utilises des cookies (sinon tu peux mettre false)
         configuration.setAllowCredentials(true);
-
-        // 🔹 Durée de cache des règles CORS (1h)
         configuration.setMaxAge(3600L);
 
-        // 🔹 Appliquer la configuration à tous les endpoints
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
 
         return source;
     }
 
-    // Provider d'authentification basé sur UserDetailsService + BCrypt
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
@@ -131,13 +107,11 @@ public class SecurityConfig {
         return authProvider;
     }
 
-    // Encoder de mots de passe
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // Gestionnaire d’authentification (pour l’injection dans d’autres services)
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();

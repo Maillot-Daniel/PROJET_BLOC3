@@ -1,9 +1,9 @@
 package com.olympics.tickets.backend.repository;
 
-import com.olympics.tickets.backend.entity.OfferType;
+import com.olympics.tickets.backend.model.OfferType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
-public interface OfferTypeRepository extends JpaRepository<OfferType, Integer> {
-    // Méthodes personnalisées si nécessaire
-    OfferType findByName(String name);
+@Repository
+public interface OfferTypeRepository extends JpaRepository<OfferType, Long> {
 }
