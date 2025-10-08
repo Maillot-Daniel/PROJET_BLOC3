@@ -7,10 +7,10 @@ function CartPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Configuration sécurisée de l'URL API
+  // --- Configuration sécurisée de l'URL API ---
   const getApiUrl = () => {
     try {
-      if (import.meta && import.meta.env && import.meta.env.VITE_API_URL) {
+      if (import.meta?.env?.VITE_API_URL) {
         return import.meta.env.VITE_API_URL;
       }
     } catch (error) {
@@ -25,6 +25,7 @@ function CartPage() {
     0
   );
 
+  // --- Validation commande ---
   const handleValidateOrder = async () => {
     console.log('🛒 Début de la validation de commande');
     const token = localStorage.getItem('olympics_auth_token');
@@ -43,28 +44,17 @@ function CartPage() {
     setLoading(true);
 
     try {
-      const validatedItems = items.map(item => {
-        if (!item.eventId || !item.offerTypeId) {
-          throw new Error('Données de produit invalides');
-        }
-        return {
-          eventId: item.eventId,
-          eventTitle: item.eventTitle || 'Titre non disponible',
-          offerTypeId: item.offerTypeId,
-          offerTypeName: item.offerName || 'Offre non disponible',
-          quantity: item.quantity || 1,
-          unitPrice: item.priceUnit || 0,
-          totalPrice: (item.priceUnit || 0) * (item.quantity || 1)
-        };
-      });
+      const validatedItems = items.map(item => ({
+        eventId: item.eventId,
+        eventTitle: item.eventTitle || 'Titre non disponible',
+        offerTypeId: item.offerTypeId,
+        offerTypeName: item.offerName || 'Offre non disponible',
+        quantity: item.quantity || 1,
+        unitPrice: item.priceUnit || 0,
+        totalPrice: (item.priceUnit || 0) * (item.quantity || 1)
+      }));
 
-      const cartBody = {
-        items: validatedItems,
-        totalPrice: totalPrice
-      };
-
-      console.log('📦 Données envoyées au serveur:', cartBody);
-      console.log('🔗 URL de l\'API:', `${API_URL}/api/cart/validate`);
+      const cartBody = { items: validatedItems, totalPrice };
 
       const response = await fetch(`${API_URL}/api/cart/validate`, {
         method: "POST",
@@ -75,24 +65,10 @@ function CartPage() {
         body: JSON.stringify(cartBody)
       });
 
-      console.log('📨 Statut de la réponse:', response.status);
-
-      if (!response.ok) {
-        let errorMessage = `Erreur serveur (${response.status})`;
-        try {
-          const errorText = await response.text();
-          errorMessage = errorText || errorMessage;
-        } catch (e) {
-          console.error('Erreur lors de la lecture de la réponse:', e);
-        }
-        throw new Error(errorMessage);
-      }
-
+      if (!response.ok) throw new Error(`Erreur serveur (${response.status})`);
       const data = await response.json();
-      console.log('✅ Réponse du serveur:', data);
 
       if (data.url) {
-        console.log('🔗 Redirection vers Stripe');
         window.location.href = data.url;
       } else {
         alert("✅ Commande validée avec succès !");
@@ -102,23 +78,7 @@ function CartPage() {
 
     } catch (error) {
       console.error('❌ Erreur lors de la validation:', error);
-      let errorMessage = "Une erreur est survenue lors de la validation de votre commande";
-
-      if (error.message.includes('Failed to fetch')) {
-        errorMessage = "Impossible de contacter le serveur. Vérifiez votre connexion internet.";
-      } else if (error.message.includes('401')) {
-        errorMessage = "Session expirée. Veuillez vous reconnecter.";
-        localStorage.removeItem('olympics_auth_token');
-        navigate('/login');
-      } else if (error.message.includes('403')) {
-        errorMessage = "Accès refusé. Vérifiez vos permissions.";
-      } else if (error.message.includes('500')) {
-        errorMessage = "Erreur interne du serveur. Veuillez réessayer plus tard.";
-      } else {
-        errorMessage = error.message;
-      }
-
-      alert(errorMessage);
+      alert(error.message || "Une erreur est survenue.");
     } finally {
       setLoading(false);
     }
@@ -131,9 +91,7 @@ function CartPage() {
   };
 
   const handleClearCart = () => {
-    if (window.confirm("Voulez-vous vraiment vider tout le panier ?")) {
-      clearCart();
-    }
+    if (window.confirm("Voulez-vous vraiment vider tout le panier ?")) clearCart();
   };
 
   const handleRemoveItem = (eventId, offerTypeId) => {
@@ -142,47 +100,111 @@ function CartPage() {
     }
   };
 
+  // --- Styles inline pour boutons et containers ---
+  const buttonStyle = {
+    padding: "10px 18px",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontWeight: "bold",
+    fontSize: "15px",
+    transition: "all 0.3s ease",
+  };
+
+  const styles = {
+    container: {
+      padding: "30px",
+      maxWidth: "800px",
+      margin: "0 auto",
+      backgroundColor: "#f9fafb",
+      borderRadius: "16px",
+      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+    },
+    header: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "20px",
+    },
+    title: { fontSize: "24px", color: "#1e293b" },
+    item: {
+      backgroundColor: "#ffffff",
+      borderRadius: "12px",
+      padding: "15px",
+      marginBottom: "12px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+    },
+    totalSection: {
+      marginTop: "20px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      fontSize: "18px",
+      fontWeight: "bold",
+    },
+    validateBtn: {
+      ...buttonStyle,
+      backgroundColor: "#16a34a",
+      color: "#fff",
+    },
+    continueBtn: {
+      ...buttonStyle,
+      backgroundColor: "#3b82f6",
+      color: "#fff",
+    },
+    clearBtn: {
+      ...buttonStyle,
+      backgroundColor: "#dc2626",
+      color: "#fff",
+    },
+    removeBtn: {
+      ...buttonStyle,
+      backgroundColor: "#f87171",
+      color: "#fff",
+      padding: "6px 10px",
+      fontSize: "20px",
+      borderRadius: "50%",
+    },
+  };
+
   if (items.length === 0) {
     return (
-      <div className="cart-container">
-        <div className="cart-empty">
-          <h2>Votre panier est vide</h2>
-          <p>Explorez nos événements et ajoutez des billets à votre panier.</p>
-          <button
-            onClick={handleContinueShopping}
-            className="continue-shopping-btn"
-          >
-            Découvrir les événements
-          </button>
-        </div>
+      <div style={styles.container}>
+        <h2 style={styles.title}>Votre panier est vide</h2>
+        <p>Explorez nos événements et ajoutez des billets à votre panier.</p>
+        <button onClick={handleContinueShopping} style={styles.continueBtn}>
+          Découvrir les événements
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="cart-container">
-      <div className="cart-header">
-        <h2>Votre panier</h2>
-        <span className="cart-count">{items.length} article(s)</span>
+    <div style={styles.container}>
+      <div style={styles.header}>
+        <h2 style={styles.title}>Votre panier</h2>
+        <span style={{ color: "#64748b" }}>{items.length} article(s)</span>
       </div>
 
-      <div className="cart-items">
+      <div>
         {items.map((item, index) => (
-          <div key={`${item.eventId}-${item.offerTypeId}-${index}`} className="cart-item">
-            <div className="item-info">
-              <h3 className="item-title">{item.eventTitle}</h3>
-              <p className="item-offer">{item.offerName}</p>
-              <div className="item-details">
-                <span className="item-quantity">Quantité: {item.quantity}</span>
-                <span className="item-price">{item.priceUnit?.toFixed(2)} € l'unité</span>
+          <div key={`${item.eventId}-${item.offerTypeId}-${index}`} style={styles.item}>
+            <div>
+              <h3 style={{ color: "#1e40af" }}>{item.eventTitle}</h3>
+              <p style={{ color: "#475569" }}>{item.offerName}</p>
+              <div style={{ fontSize: "14px", color: "#64748b" }}>
+                Quantité: {item.quantity} | Prix unitaire: {item.priceUnit?.toFixed(2)} €
               </div>
-              <div className="item-total">
+              <div style={{ marginTop: "6px", fontWeight: "bold", color: "#334155" }}>
                 Sous-total: {(item.priceUnit * item.quantity).toFixed(2)} €
               </div>
             </div>
             <button
               onClick={() => handleRemoveItem(item.eventId, item.offerTypeId)}
-              className="remove-item-btn"
+              style={styles.removeBtn}
               disabled={loading}
               aria-label="Supprimer cet article"
             >
@@ -192,46 +214,23 @@ function CartPage() {
         ))}
       </div>
 
-      <div className="cart-summary">
-        <div className="total-section">
-          <span className="total-label">Total:</span>
-          <span className="total-amount">{totalPrice.toFixed(2)} €</span>
-        </div>
+      <div style={styles.totalSection}>
+        <span>Total :</span>
+        <span>{totalPrice.toFixed(2)} €</span>
+      </div>
 
-        <div className="cart-actions">
-          <button
-            onClick={handleValidateOrder}
-            disabled={loading}
-            className="validate-order-btn"
-          >
-            {loading ? (
-              <>
-                <span className="loading-spinner"></span>
-                Traitement en cours...
-              </>
-            ) : (
-              'Valider la commande'
-            )}
-          </button>
+      <div style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
+        <button onClick={handleValidateOrder} disabled={loading} style={styles.validateBtn}>
+          {loading ? "Traitement..." : "✅ Valider la commande"}
+        </button>
 
-          <div className="secondary-actions">
-            <button
-              onClick={handleContinueShopping}
-              disabled={loading}
-              className="continue-shopping-btn"
-            >
-              Continuer mes achats
-            </button>
+        <button onClick={handleContinueShopping} disabled={loading} style={styles.continueBtn}>
+          🛍️ Continuer mes achats
+        </button>
 
-            <button
-              onClick={handleClearCart}
-              disabled={loading}
-              className="clear-cart-btn"
-            >
-              Vider le panier
-            </button>
-          </div>
-        </div>
+        <button onClick={handleClearCart} disabled={loading} style={styles.clearBtn}>
+          🗑️ Vider le panier
+        </button>
       </div>
     </div>
   );

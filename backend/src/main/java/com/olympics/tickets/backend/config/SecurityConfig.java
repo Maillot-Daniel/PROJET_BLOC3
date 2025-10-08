@@ -21,7 +21,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -41,10 +40,19 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            // Désactiver CSRF pour les APIs REST
             .csrf(AbstractHttpConfigurer::disable)
+
+            // Activer la configuration CORS
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+            // Configuration des autorisations
             .authorizeHttpRequests(auth -> auth
-                // Endpoints publics
+
+                // Autoriser les requêtes "préflight" CORS
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                // Endpoints publics (login, docs, etc.)
                 .requestMatchers(
                     "/auth/**",
                     "/public/**",
@@ -53,7 +61,7 @@ public class SecurityConfig {
                     "/swagger-ui.html"
                 ).permitAll()
 
-                // Autorisations pour les événements
+                // Événements : lecture publique, gestion admin
                 .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/events/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/events/**").hasRole("ADMIN")
@@ -62,38 +70,59 @@ public class SecurityConfig {
                 // Routes admin
                 .requestMatchers("/admin/**").hasRole("ADMIN")
 
-                // Toutes les autres requêtes nécessitent une authentification
+                // Toutes les autres requêtes nécessitent un token JWT
                 .anyRequest().authenticated()
             )
+
+            // Pas de session, API stateless
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
+
+            // Ajouter les filtres d'authentification
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
+    /**
+     * Configuration CORS globale
+     * Autorise le frontend local + domaines Vercel à accéder à l'API.
+     */
     @Bean
-public CorsConfigurationSource corsConfigurationSource() {
-    CorsConfiguration configuration = new CorsConfiguration();
-    configuration.setAllowedOrigins(List.of(
-        "http://localhost:3000",
-        "https://projet-bloc-3.vercel.app",
-        "https://projet-bloc-3-git-main-daniel-maillots-projects.vercel.app"
-        // ajoute ici toutes les URL Vercel nécessaires
-    ));
-    configuration.setAllowedMethods(Arrays.asList("GET","POST","PUT","DELETE","OPTIONS"));
-    configuration.setAllowedHeaders(List.of("*"));
-    configuration.setExposedHeaders(List.of("Authorization"));
-    configuration.setAllowCredentials(true); // ou false si pas besoin de cookies
-    configuration.setMaxAge(3600L);
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
 
-    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-    source.registerCorsConfiguration("/**", configuration);
-    return source;
-}
+        // 🔹 Autoriser toutes les origines pendant le dev (localhost + vercel)
+        configuration.setAllowedOriginPatterns(List.of(
+            "http://localhost:*",
+            "https://*.vercel.app"
+        ));
 
+        // 🔹 Méthodes HTTP autorisées
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+
+        // 🔹 En-têtes autorisés
+        configuration.setAllowedHeaders(List.of("*"));
+
+        // 🔹 En-têtes exposés au frontend
+        configuration.setExposedHeaders(List.of("Authorization"));
+
+        // 🔹 Si tu utilises des cookies (sinon tu peux mettre false)
+        configuration.setAllowCredentials(true);
+
+        // 🔹 Durée de cache des règles CORS (1h)
+        configuration.setMaxAge(3600L);
+
+        // 🔹 Appliquer la configuration à tous les endpoints
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+
+        return source;
+    }
+
+    // Provider d'authentification basé sur UserDetailsService + BCrypt
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
@@ -102,11 +131,13 @@ public CorsConfigurationSource corsConfigurationSource() {
         return authProvider;
     }
 
+    // Encoder de mots de passe
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    // Gestionnaire d’authentification (pour l’injection dans d’autres services)
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();

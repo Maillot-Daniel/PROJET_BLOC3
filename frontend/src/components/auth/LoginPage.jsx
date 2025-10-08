@@ -17,7 +17,7 @@ function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Rediriger si déjà connecté
+  // Redirige si déjà connecté
   useEffect(() => {
     if (isAuthenticated) {
       navigate("/profile");
@@ -46,17 +46,19 @@ function LoginPage() {
           role: userData.role,
         });
 
-        // 🔹 Réinitialiser les champs et l'erreur
+        // Réinitialiser les champs avant redirection
         setEmail("");
         setPassword("");
         setError("");
 
-        // Redirection selon le rôle
-        if (userData.role?.toLowerCase() === "admin") {
-          navigate("/admin/user-management");
-        } else {
-          navigate("/profile");
-        }
+        // Laisser le temps à React de vider les champs avant la navigation
+        setTimeout(() => {
+          if (userData.role?.toLowerCase() === "admin") {
+            navigate("/admin/user-management");
+          } else {
+            navigate("/profile");
+          }
+        }, 200);
       } else {
         setError(userData.error || "Échec de l'authentification");
       }
@@ -138,8 +140,24 @@ function LoginPage() {
               </button>
             </div>
 
-            <button type="submit" className="login-button" disabled={isLoading}>
-              Se connecter
+            <button
+              type="submit"
+              className="login-button"
+              disabled={isLoading}
+              style={{
+                backgroundColor: isLoading ? "#999" : "#007bff",
+                color: "white",
+                padding: "0.8rem 1.5rem",
+                border: "none",
+                borderRadius: "8px",
+                cursor: isLoading ? "not-allowed" : "pointer",
+                fontWeight: "bold",
+                fontSize: "1rem",
+                width: "100%",
+                transition: "background-color 0.3s ease"
+              }}
+            >
+              {isLoading ? "Connexion..." : "Se connecter"}
             </button>
           </form>
         )}
