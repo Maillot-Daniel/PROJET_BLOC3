@@ -40,54 +40,56 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(AbstractHttpConfigurer::disable)
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .authorizeHttpRequests(auth -> auth
-                // Autoriser les requêtes préflight
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .authorizeHttpRequests(auth -> auth
+                        // Autoriser les requêtes préflight (OPTIONS)
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // Endpoints publics
-                .requestMatchers(
-                    "/auth/**",
-                    "/public/**",
-                    "/v3/api-docs/**",
-                    "/swagger-ui/**",
-                    "/swagger-ui.html"
-                ).permitAll()
+                        // Endpoints publics
+                        .requestMatchers(
+                                "/auth/**",
+                                "/public/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
 
-                // Événements
-                .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/events/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/events/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasRole("ADMIN")
+                        // Événements
+                        .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/events/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/events/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasRole("ADMIN")
 
-                // Routes admin
-                .requestMatchers("/admin/**").hasRole("ADMIN")
+                        // Routes admin
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
 
-                // Toutes les autres requêtes nécessitent authentification
-                .anyRequest().authenticated()
-            )
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            )
-            .authenticationProvider(authenticationProvider())
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                        // Toutes les autres requêtes nécessitent authentification
+                        .anyRequest().authenticated()
+                )
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .authenticationProvider(authenticationProvider())
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // Configuration CORS globale
+    // 🔧 Configuration CORS globale
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Autoriser le frontend en prod
         configuration.setAllowedOriginPatterns(List.of(
-            "http://localhost:*",           // pour dev local
-            "https://*.vercel.app"          // pour prod frontend
+                "http://localhost:*",                    // pour dev local
+                "http://127.0.0.1:*",                    //  variante locale
+                "https://projet-bloc-3.vercel.app",      //  frontend Vercel
+                "https://*.vercel.app",                  // tous sous-domaines Vercel
+                "https://projet-bloc3.onrender.com"      // backend (utile pour tests internes)
         ));
 
-        configuration.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Authorization"));
         configuration.setAllowCredentials(true);
@@ -95,7 +97,6 @@ public class SecurityConfig {
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
-
         return source;
     }
 

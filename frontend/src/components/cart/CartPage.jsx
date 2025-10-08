@@ -10,16 +10,27 @@ function CartPage() {
   // --- Configuration sécurisée de l'URL API ---
   const getApiUrl = () => {
     try {
-      if (import.meta?.env?.VITE_API_URL) {
+      // 1️⃣ Variable d'environnement définie (prod)
+      if (import.meta?.env?.VITE_API_URL && import.meta.env.VITE_API_URL.trim() !== "") {
         return import.meta.env.VITE_API_URL;
       }
+
+      // 2️⃣ En local (dev)
+      if (["localhost", "127.0.0.1"].includes(window.location.hostname)) {
+        return "http://localhost:8080";
+      }
+
+      // 3️⃣ Fallback (prod sans variable) → backend Render
+      return "https://projet-bloc3.onrender.com";
     } catch (error) {
-      console.warn("Erreur lors de la lecture des variables d'environnement:", error);
+      console.warn("⚠️ Erreur lors de la lecture de VITE_API_URL :", error);
+      return "https://projet-bloc3.onrender.com";
     }
-    return "http://localhost:8080";
   };
 
   const API_URL = getApiUrl();
+
+  // --- Calcul du total ---
   const totalPrice = items.reduce(
     (acc, item) => acc + (item.priceUnit || 0) * (item.quantity || 0),
     0
@@ -62,20 +73,19 @@ function CartPage() {
           "Authorization": `Bearer ${token.replace('Bearer ', '')}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(cartBody)
+        body: JSON.stringify(cartBody),
       });
 
       if (!response.ok) throw new Error(`Erreur serveur (${response.status})`);
       const data = await response.json();
 
       if (data.url) {
-        window.location.href = data.url;
+        window.location.href = data.url; // redirection Stripe ou autre
       } else {
         alert("✅ Commande validée avec succès !");
         clearCart();
         navigate('/public-events');
       }
-
     } catch (error) {
       console.error('❌ Erreur lors de la validation:', error);
       alert(error.message || "Une erreur est survenue.");
@@ -84,6 +94,7 @@ function CartPage() {
     }
   };
 
+  // --- Autres actions panier ---
   const handleContinueShopping = () => {
     const token = localStorage.getItem('olympics_auth_token');
     if (!token) navigate('/login');
@@ -100,7 +111,7 @@ function CartPage() {
     }
   };
 
-  // --- Styles inline pour boutons et containers ---
+  // --- Styles inline ---
   const buttonStyle = {
     padding: "10px 18px",
     border: "none",
@@ -170,6 +181,7 @@ function CartPage() {
     },
   };
 
+  // --- Rendu ---
   if (items.length === 0) {
     return (
       <div style={styles.container}>
