@@ -11,14 +11,12 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-@Data
 public class CartRequest {
     @NotNull(message = "La liste des articles ne peut pas être nulle")
     @NotEmpty(message = "Le panier ne peut pas être vide")
@@ -27,6 +25,23 @@ public class CartRequest {
 
     @Email(message = "L'email doit être valide")
     private String customerEmail;
+
+    // Getters and Setters
+    public List<CartItemDTO> getCartItems() {
+        return cartItems;
+    }
+
+    public void setCartItems(List<CartItemDTO> cartItems) {
+        this.cartItems = cartItems;
+    }
+
+    public String getCustomerEmail() {
+        return customerEmail;
+    }
+
+    public void setCustomerEmail(String customerEmail) {
+        this.customerEmail = customerEmail;
+    }
 
     /**
      * Vérifie si le panier est valide

@@ -16,17 +16,14 @@ public class OurUsers implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;  // Utilisez Long pour la compatibilité avec des bases de données plus grandes
+    private Long id;
 
     private String email;
     private String name;
     private String password;
     private String city;
+    private String role;
 
-    // Si vous utilisez des rôles multiples, il serait préférable de gérer les rôles via une entité Role associée
-    private String role;  // Exemple simple pour un rôle (admin, user, etc.)
-
-    // Relation OneToMany avec CartItem
     @OneToMany(mappedBy = "user")
     private List<CartItem> cartItems;
 
@@ -64,5 +61,26 @@ public class OurUsers implements UserDetails {
     @Override
     public boolean isEnabled() {
         return true;
+    }
+
+    // Ajout des getters manquants
+    public Long getId() {
+        return this.id;
+    }
+
+    public String getEmail() {
+        return this.email;
+    }
+
+    public String getName() {
+        return this.name;
+    }
+
+    public String getCity() {
+        return this.city;
+    }
+
+    public String getRole() {
+        return this.role;
     }
 }

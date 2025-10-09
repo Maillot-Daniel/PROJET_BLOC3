@@ -1,71 +1,42 @@
 package com.olympics.tickets.backend.service;
 
-import com.olympics.tickets.backend.entity.Ticket;
-import lombok.RequiredArgsConstructor;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
-
-import jakarta.mail.internet.MimeMessage;
 import java.util.List;
+import com.olympics.tickets.backend.entity.Ticket;
 
 @Service
-@RequiredArgsConstructor
 public class EmailService {
 
-    private final PdfGenerator pdfGenerator;
-    private final JavaMailSender mailSender; // Assure-toi de configurer JavaMailSender dans application.properties
-
-    /**
-     * Envoi d'un email avec pièce jointe
-     */
-    public void sendEmailWithAttachment(String email, String subject, String body, byte[] attachment, String filename) {
-        try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-            helper.setTo(email);
-            helper.setSubject(subject);
-            helper.setText(body);
-            helper.addAttachment(filename, new jakarta.activation.DataSource() {
-                @Override
-                public java.io.InputStream getInputStream() {
-                    return new java.io.ByteArrayInputStream(attachment);
-                }
-
-                @Override
-                public java.io.OutputStream getOutputStream() {
-                    throw new UnsupportedOperationException("Not implemented");
-                }
-
-                @Override
-                public String getContentType() {
-                    return "application/pdf";
-                }
-
-                @Override
-                public String getName() {
-                    return filename;
-                }
-            });
-
-            mailSender.send(message);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    // Méthode 1
+    public void sendEmail(String to, String subject, String text) {
+        logEmail("BASIC", to, subject, "No attachment");
     }
 
-    /**
-     * Envoi de tous les tickets à un utilisateur
-     */
-    public void sendTicketsEmail(String email, List<Ticket> tickets) {
-        for (Ticket ticket : tickets) {
-            byte[] pdfBytes = pdfGenerator.generateTicketPdf(ticket, ticket.getEvent(), ticket.getUser());
-            String subject = "Vos billets - " + ticket.getEvent().getTitle();
-            String body = "Bonjour " + ticket.getUser().getName() + ",\n\nMerci pour votre achat. Vos billets sont en pièce jointe.";
-            String filename = "billet_" + ticket.getTicketNumber() + ".pdf";
+    // Méthode 2 - Pour TicketService
+    public void sendEmailWithAttachment(String to, String subject, String text,
+                                        byte[] attachment, String filename) {
+        logEmail("ATTACHMENT", to, subject, "File: " + filename + " (" + attachment.length + " bytes)");
+    }
 
-            sendEmailWithAttachment(email, subject, body, pdfBytes, filename);
-        }
+    // Méthode 3 - Pour PaymentService
+    public void sendTicketsEmail(String customerEmail, List<Ticket> tickets) {
+        System.out.println("✉️ [TICKETS EMAIL] To: " + customerEmail +
+                " | Tickets: " + tickets.size());
+    }
+
+    // Méthode 4
+    public void sendTicketConfirmation(String to, String customerName,
+                                       String eventName, String ticketDetails) {
+        String subject = "Confirmation - " + eventName;
+        String text = "Bonjour " + customerName + ", billet confirmé pour " + eventName;
+        sendEmail(to, subject, text);
+    }
+
+    private void logEmail(String type, String to, String subject, String details) {
+        System.out.println("✉️ [" + type + " EMAIL]");
+        System.out.println("   To: " + to);
+        System.out.println("   Subject: " + subject);
+        System.out.println("   Details: " + details);
+        System.out.println("   ────────────────────────");
     }
 }

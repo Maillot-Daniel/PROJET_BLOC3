@@ -20,7 +20,7 @@ public class CartService {
     private final CartItemRepository cartItemRepository;
     private final EventRepository eventRepository;
     private final OfferTypeRepository offerTypeRepository;
-    private final UsersRepository usersRepository; // CORRIGÉ
+    private final UsersRepository usersRepository;
 
     // MÉTHODE POUR LE PAYMENT CONTROLLER
     public Cart getCartById(Long cartId) {
@@ -56,7 +56,7 @@ public class CartService {
         item.setQuantity(dto.getQuantity());
         item.setUnitPrice(calculatePrice(event.getPrice(), offerType.getName()));
 
-        cart.addItem(item);
+        cart.getItems().add(item);
         cartItemRepository.save(item);
         cartRepository.save(cart);
 
@@ -114,7 +114,7 @@ public class CartService {
     }
 
     private Cart createNewCart(Long userId) {
-        OurUsers user = usersRepository.findById(userId) // CORRIGÉ
+        OurUsers user = usersRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Utilisateur non trouvé"));
 
         Cart cart = new Cart();

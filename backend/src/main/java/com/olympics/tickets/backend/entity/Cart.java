@@ -73,4 +73,41 @@ public class Cart {
             item.setCart(null);
         }
     }
+
+    // Ajout des getters/setters manquants pour résoudre les erreurs de compilation
+    public Long getId() {
+        return this.id;
+    }
+
+    public OurUsers getUser() {
+        return this.user;
+    }
+
+    public void setUser(OurUsers user) {
+        this.user = user;
+    }
+
+    public boolean isActive() {
+        return this.active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public CartStatus getStatus() {
+        return this.status;
+    }
+
+    public void setStatus(CartStatus status) {
+        this.status = status;
+    }
+
+    public List<CartItem> getItems() {
+        return this.items;
+    }
+
+    public void setItems(List<CartItem> items) {
+        this.items = items;
+    }
 }

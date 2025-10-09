@@ -21,7 +21,7 @@ public class Ticket {
     private Long id;
 
     @Column(name = "ticket_number", nullable = false, unique = true)
-    private String ticketNumber; // UUID
+    private String ticketNumber;
 
     @Column(name = "qr_code_url", nullable = false)
     @Builder.Default
@@ -105,5 +105,30 @@ public class Ticket {
 
     public String getOfferTypeName() {
         return offerType != null ? offerType.getName() : "";
+    }
+
+    // Ajout des getters manquants pour résoudre les erreurs de compilation
+    public String getTicketNumber() {
+        return this.ticketNumber;
+    }
+
+    public Event getEvent() {
+        return this.event;
+    }
+
+    public OurUsers getUser() {
+        return this.user;
+    }
+
+    public OfferType getOfferType() {
+        return this.offerType;
+    }
+
+    public Integer getQuantity() {
+        return this.quantity;
+    }
+
+    public BigDecimal getPrice() {
+        return this.price;
     }
 }

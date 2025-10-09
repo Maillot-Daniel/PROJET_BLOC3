@@ -7,19 +7,11 @@ function CartPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // --- Déstructuration sécurisée de l'URL API ---
-  const { VITE_API_URL } = import.meta.env;
-
   const getApiUrl = () => {
     try {
       // 1️⃣ Variable d'environnement définie (prod)
-
-      if (import.meta?.env?.VITE_API_URL && import.meta.env.VITE_API_URL.trim() !== "") {
+      if (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim() !== "") {
         return import.meta.env.VITE_API_URL;
-
-      if (VITE_API_URL && VITE_API_URL.trim() !== "") {
-        return VITE_API_URL;
-
       }
 
       // 2️⃣ En local (dev)

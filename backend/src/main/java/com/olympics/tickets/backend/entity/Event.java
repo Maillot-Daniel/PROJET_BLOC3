@@ -16,7 +16,7 @@ import java.util.Objects;
                 @Index(name = "idx_event_date", columnList = "date"),
                 @Index(name = "idx_event_location", columnList = "location"),
                 @Index(name = "idx_event_price", columnList = "price"),
-                @Index(name = "idx_event_remaining_tickets", columnList = "remainingTickets")
+                @Index(name = "idx_event_remaining_tickets", columnList = "remaining_tickets")
         })
 @Getter
 @Setter

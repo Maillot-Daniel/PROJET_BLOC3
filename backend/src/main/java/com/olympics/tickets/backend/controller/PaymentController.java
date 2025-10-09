@@ -6,6 +6,7 @@ import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
 import com.olympics.tickets.backend.service.CartService;
 import com.olympics.tickets.backend.entity.Cart;
+import com.olympics.tickets.backend.entity.CartItem;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -43,11 +44,11 @@ public class PaymentController {
     @PostMapping("/create-checkout-session")
     public ResponseEntity<?> createCheckout(@RequestBody CreateCheckoutRequest req) throws StripeException {
         Cart cart = cartService.getCartById(req.getCartId());
-        if (cart == null || cart.getCartItems() == null || cart.getCartItems().isEmpty()) {
+        if (cart == null || cart.getItems() == null || cart.getItems().isEmpty()) {
             return ResponseEntity.badRequest().body("Panier vide ou introuvable");
         }
 
-        List<SessionCreateParams.LineItem> lineItems = cart.getCartItems().stream().map(item -> {
+        List<SessionCreateParams.LineItem> lineItems = cart.getItems().stream().map(item -> {
             long unitAmountCents = item.getUnitPrice().multiply(new BigDecimal(100)).longValue();
 
             String productName = item.getEvent().getTitle();

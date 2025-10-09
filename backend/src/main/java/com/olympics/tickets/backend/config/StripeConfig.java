@@ -9,19 +9,22 @@ import jakarta.annotation.PostConstruct;
 @Component
 public class StripeConfig {
 
-    // CORRIGEZ LE NOM DE LA PROPRIÉTÉ
-    @Value("${stripe.secret.key}")  // ← Changez stripe.api.key en stripe.secret.key
-    private String stripeApiKey;
+    @Value("${stripe.secret.key}")
+    private String stripeSecretKey;
 
     @PostConstruct
     public void init() {
-        // AJOUTEZ UNE VALEUR PAR DÉFAUT POUR LE DÉVELOPPEMENT
-        if(stripeApiKey == null || stripeApiKey.isEmpty() || stripeApiKey.contains("temporary")) {
-            System.out.println("⚠️  Stripe API key non configurée, utilisation d'une clé temporaire");
-            Stripe.apiKey = "sk_test_temporaire123";
+        if (stripeSecretKey == null || stripeSecretKey.isEmpty()) {
+            System.out.println("❌ Stripe API key non configurée - Paiements désactivés");
+        } else if (stripeSecretKey.startsWith("sk_test")) {
+            Stripe.apiKey = stripeSecretKey;
+            System.out.println("✅ Stripe configuré en mode TEST avec votre clé !");
+            System.out.println("🔑 Clé utilisée: " + stripeSecretKey.substring(0, 20) + "...");
+        } else if (stripeSecretKey.startsWith("sk_live")) {
+            Stripe.apiKey = stripeSecretKey;
+            System.out.println("🚀 Stripe configuré en mode PRODUCTION !");
         } else {
-            Stripe.apiKey = stripeApiKey;
-            System.out.println("✅ Stripe API key configurée correctement !");
+            System.out.println("⚠️  Clé Stripe invalide - Paiements désactivés");
         }
     }
 }

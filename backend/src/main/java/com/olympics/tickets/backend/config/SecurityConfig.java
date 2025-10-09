@@ -21,6 +21,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -50,19 +51,34 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/auth/**",
                                 "/public/**",
+                                "/api/test",
+                                "/api/db-test",
+                                "/api/stripe/webhook",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
 
-                        // Événements
+                        // Événements - lecture publique, écriture admin
                         .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/events/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/events/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasRole("ADMIN")
 
+                        // Panier - authentifié
+                        .requestMatchers("/api/cart/**").authenticated()
+
+                        // Paiement - authentifié
+                        .requestMatchers("/api/pay/**").authenticated()
+
+                        // Tickets - authentifié
+                        .requestMatchers("/api/tickets/**").authenticated()
+
                         // Routes admin
                         .requestMatchers("/admin/**").hasRole("ADMIN")
+
+                        // Profil utilisateur
+                        .requestMatchers("/adminuser/**").authenticated()
 
                         // Toutes les autres requêtes nécessitent authentification
                         .anyRequest().authenticated()
@@ -80,16 +96,29 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of(
+        configuration.setAllowedOriginPatterns(Arrays.asList(
                 "http://localhost:*",                    // dev local
                 "http://127.0.0.1:*",                    // autre variante locale
                 "https://projet-bloc-3.vercel.app",      // frontend Vercel
                 "https://*.vercel.app",                  // tous sous-domaines Vercel
                 "https://projet-bloc3.onrender.com"      // backend (tests internes)
         ));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type",
+                "X-Requested-With",
+                "Accept",
+                "Origin",
+                "Access-Control-Request-Method",
+                "Access-Control-Request-Headers"
+        ));
+        configuration.setExposedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type",
+                "Access-Control-Allow-Origin",
+                "Access-Control-Allow-Credentials"
+        ));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 

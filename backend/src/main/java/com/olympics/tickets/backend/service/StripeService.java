@@ -1,12 +1,16 @@
 package com.olympics.tickets.backend.service;
 
 import com.olympics.tickets.backend.dto.CartDTO;
+import com.olympics.tickets.backend.dto.CartItemDTO;
 import com.stripe.Stripe;
+import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
+import java.util.Arrays;
 
 @Service
 public class StripeService {
@@ -25,14 +29,13 @@ public class StripeService {
         Stripe.apiKey = stripeApiKey;
     }
 
-    public String createCheckoutSession(CartDTO cart, String customerEmail) throws Exception {
-
+    public String createCheckoutSession(CartDTO cart, String customerEmail) throws StripeException {
         SessionCreateParams.LineItem[] lineItems = cart.getItems().stream().map(item ->
                 SessionCreateParams.LineItem.builder()
                         .setQuantity((long) item.getQuantity())
                         .setPriceData(
                                 SessionCreateParams.LineItem.PriceData.builder()
-                                        .setCurrency("usd")
+                                        .setCurrency("eur")
                                         .setUnitAmount(item.getUnitPrice().multiply(new java.math.BigDecimal(100)).longValue())
                                         .setProductData(
                                                 SessionCreateParams.LineItem.PriceData.ProductData.builder()
@@ -49,11 +52,10 @@ public class StripeService {
                 .setSuccessUrl(successUrl + "?session_id={CHECKOUT_SESSION_ID}")
                 .setCancelUrl(cancelUrl)
                 .setCustomerEmail(customerEmail)
-                .addAllLineItem(java.util.Arrays.asList(lineItems))
+                .addAllLineItem(Arrays.asList(lineItems))
                 .build();
 
         Session session = Session.create(params);
-
         return session.getUrl();
     }
 }

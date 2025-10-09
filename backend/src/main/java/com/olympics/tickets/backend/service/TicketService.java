@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -24,7 +25,7 @@ public class TicketService {
     private final PdfGenerator pdfGenerator;
 
     @Transactional
-    public Ticket createTicket(Long userId, Long eventId, Integer quantity, OfferType offerType, java.math.BigDecimal price) {
+    public Ticket createTicket(Long userId, Long eventId, Integer quantity, OfferType offerType, BigDecimal price) {
         OurUsers user = usersRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable : " + userId));
         Event event = eventRepository.findById(eventId)
@@ -89,14 +90,14 @@ public class TicketService {
                     .price(item.getUnitPrice())
                     .build();
 
-            ticketRepository.save(ticket);
+            Ticket savedTicket = ticketRepository.save(ticket);
 
-            byte[] pdfBytes = pdfGenerator.generateTicketPdf(ticket, event, user);
+            byte[] pdfBytes = pdfGenerator.generateTicketPdf(savedTicket);
             emailService.sendEmailWithAttachment(customerEmail,
                     "Vos billets - " + event.getTitle(),
                     "Merci pour votre achat ! Vos billets sont en pièce jointe.",
                     pdfBytes,
-                    "billets_" + ticket.getTicketNumber() + ".pdf");
+                    "billets_" + savedTicket.getTicketNumber() + ".pdf");
         }
     }
 

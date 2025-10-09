@@ -1,7 +1,7 @@
 package com.olympics.tickets.backend.service;
 
 import com.olympics.tickets.backend.entity.OurUsers;
-import com.olympics.tickets.backend.repository.UsersRepository; // corrigé
+import com.olympics.tickets.backend.repository.UsersRepository;
 import com.olympics.tickets.backend.dto.ReqRes;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -18,7 +18,7 @@ import java.util.Optional;
 public class UsersManagementService {
 
     @Autowired
-    private UsersRepository usersRepository; // corrigé
+    private UsersRepository usersRepository;
 
     @Autowired
     private JWTUtils jwtUtils;
@@ -130,10 +130,10 @@ public class UsersManagementService {
         return reqRes;
     }
 
-    public ReqRes getUsersById(Integer id) {
+    public ReqRes getUsersById(Long id) {
         ReqRes reqRes = new ReqRes();
         try {
-            OurUsers userById = usersRepository.findById(Long.valueOf(id))
+            OurUsers userById = usersRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("User Not Found"));
             reqRes.setOurUsers(userById);
             reqRes.setStatusCode(200);
@@ -145,12 +145,12 @@ public class UsersManagementService {
         return reqRes;
     }
 
-    public ReqRes deleteUser(Integer userId) {
+    public ReqRes deleteUser(Long userId) {
         ReqRes reqRes = new ReqRes();
         try {
-            Optional<OurUsers> usersOptional = usersRepository.findById(Long.valueOf(userId));
+            Optional<OurUsers> usersOptional = usersRepository.findById(userId);
             if (usersOptional.isPresent()) {
-                usersRepository.deleteById(Long.valueOf(userId));
+                usersRepository.deleteById(userId);
                 reqRes.setStatusCode(200);
                 reqRes.setMessage("User deleted successfully");
             } else {
@@ -164,10 +164,10 @@ public class UsersManagementService {
         return reqRes;
     }
 
-    public ReqRes updateUser(Integer userId, OurUsers updateUser) {
+    public ReqRes updateUser(Long userId, OurUsers updateUser) {
         ReqRes reqRes = new ReqRes();
         try {
-            OurUsers existingUser = usersRepository.findById(Long.valueOf(userId))
+            OurUsers existingUser = usersRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("User not found for update"));
 
             existingUser.setEmail(updateUser.getEmail());

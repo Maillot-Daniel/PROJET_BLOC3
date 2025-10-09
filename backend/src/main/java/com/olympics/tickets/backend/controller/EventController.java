@@ -10,8 +10,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import java.util.List;
-
 @CrossOrigin(origins = "http://localhost:3000")
 @RestController
 @RequestMapping("/api/events")
@@ -27,7 +25,7 @@ public class EventController {
     // Récupère tous les événements avec pagination
     @GetMapping
     public ResponseEntity<Page<Event>> getAllEvents(Pageable pageable) {
-        Page<Event> events = eventService.getAllEvents(pageable);  // Passez pageable à la méthode service
+        Page<Event> events = eventService.getAllEvents(pageable);
         return ResponseEntity.ok(events);
     }
 
@@ -62,7 +60,7 @@ public class EventController {
         return ResponseEntity.noContent().build();
     }
 
-    // Controller - EventController.java
+    // Récupère les événements avec faible disponibilité
     @GetMapping("/low-availability")
     public ResponseEntity<Page<Event>> getEventsWithLowTickets(@RequestParam(defaultValue = "10") int threshold, Pageable pageable) {
         Page<Event> events = eventService.getEventsWithLowTickets(threshold, pageable);

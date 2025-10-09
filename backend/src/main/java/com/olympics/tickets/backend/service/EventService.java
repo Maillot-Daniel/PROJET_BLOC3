@@ -2,13 +2,13 @@ package com.olympics.tickets.backend.service;
 
 import com.olympics.tickets.backend.entity.Event;
 import com.olympics.tickets.backend.exception.EventNotFoundException;
-import java.math.BigDecimal;
 import com.olympics.tickets.backend.repository.EventRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Service
@@ -80,7 +80,7 @@ public class EventService {
         return eventRepository.save(event);
     }
 
-    // Récupère les événements presque complets avec un seuil
+    // Récupère les événements presque complets avec un seuil - CORRIGÉ
     @Transactional(readOnly = true)
     public Page<Event> getEventsWithLowTickets(int threshold, Pageable pageable) {
         return eventRepository.findAlmostSoldOutEvents(threshold, pageable);
@@ -96,11 +96,11 @@ public class EventService {
             throw new IllegalArgumentException("Event date must be in the future");
         }
 
-        if (event.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
+        if (event.getPrice() == null || event.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Price must be greater than zero");
         }
 
-        if (event.getTotalTickets() <= 0) {
+        if (event.getTotalTickets() == null || event.getTotalTickets() <= 0) {
             throw new IllegalArgumentException("Total tickets must be positive");
         }
     }

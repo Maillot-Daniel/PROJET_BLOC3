@@ -42,9 +42,19 @@ public class CartController {
     }
 
     // Classe interne pour la réponse JSON
-    @lombok.Data
-    @lombok.AllArgsConstructor
-    static class CheckoutResponse {
+    public static class CheckoutResponse {
         private String url;
+
+        public CheckoutResponse(String url) {
+            this.url = url;
+        }
+
+        public String getUrl() {
+            return url;
+        }
+
+        public void setUrl(String url) {
+            this.url = url;
+        }
     }
 }
