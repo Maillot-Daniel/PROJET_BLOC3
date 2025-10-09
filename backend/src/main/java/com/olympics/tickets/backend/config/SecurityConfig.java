@@ -43,10 +43,10 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        // 🔹 Autoriser les requêtes préflight (OPTIONS)
+                        // Autoriser les requêtes préflight (OPTIONS)
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // 🔹 Endpoints publics
+                        // Endpoints publics
                         .requestMatchers(
                                 "/auth/**",
                                 "/public/**",
@@ -55,16 +55,16 @@ public class SecurityConfig {
                                 "/swagger-ui.html"
                         ).permitAll()
 
-                        // 🔹 Événements
+                        // Événements
                         .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/events/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/events/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasRole("ADMIN")
 
-                        // 🔹 Routes admin
+                        // Routes admin
                         .requestMatchers("/admin/**").hasRole("ADMIN")
 
-                        // 🔹 Toutes les autres requêtes nécessitent authentification
+                        // Toutes les autres requêtes nécessitent authentification
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
@@ -76,23 +76,17 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // 🔧 Configuration CORS globale
+    // Configuration CORS globale
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-
         configuration.setAllowedOriginPatterns(List.of(
-                "http://localhost:*",                    //  dev local
+                "http://localhost:*",                    // dev local
                 "http://127.0.0.1:*",                    // autre variante locale
                 "https://projet-bloc-3.vercel.app",      // frontend Vercel
-<<<<<<< HEAD
                 "https://*.vercel.app",                  // tous sous-domaines Vercel
-=======
-                "https://*.vercel.app",                  //  tous sous-domaines Vercel
->>>>>>> e1f2587 (Correction x1)
-                "https://projet-bloc3.onrender.com"      // backend (utile pour tests internes)
+                "https://projet-bloc3.onrender.com"      // backend (tests internes)
         ));
-
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Authorization"));
