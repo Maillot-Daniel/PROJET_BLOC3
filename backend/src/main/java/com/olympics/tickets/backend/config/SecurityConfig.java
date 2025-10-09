@@ -85,7 +85,11 @@ public class SecurityConfig {
                 "http://localhost:*",                    //  dev local
                 "http://127.0.0.1:*",                    // autre variante locale
                 "https://projet-bloc-3.vercel.app",      // frontend Vercel
+<<<<<<< HEAD
                 "https://*.vercel.app",                  // tous sous-domaines Vercel
+=======
+                "https://*.vercel.app",                  //  tous sous-domaines Vercel
+>>>>>>> e1f2587 (Correction x1)
                 "https://projet-bloc3.onrender.com"      // backend (utile pour tests internes)
         ));
 
