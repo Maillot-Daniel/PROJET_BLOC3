@@ -1,9 +1,8 @@
 package com.olympics.tickets.backend.entity;
 
-import jakarta.persistence.*;
-import org.hibernate.Hibernate;
-
+import jakarta.persistence.*;  // ← CHANGEZ ICI : javax -> jakarta
 import java.util.Objects;
+import org.hibernate.Hibernate;
 
 @Entity
 @Table(name = "offer_types",
@@ -17,14 +16,21 @@ public class OfferType {
     @Column(nullable = false, length = 50)
     private String name;
 
-    // Constructeur par défaut (requis par JPA)
+    @Column(nullable = false)
+    private Integer people;
+
+    @Column(nullable = false)
+    private Double multiplier;
+
+    // Constructeurs
     public OfferType() {
     }
 
-    // Constructeur avec paramètres
-    public OfferType(Integer id, String name) {
+    public OfferType(Integer id, String name, Integer people, Double multiplier) {
         this.id = id;
         this.name = name;
+        this.people = people;
+        this.multiplier = multiplier;
     }
 
     // Getters et Setters
@@ -44,9 +50,25 @@ public class OfferType {
         this.name = name;
     }
 
+    public Integer getPeople() {
+        return people;
+    }
+
+    public void setPeople(Integer people) {
+        this.people = people;
+    }
+
+    public Double getMultiplier() {
+        return multiplier;
+    }
+
+    public void setMultiplier(Double multiplier) {
+        this.multiplier = multiplier;
+    }
+
     // Factory method
-    public static OfferType of(Integer id, String name) {
-        return new OfferType(id, name);
+    public static OfferType of(Integer id, String name, Integer people, Double multiplier) {
+        return new OfferType(id, name, people, multiplier);
     }
 
     @Override
@@ -67,6 +89,8 @@ public class OfferType {
         return "OfferType{" +
                 "id=" + id +
                 ", name='" + name + '\'' +
+                ", people=" + people +
+                ", multiplier=" + multiplier +
                 '}';
     }
 }

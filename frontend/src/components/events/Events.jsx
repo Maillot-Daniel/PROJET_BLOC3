@@ -4,14 +4,9 @@ import { useCart } from '../../context/CartContext';
 import { useNavigate } from 'react-router-dom';
 import "./Events.css";
 
-const OFFERS = [
-  { id: 1, name: 'Solo', people: 1, multiplier: 1 },
-  { id: 2, name: 'Duo', people: 2, multiplier: 1.9 },
-  { id: 3, name: 'Famille', people: 4, multiplier: 3.5 }
-];
-
 function Events() {
   const [events, setEvents] = useState([]);
+  const [offers, setOffers] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedOfferId, setSelectedOfferId] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -22,27 +17,45 @@ function Events() {
   const navigate = useNavigate();
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const res = await axios.get(`${API_URL}/api/events`);
-        const data = Array.isArray(res.data.content) ? res.data.content : res.data;
+  // Fallback statique avec les bons noms
+  const STATIC_OFFERS = [
+    { id: 1, name: 'SOLO', people: 1, multiplier: 1 },
+    { id: 2, name: 'DUO', people: 2, multiplier: 1.9 },
+    { id: 3, name: 'FAMILLE', people: 4, multiplier: 3.5 }
+  ];
 
-        // Assurer que remainingTickets est un nombre
-        const eventsWithTickets = data.map(ev => ({
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Récupérer les événements
+        const eventsRes = await axios.get(`${API_URL}/api/events`);
+        const eventsData = Array.isArray(eventsRes.data.content) ? eventsRes.data.content : eventsRes.data;
+
+        const eventsWithTickets = eventsData.map(ev => ({
           ...ev,
           remainingTickets: Number(ev.remainingTickets ?? ev.remaining_tickets ?? ev.tickets_remaining) || 0
         }));
 
         setEvents(eventsWithTickets);
+
+        // Récupérer les offres depuis l'API
+        try {
+          const offersRes = await axios.get(`${API_URL}/api/offer_types`);
+          console.log('✅ Offres chargées depuis API:', offersRes.data);
+          setOffers(offersRes.data);
+        } catch (offersErr) {
+          console.error('❌ Erreur chargement offres, utilisation du fallback:', offersErr);
+          setOffers(STATIC_OFFERS);
+        }
+
       } catch (err) {
-        console.error(err);
+        console.error('Erreur chargement événements:', err);
         setError("Erreur lors du chargement des événements");
       } finally {
         setLoading(false);
       }
     };
-    fetchEvents();
+    fetchData();
   }, [API_URL]);
 
   const formatter = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
@@ -51,7 +64,7 @@ function Events() {
     if (!selectedOfferId) return alert("Choisissez une offre");
     if (!selectedEvent) return alert("Aucun événement sélectionné");
 
-    const offer = OFFERS.find(o => o.id === parseInt(selectedOfferId));
+    const offer = offers.find(o => o.id === parseInt(selectedOfferId));
     if (!offer) return alert("Offre invalide");
 
     const maxAllowed = Math.floor(selectedEvent.remainingTickets / offer.people);
@@ -110,7 +123,7 @@ function Events() {
               onChange={e => { setSelectedOfferId(e.target.value); setQuantity(1); }}
             >
               <option value="">-- Choisir une offre --</option>
-              {OFFERS.map(offer => (
+              {offers.map(offer => (
                 <option key={offer.id} value={offer.id}>
                   {offer.name} ({offer.people} pers.) - {formatter.format(selectedEvent.price * offer.multiplier)}
                 </option>
@@ -119,7 +132,7 @@ function Events() {
           </label>
           <br />
           <label>
-            Quantité (max {selectedOfferId ? Math.floor(selectedEvent.remainingTickets / OFFERS.find(o => o.id === parseInt(selectedOfferId)).people) : '-'}) :
+            Quantité (max {selectedOfferId ? Math.floor(selectedEvent.remainingTickets / offers.find(o => o.id === parseInt(selectedOfferId))?.people || 1) : '-'}) :
             <input 
               type="number" 
               min="1" 
@@ -128,7 +141,8 @@ function Events() {
               onChange={e => {
                 if (!selectedOfferId) return;
                 const val = Math.floor(Number(e.target.value));
-                const offer = OFFERS.find(o => o.id === parseInt(selectedOfferId));
+                const offer = offers.find(o => o.id === parseInt(selectedOfferId));
+                if (!offer) return;
                 const maxQty = Math.floor(selectedEvent.remainingTickets / offer.people);
                 setQuantity(Math.max(1, Math.min(val, maxQty)));
               }}
@@ -137,7 +151,7 @@ function Events() {
           <br />
           <p>
             Prix total : {selectedOfferId 
-              ? formatter.format(selectedEvent.price * OFFERS.find(o => o.id === parseInt(selectedOfferId)).multiplier * quantity) 
+              ? formatter.format(selectedEvent.price * (offers.find(o => o.id === parseInt(selectedOfferId))?.multiplier || 1) * quantity) 
               : formatter.format(0)}
           </p>
           <button onClick={handleAddToCart} disabled={!selectedOfferId || quantity < 1}>Ajouter au panier</button>
