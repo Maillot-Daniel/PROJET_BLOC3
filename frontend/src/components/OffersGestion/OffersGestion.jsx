@@ -103,58 +103,120 @@ function OffersGestion() {
     fetchOffers();
   }, [fetchOffers]); // Maintenant fetchOffers est stable grâce à useCallback
 
-  // CRUD Operations (utilisent les données locales pour l'instant)
+  // CRUD Operations (version API)
   const handleCreate = async (e) => {
     e.preventDefault();
     
-    const newOffer = {
-      id: Math.max(...offers.map(o => o.id), 0) + 1,
-      name: formData.name,
-      people: parseInt(formData.people),
-      multiplier: parseFloat(formData.multiplier)
-    };
+    if (!token) {
+      alert("Vous devez être connecté pour créer une offre");
+      return;
+    }
 
-    setOffers([...offers, newOffer]);
-    resetForm();
-    setShowForm(false);
-    alert('Offre créée avec succès (localement)');
+    try {
+      const newOffer = {
+        name: formData.name,
+        people: parseInt(formData.people),
+        multiplier: parseFloat(formData.multiplier)
+      };
+
+      const res = await axios.post(`${API_URL}/api/offer_types`, newOffer, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      setOffers([...offers, res.data]);
+      resetForm();
+      setShowForm(false);
+      alert('Offre créée avec succès');
+    } catch (err) {
+      console.error('Erreur création offre:', err);
+      alert(err.response?.data?.message || 'Erreur lors de la création');
+    }
   };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
     
-    setOffers(offers.map(offer => 
-      offer.id === editingOffer.id 
-        ? {
-            ...offer,
-            name: formData.name,
-            people: parseInt(formData.people),
-            multiplier: parseFloat(formData.multiplier)
-          }
-        : offer
-    ));
-    
-    resetForm();
-    setShowForm(false);
-    alert('Offre modifiée avec succès (localement)');
+    if (!token) {
+      alert("Vous devez être connecté pour modifier une offre");
+      return;
+    }
+
+    try {
+      const updatedOffer = {
+        name: formData.name,
+        people: parseInt(formData.people),
+        multiplier: parseFloat(formData.multiplier)
+      };
+
+      const res = await axios.put(`${API_URL}/api/offer_types/${editingOffer.id}`, updatedOffer, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      setOffers(offers.map(offer => 
+        offer.id === editingOffer.id ? res.data : offer
+      ));
+      resetForm();
+      setShowForm(false);
+      alert('Offre modifiée avec succès');
+    } catch (err) {
+      console.error('Erreur modification offre:', err);
+      alert(err.response?.data?.message || 'Erreur lors de la modification');
+    }
   };
 
   const handleDelete = async (id) => {
+    if (!token) {
+      alert("Vous devez être connecté pour supprimer une offre");
+      return;
+    }
+
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette offre ?")) return;
 
-    setOffers(offers.filter(o => o.id !== id));
-    alert('Offre supprimée avec succès (localement)');
+    try {
+      await axios.delete(`${API_URL}/api/offer_types/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setOffers(offers.filter(o => o.id !== id));
+      alert('Offre supprimée avec succès');
+    } catch (err) {
+      console.error('Erreur suppression offre:', err);
+      alert(err.response?.data?.message || 'Erreur lors de la suppression');
+    }
   };
 
   const handleDuplicate = async (offer) => {
-    const newOffer = {
-      ...offer,
-      id: Math.max(...offers.map(o => o.id), 0) + 1,
-      name: `${offer.name} - Copie`
-    };
+    if (!token) {
+      alert("Vous devez être connecté pour dupliquer une offre");
+      return;
+    }
 
-    setOffers([...offers, newOffer]);
-    alert('Offre dupliquée avec succès (localement)');
+    try {
+      const newOffer = {
+        name: `${offer.name} - Copie`,
+        people: offer.people,
+        multiplier: offer.multiplier
+      };
+
+      const res = await axios.post(`${API_URL}/api/offer_types`, newOffer, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      setOffers([...offers, res.data]);
+      alert('Offre dupliquée avec succès');
+    } catch (err) {
+      console.error('Erreur duplication offre:', err);
+      alert(err.response?.data?.message || 'Erreur lors de la duplication');
+    }
   };
 
   // Fonctions helpers
