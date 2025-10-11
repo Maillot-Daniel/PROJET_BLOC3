@@ -1,6 +1,6 @@
 package com.olympics.tickets.backend.entity;
 
-import jakarta.persistence.*;  // ← CHANGEZ ICI : javax -> jakarta
+import jakarta.persistence.*;
 import java.util.Objects;
 import org.hibernate.Hibernate;
 
@@ -10,6 +10,7 @@ import org.hibernate.Hibernate;
 public class OfferType {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY) // ← AJOUT IMPORTANT
     @Column(nullable = false)
     private Integer id;
 
@@ -24,6 +25,13 @@ public class OfferType {
 
     // Constructeurs
     public OfferType() {
+    }
+
+    // Constructeur sans ID pour les nouvelles créations
+    public OfferType(String name, Integer people, Double multiplier) {
+        this.name = name;
+        this.people = people;
+        this.multiplier = multiplier;
     }
 
     public OfferType(Integer id, String name, Integer people, Double multiplier) {
@@ -66,9 +74,13 @@ public class OfferType {
         this.multiplier = multiplier;
     }
 
-    // Factory method
+    // Factory methods
     public static OfferType of(Integer id, String name, Integer people, Double multiplier) {
         return new OfferType(id, name, people, multiplier);
+    }
+
+    public static OfferType of(String name, Integer people, Double multiplier) {
+        return new OfferType(name, people, multiplier);
     }
 
     @Override
