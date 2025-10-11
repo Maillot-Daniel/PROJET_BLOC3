@@ -47,6 +47,13 @@ public class SecurityConfig {
                         // Autoriser les requêtes préflight (OPTIONS)
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+                        // ⬇️ OFFER_TYPES - LECTURE PUBLIQUE, ÉCRITURE ADMIN ⬇️
+                        .requestMatchers(HttpMethod.GET, "/api/offer_types").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/offer_types/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/offer_types/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/offer_types/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/offer_types/**").hasRole("ADMIN")
+
                         // Endpoints publics
                         .requestMatchers(
                                 "/auth/**",

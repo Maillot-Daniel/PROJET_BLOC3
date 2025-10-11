@@ -17,14 +17,14 @@ function Events() {
   const navigate = useNavigate();
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
-  // Fallback statique avec les bons noms
-  const STATIC_OFFERS = [
-    { id: 1, name: 'SOLO', people: 1, multiplier: 1 },
-    { id: 2, name: 'DUO', people: 2, multiplier: 1.9 },
-    { id: 3, name: 'FAMILLE', people: 4, multiplier: 3.5 }
-  ];
-
   useEffect(() => {
+    // Déplacer STATIC_OFFERS dans le useEffect pour éviter le warning
+    const STATIC_OFFERS = [
+      { id: 1, name: 'SOLO', people: 1, multiplier: 1 },
+      { id: 2, name: 'DUO', people: 2, multiplier: 1.9 },
+      { id: 3, name: 'FAMILLE', people: 4, multiplier: 3.5 }
+    ];
+
     const fetchData = async () => {
       try {
         // Récupérer les événements
@@ -56,7 +56,7 @@ function Events() {
       }
     };
     fetchData();
-  }, [API_URL]);
+  }, [API_URL]); // ✅ Plus de warning !
 
   const formatter = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
 
