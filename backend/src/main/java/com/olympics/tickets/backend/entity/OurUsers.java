@@ -24,7 +24,8 @@ public class OurUsers implements UserDetails {
     private String city;
     private String role;
 
-    @OneToMany(mappedBy = "user")
+    // CHANGER EN EAGER POUR ÉVITER LAZY LOADING
+    @OneToMany(mappedBy = "user", fetch = FetchType.EAGER)
     private List<CartItem> cartItems;
 
     // Implémentation des méthodes de UserDetails
@@ -82,5 +83,10 @@ public class OurUsers implements UserDetails {
 
     public String getRole() {
         return this.role;
+    }
+
+    // UN SETTER POUR CARTITEMS
+    public void setCartItems(List<CartItem> cartItems) {
+        this.cartItems = cartItems;
     }
 }
