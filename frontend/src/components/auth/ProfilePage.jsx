@@ -30,10 +30,12 @@ function ProfilePage() {
       const response = await UsersService.getProfile();
       console.log("✅ RÉPONSE COMPLÈTE PROFIL:", response);
       console.log("📊 DONNÉES UTILISATEUR:", response.ourUsers);
+      console.log("🔍 STRUCTURE ourUsers:", JSON.stringify(response.ourUsers, null, 2));
       
       if (response.ourUsers) {
         setProfile(response.ourUsers);
         console.log("🎉 Profil défini avec succès");
+        console.log("📝 Champs disponibles:", Object.keys(response.ourUsers));
       } else {
         console.warn("⚠️ Aucune donnée ourUsers dans la réponse");
         setError('Aucune donnée utilisateur trouvée');
@@ -106,7 +108,11 @@ function ProfilePage() {
     return <LoadingSpinner message="Chargement du profil..." />;
   }
 
-  console.log("🎨 Rendu du profil:", { profile, error, message });
+  console.log("🎨 Rendu du profil:", { 
+    profile, 
+    hasProfile: !!profile,
+    profileKeys: profile ? Object.keys(profile) : [] 
+  });
 
   return (
     <div className="page-wrapper">
@@ -128,7 +134,7 @@ function ProfilePage() {
           </div>
         )}
 
-        {/* AFFICHAGE CONDITIONNEL */}
+        {/* AFFICHAGE CONDITIONNEL - VERSION DEBUG */}
         {!profile ? (
           <div className="no-profile">
             <p>❌ Aucune donnée de profil disponible</p>
@@ -141,24 +147,37 @@ function ProfilePage() {
           </div>
         ) : (
           <div className="profile-info">
+            {/* SECTION DEBUG - À SUPPRIMER APRÈS */}
+            <div style={{
+              background: '#fff3cd',
+              border: '1px solid #ffeaa7',
+              padding: '10px',
+              borderRadius: '5px',
+              marginBottom: '20px',
+              fontSize: '12px'
+            }}>
+              <strong>🔧 DEBUG - Données reçues:</strong>
+              <pre>{JSON.stringify(profile, null, 2)}</pre>
+            </div>
+
             <div className="info-section">
               <h3>Informations personnelles</h3>
               <div className="info-grid">
                 <div className="info-item">
                   <label>Nom :</label>
-                  <span>{profile.name || "Non renseigné"}</span>
+                  <span>{profile.name || profile.nom || "Non renseigné"}</span>
                 </div>
                 <div className="info-item">
                   <label>Email :</label>
-                  <span>{profile.email || "Non renseigné"}</span>
+                  <span>{profile.email || profile.mail || "Non renseigné"}</span>
                 </div>
                 <div className="info-item">
                   <label>Ville :</label>
-                  <span>{profile.city || "Non renseigné"}</span>
+                  <span>{profile.city || profile.ville || "Non renseigné"}</span>
                 </div>
                 <div className="info-item">
                   <label>Rôle :</label>
-                  <span className={`role-badge ${profile.role?.toLowerCase() || 'user'}`}>
+                  <span className={`role-badge ${(profile.role || 'user').toLowerCase()}`}>
                     {profile.role || "USER"}
                   </span>
                 </div>
