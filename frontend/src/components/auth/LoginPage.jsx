@@ -118,26 +118,25 @@ function LoginPage() {
                 </button>
               </div>
 
-              <button
-                type="button"
-                className="forgot-password"
-                onClick={(e) => {
-                  e.preventDefault();
-                  alert("La fonction 'Mot de passe oublié' sera bientôt disponible.");
-                }}
+              {/* ⬇️ BOUTON CORRIGÉ - REMPLACÉ PAR LINK ⬇️ */}
+              <Link 
+                to="/forgot-password" 
                 style={{
-                  background: "none",
-                  border: "none",
-                  color: "blue",
-                  textDecoration: "underline",
-                  cursor: "pointer",
+                  display: 'block',
+                  textAlign: 'right',
+                  color: 'blue',
+                  textDecoration: 'underline',
+                  marginTop: '0.5rem',
+                  fontSize: '0.9rem',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
                   padding: 0,
-                  font: "inherit",
-                  marginTop: "0.5rem"
+                  font: 'inherit'
                 }}
               >
                 Mot de passe oublié ?
-              </button>
+              </Link>
             </div>
 
             <button

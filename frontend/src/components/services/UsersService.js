@@ -134,7 +134,8 @@ class UsersService {
     }
   }
 
-  // Mot de passe oublié
+  // ============ NOUVELLES MÉTHODES RÉINITIALISATION MOT DE PASSE ============
+
   static async requestPasswordReset(email) {
     try {
       const response = await this.apiClient.post("/auth/password-reset-request", { email });
@@ -143,6 +144,29 @@ class UsersService {
       throw this.normalizeError(error, "Erreur lors de la demande de réinitialisation");
     }
   }
+
+  static async resetPassword(token, newPassword) {
+    try {
+      const response = await this.apiClient.post("/auth/reset-password", {
+        token,
+        password: newPassword
+      });
+      return response.data;
+    } catch (error) {
+      throw this.normalizeError(error, "Erreur lors de la réinitialisation");
+    }
+  }
+
+  static async validateResetToken(token) {
+    try {
+      const response = await this.apiClient.get(`/auth/validate-reset-token?token=${token}`);
+      return response.data;
+    } catch (error) {
+      throw this.normalizeError(error, "Token invalide");
+    }
+  }
+
+  // ============ FIN DES NOUVELLES MÉTHODES ============
 
   // Normalisation des erreurs
   static normalizeError(error, customMessage = "") {

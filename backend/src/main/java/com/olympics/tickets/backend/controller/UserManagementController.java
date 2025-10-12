@@ -29,6 +29,25 @@ public class UserManagementController {
         return ResponseEntity.ok(usersManagementService.refreshToken(req));
     }
 
+    // ============ NOUVEAUX ENDPOINTS RÉINITIALISATION MOT DE PASSE ============
+
+    @PostMapping("/auth/password-reset-request")
+    public ResponseEntity<ReqRes> requestPasswordReset(@RequestBody ReqRes request) {
+        return ResponseEntity.ok(usersManagementService.requestPasswordReset(request));
+    }
+
+    @PostMapping("/auth/reset-password")
+    public ResponseEntity<ReqRes> resetPassword(@RequestBody ReqRes request) {
+        return ResponseEntity.ok(usersManagementService.resetPassword(request));
+    }
+
+    @GetMapping("/auth/validate-reset-token")
+    public ResponseEntity<ReqRes> validateResetToken(@RequestParam String token) {
+        return ResponseEntity.ok(usersManagementService.validateResetToken(token));
+    }
+
+    // ============ FIN DES NOUVEAUX ENDPOINTS ============
+
     @GetMapping("/admin/get-all-users")
     public ResponseEntity<ReqRes> getAllUsers() {
         return ResponseEntity.ok(usersManagementService.getAllUsers());

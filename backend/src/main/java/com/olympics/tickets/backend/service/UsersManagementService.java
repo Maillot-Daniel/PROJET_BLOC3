@@ -14,6 +14,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+// AJOUTER CES IMPORTS
+import com.olympics.tickets.backend.entity.PasswordResetToken;
+import com.olympics.tickets.backend.repository.PasswordResetTokenRepository;
+import org.springframework.beans.factory.annotation.Value;
+import java.util.Date;
+
 @Service
 public class UsersManagementService {
 
@@ -28,6 +34,13 @@ public class UsersManagementService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    // AJOUTER CE CHAMP
+    @Autowired
+    private PasswordResetTokenRepository passwordResetTokenRepository;
+
+    @Value("${frontend.base.url:http://localhost:3000}")
+    private String frontendUrl;
 
     public ReqRes register(ReqRes registrationRequest) {
         ReqRes resp = new ReqRes();
@@ -204,5 +217,105 @@ public class UsersManagementService {
             reqRes.setMessage("Error occurred while getting user info: " + e.getMessage());
         }
         return reqRes;
+    }
+
+    // ==================== MÉTHODES RÉINITIALISATION MOT DE PASSE ====================
+
+    public ReqRes requestPasswordReset(ReqRes request) {
+        ReqRes response = new ReqRes();
+        try {
+            OurUsers user = usersRepository.findByEmail(request.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé avec cet email"));
+
+            // Supprimer les tokens existants
+            passwordResetTokenRepository.deleteByUser(user);
+
+            // Générer nouveau token
+            String token = java.util.UUID.randomUUID().toString();
+            PasswordResetToken resetToken = new PasswordResetToken(token, user);
+            passwordResetTokenRepository.save(resetToken);
+
+            // Envoyer "email" (log console pour le moment)
+            sendPasswordResetEmail(user, token);
+
+            response.setStatusCode(200);
+            response.setMessage("Lien de réinitialisation généré - Voir les logs du serveur");
+
+        } catch (Exception e) {
+            response.setStatusCode(500);
+            response.setMessage(e.getMessage());
+        }
+        return response;
+    }
+
+    public ReqRes resetPassword(ReqRes request) {
+        ReqRes response = new ReqRes();
+        try {
+            PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(request.getToken());
+
+            if (resetToken == null) {
+                throw new RuntimeException("Token invalide");
+            }
+
+            if (resetToken.getExpiryDate().before(new Date())) {
+                passwordResetTokenRepository.delete(resetToken);
+                throw new RuntimeException("Token expiré");
+            }
+
+            OurUsers user = resetToken.getUser();
+            user.setPassword(passwordEncoder.encode(request.getPassword()));
+            usersRepository.save(user);
+
+            // Supprimer le token utilisé
+            passwordResetTokenRepository.delete(resetToken);
+
+            response.setStatusCode(200);
+            response.setMessage("Mot de passe réinitialisé avec succès");
+
+        } catch (Exception e) {
+            response.setStatusCode(500);
+            response.setMessage(e.getMessage());
+        }
+        return response;
+    }
+
+    public ReqRes validateResetToken(String token) {
+        ReqRes response = new ReqRes();
+        try {
+            PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token);
+
+            if (resetToken == null) {
+                throw new RuntimeException("Token invalide");
+            }
+
+            if (resetToken.getExpiryDate().before(new Date())) {
+                passwordResetTokenRepository.delete(resetToken);
+                throw new RuntimeException("Token expiré");
+            }
+
+            response.setStatusCode(200);
+            response.setMessage("Token valide");
+
+        } catch (Exception e) {
+            response.setStatusCode(400);
+            response.setMessage(e.getMessage());
+        }
+        return response;
+    }
+
+    private void sendPasswordResetEmail(OurUsers user, String token) {
+        try {
+            String resetUrl = frontendUrl + "/reset-password?token=" + token;
+
+            // SOLUTION TEMPORAIRE : Afficher dans les logs
+            System.out.println("=== LIEN RÉINITIALISATION MOT DE PASSE ===");
+            System.out.println("Pour: " + user.getEmail());
+            System.out.println("Lien: " + resetUrl);
+            System.out.println("Token (pour test direct): " + token);
+            System.out.println("=========================================");
+
+        } catch (Exception e) {
+            System.out.println("Erreur génération lien reset: " + e.getMessage());
+        }
     }
 }
