@@ -26,11 +26,21 @@ function ProfilePage() {
 
   const loadProfile = async () => {
     try {
+      console.log("🔄 Chargement du profil...");
       const response = await UsersService.getProfile();
-      console.log("Profil chargé:", response);
-      setProfile(response.ourUsers);
+      console.log("✅ RÉPONSE COMPLÈTE PROFIL:", response);
+      console.log("📊 DONNÉES UTILISATEUR:", response.ourUsers);
+      
+      if (response.ourUsers) {
+        setProfile(response.ourUsers);
+        console.log("🎉 Profil défini avec succès");
+      } else {
+        console.warn("⚠️ Aucune donnée ourUsers dans la réponse");
+        setError('Aucune donnée utilisateur trouvée');
+      }
     } catch (err) {
-      setError('Erreur lors du chargement du profil: ' + err.message);
+      console.error("❌ ERREUR DÉTAILLÉE:", err);
+      setError('Erreur lors du chargement du profil: ' + (err.message || 'Erreur inconnue'));
     } finally {
       setIsLoading(false);
     }
@@ -56,6 +66,7 @@ function ProfilePage() {
     }
 
     try {
+      console.log("🔄 Changement de mot de passe...");
       await UsersService.changePassword({
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword
@@ -78,6 +89,7 @@ function ProfilePage() {
       }, 2000);
 
     } catch (err) {
+      console.error("❌ Erreur changement mot de passe:", err);
       setError(err.message || 'Erreur lors du changement de mot de passe');
     } finally {
       setIsChangingPassword(false);
@@ -85,10 +97,16 @@ function ProfilePage() {
   };
 
   const handleLogout = () => {
+    console.log("🚪 Déconnexion...");
     logout();
   };
 
-  if (isLoading) return <LoadingSpinner message="Chargement du profil..." />;
+  if (isLoading) {
+    console.log("⏳ Affichage du loading...");
+    return <LoadingSpinner message="Chargement du profil..." />;
+  }
+
+  console.log("🎨 Rendu du profil:", { profile, error, message });
 
   return (
     <div className="page-wrapper">
@@ -98,30 +116,50 @@ function ProfilePage() {
           <p>Gérez vos informations personnelles</p>
         </div>
 
-        {error && <div className="error-message">{error}</div>}
-        {message && <div className="success-message">{message}</div>}
+        {error && (
+          <div className="error-message">
+            ❌ {error}
+          </div>
+        )}
+        
+        {message && (
+          <div className="success-message">
+            ✅ {message}
+          </div>
+        )}
 
-        {profile && (
+        {/* AFFICHAGE CONDITIONNEL */}
+        {!profile ? (
+          <div className="no-profile">
+            <p>❌ Aucune donnée de profil disponible</p>
+            <button 
+              onClick={loadProfile}
+              className="btn-primary"
+            >
+              🔄 Recharger le profil
+            </button>
+          </div>
+        ) : (
           <div className="profile-info">
             <div className="info-section">
               <h3>Informations personnelles</h3>
               <div className="info-grid">
                 <div className="info-item">
                   <label>Nom :</label>
-                  <span>{profile.name}</span>
+                  <span>{profile.name || "Non renseigné"}</span>
                 </div>
                 <div className="info-item">
                   <label>Email :</label>
-                  <span>{profile.email}</span>
+                  <span>{profile.email || "Non renseigné"}</span>
                 </div>
                 <div className="info-item">
                   <label>Ville :</label>
-                  <span>{profile.city}</span>
+                  <span>{profile.city || "Non renseigné"}</span>
                 </div>
                 <div className="info-item">
                   <label>Rôle :</label>
-                  <span className={`role-badge ${profile.role?.toLowerCase()}`}>
-                    {profile.role}
+                  <span className={`role-badge ${profile.role?.toLowerCase() || 'user'}`}>
+                    {profile.role || "USER"}
                   </span>
                 </div>
               </div>
@@ -199,7 +237,7 @@ function ProfilePage() {
                         className="btn-primary"
                         disabled={isChangingPassword}
                       >
-                        {isChangingPassword ? 'Modification...' : '✅ Modifier le mot de passe'}
+                        {isChangingPassword ? '⏳ Modification...' : '✅ Modifier le mot de passe'}
                       </button>
                       <button
                         type="button"
@@ -207,7 +245,7 @@ function ProfilePage() {
                         onClick={() => setShowPasswordForm(false)}
                         disabled={isChangingPassword}
                       >
-                        Annuler
+                        ❌ Annuler
                       </button>
                     </div>
                   </form>
