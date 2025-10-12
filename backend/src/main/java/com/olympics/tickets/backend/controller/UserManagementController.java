@@ -70,10 +70,37 @@ public class UserManagementController {
 
     @GetMapping("/adminuser/get-profile")
     public ResponseEntity<ReqRes> getMyProfile() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        ReqRes response = usersManagementService.getMyInfo(email);
-        return ResponseEntity.status(response.getStatusCode()).body(response);
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String email = authentication.getName();
+
+            System.out.println(" GET PROFILE - Email authentifié: " + email);
+            System.out.println(" GET PROFILE - Authentification: " + authentication);
+            System.out.println(" GET PROFILE - Authorities: " + authentication.getAuthorities());
+
+            ReqRes response = usersManagementService.getMyInfo(email);
+
+            System.out.println(" GET PROFILE - Statut: " + response.getStatusCode());
+            System.out.println(" GET PROFILE - Message: " + response.getMessage());
+            System.out.println(" GET PROFILE - Données utilisateur: " + response.getOurUsers());
+
+            if (response.getOurUsers() != null) {
+                System.out.println(" GET PROFILE - Utilisateur trouvé: " + response.getOurUsers().getEmail());
+            } else {
+                System.out.println(" GET PROFILE - Aucun utilisateur trouvé pour: " + email);
+            }
+
+            return ResponseEntity.status(response.getStatusCode()).body(response);
+
+        } catch (Exception e) {
+            System.out.println(" GET PROFILE - Erreur: " + e.getMessage());
+            e.printStackTrace();
+
+            ReqRes errorResponse = new ReqRes();
+            errorResponse.setStatusCode(500);
+            errorResponse.setMessage("Erreur serveur: " + e.getMessage());
+            return ResponseEntity.status(500).body(errorResponse);
+        }
     }
 
     @DeleteMapping("/admin/delete/{userId}")
