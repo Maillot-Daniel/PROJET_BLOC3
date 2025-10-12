@@ -16,10 +16,24 @@ function ProfilePage() {
     confirmPassword: ''
   });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
     console.log("👤 User dans ProfilePage:", user);
-  }, [user]);
+    
+    // NE PAS recharger automatiquement si on a déjà des données complètes
+    if (user?.id && user?.name && user?.email) {
+      console.log("✅ Données complètes déjà présentes, pas de rechargement");
+      setHasLoaded(true);
+      return;
+    }
+    
+    // Charger seulement si nécessaire et pas déjà en cours
+    if (user?.id && !hasLoaded && !isLoading) {
+      console.log("🔄 Données incomplètes, chargement du profil...");
+      loadProfile();
+    }
+  }, [user, hasLoaded, isLoading]);
 
   const loadProfile = async () => {
     try {
@@ -28,6 +42,7 @@ function ProfilePage() {
       console.log('🔄 Chargement du profil depuis ProfilePage...');
       
       await refreshProfile();
+      setHasLoaded(true);
       console.log('✅ Profil rafraîchi depuis ProfilePage');
       
     } catch (err) {
@@ -100,11 +115,15 @@ function ProfilePage() {
         
         {message && <div className="success-message">✅ {message}</div>}
 
-        {/* Debug Info */}
-        <div className="debug-info">
-          <strong>User State:</strong> ID: {user?.id || 'NULL'}, 
-          Name: {user?.name ? '✅' : '❌'}, 
-          Email: {user?.email ? '✅' : '❌'}
+        {/* Debug Info détaillée */}
+        <div className="debug-info" style={{background: '#e3f2fd', padding: '10px', borderRadius: '5px', marginBottom: '15px'}}>
+          <h4>🔍 Debug Information:</h4>
+          <p><strong>User ID:</strong> {user?.id || 'NULL'}</p>
+          <p><strong>Nom:</strong> {user?.name ? `"${user.name}" ✅` : 'NULL ❌'}</p>
+          <p><strong>Email:</strong> {user?.email ? `"${user.email}" ✅` : 'NULL ❌'}</p>
+          <p><strong>Ville:</strong> {user?.city || 'NULL'}</p>
+          <p><strong>Rôle:</strong> {user?.role || 'NULL'}</p>
+          <p><strong>Has Loaded:</strong> {hasLoaded ? 'OUI' : 'NON'}</p>
         </div>
 
         {!user?.id ? (
@@ -117,6 +136,7 @@ function ProfilePage() {
         ) : !user.name ? (
           <div className="no-profile">
             <p>⚠️ Données de profil incomplètes</p>
+            <p>ID: {user.id} présent mais nom/email manquants</p>
             <button onClick={loadProfile} className="btn-primary">
               🔄 Charger les données complètes
             </button>
