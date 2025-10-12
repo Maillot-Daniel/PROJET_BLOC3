@@ -21,54 +21,37 @@ export function AuthProvider({ children }) {
   });
   
   const [isAuthenticated, setIsAuthenticated] = useState(!!UsersService.getToken());
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   const isAdmin = user?.role?.toLowerCase() === "admin";
 
-  // Met à jour user et auth en fonction du localStorage
-  const refreshAuth = () => {
-    const token = UsersService.getToken();
-    const id = localStorage.getItem("olympics_user_id");
-    const role = localStorage.getItem("olympics_user_role");
-    const savedProfile = localStorage.getItem("olympics_user_profile");
-
-    setIsAuthenticated(!!token);
-    
-    if (savedProfile) {
-      try {
-        setUser(JSON.parse(savedProfile));
-      } catch (error) {
-        console.error("Erreur parsing saved profile:", error);
-        setUser({ id, role });
-      }
-    } else {
-      setUser({ id, role });
-    }
-
-    if (token) {
-      UsersService.apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    } else {
-      delete UsersService.apiClient.defaults.headers.common["Authorization"];
-    }
-  };
-
-  // Fonction de connexion avec chargement du profil
-  const login = async ({ token, id, role }) => {
+  // Fonction de connexion avec stockage IMMÉDIAT du token
+  const login = async (loginData) => {
     try {
-      localStorage.setItem("olympics_auth_token", token);
-      localStorage.setItem("olympics_user_id", id);
-      localStorage.setItem("olympics_user_role", role);
-
-      // Récupérer le profil complet après connexion
+      const { token, userId: id, role } = loginData;
+      
+      console.log("🔐 Stockage des données d'authentification...");
+      
+      // Stocker IMMÉDIATEMENT le token avant toute autre requête
+      UsersService.setAuthData(token, role, id);
+      
+      // Maintenant récupérer le profil
+      console.log("📡 Récupération du profil...");
       const profileResponse = await UsersService.getProfile();
       console.log("📊 Profil reçu dans AuthContext:", profileResponse);
 
       let userProfile = { id, role };
 
+      // Extraire les données du profil
       if (profileResponse?.ourUsers) {
-        userProfile = { ...profileResponse.ourUsers, role };
-      } else if (profileResponse?.data?.ourUsers) {
-        userProfile = { ...profileResponse.data.ourUsers, role };
+        userProfile = { 
+          ...profileResponse.ourUsers, 
+          role: profileResponse.ourUsers.role || role 
+        };
+        console.log("✅ Profil complet chargé:", userProfile);
+      } else {
+        console.warn("⚠️ Structure de profil inattendue:", profileResponse);
+        userProfile = { id, role, name: "Utilisateur", email: "" };
       }
 
       // Stocker le profil complet
@@ -76,20 +59,16 @@ export function AuthProvider({ children }) {
       setUser(userProfile);
       setIsAuthenticated(true);
 
-      UsersService.apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-
       window.dispatchEvent(new CustomEvent("authChanged"));
       
       return userProfile;
     } catch (error) {
-      console.error("Erreur lors du chargement du profil après connexion:", error);
+      console.error("❌ Erreur lors du chargement du profil:", error);
       // Fallback: stocker au moins les infos de base
-      const basicUser = { id, role };
+      const basicUser = { id: loginData.userId, role: loginData.role };
       localStorage.setItem("olympics_user_profile", JSON.stringify(basicUser));
       setUser(basicUser);
       setIsAuthenticated(true);
-      
-      UsersService.apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       
       return basicUser;
     }
@@ -105,73 +84,68 @@ export function AuthProvider({ children }) {
     setUser({ id: null, role: null });
     setIsAuthenticated(false);
 
-    delete UsersService.apiClient.defaults.headers.common["Authorization"];
+    UsersService.clearAuth();
 
     window.dispatchEvent(new CustomEvent("authChanged"));
   };
 
-  // Fonction pour mettre à jour le profil
-  const updateProfile = (profileData) => {
-    const updatedUser = { ...user, ...profileData };
-    setUser(updatedUser);
-    localStorage.setItem("olympics_user_profile", JSON.stringify(updatedUser));
-  };
-
-  // Fonction pour recharger le profil depuis l'API
+  // Fonction pour recharger le profil
   const refreshProfile = async () => {
     try {
+      console.log("🔄 Raffraîchissement du profil...");
       const profileResponse = await UsersService.getProfile();
-      console.log("🔄 Profil rafraîchi:", profileResponse);
-
+      
       let userProfile = user;
 
       if (profileResponse?.ourUsers) {
-        userProfile = { ...profileResponse.ourUsers, role: user.role };
-      } else if (profileResponse?.data?.ourUsers) {
-        userProfile = { ...profileResponse.data.ourUsers, role: user.role };
+        userProfile = { 
+          ...profileResponse.ourUsers, 
+          role: profileResponse.ourUsers.role || user.role 
+        };
       }
 
       localStorage.setItem("olympics_user_profile", JSON.stringify(userProfile));
       setUser(userProfile);
+      console.log("✅ Profil rafraîchi:", userProfile);
       
       return userProfile;
     } catch (error) {
-      console.error("Erreur lors du rafraîchissement du profil:", error);
+      console.error("❌ Erreur rafraîchissement profil:", error);
       throw error;
     }
   };
 
   // Au montage, initialiser l'authentification
   useEffect(() => {
-    const initializeAuth = async () => {
+    const initializeAuth = () => {
       const token = UsersService.getToken();
-      if (token) {
+      const savedProfile = localStorage.getItem("olympics_user_profile");
+      
+      if (token && savedProfile) {
         try {
-          // Vérifier si on a déjà un profil stocké
-          const savedProfile = localStorage.getItem("olympics_user_profile");
-          if (!savedProfile) {
-            // Si pas de profil stocké, le charger
-            await refreshProfile();
-          }
+          const profile = JSON.parse(savedProfile);
+          setUser(profile);
+          setIsAuthenticated(true);
+          console.log("🔑 Auth initialisée depuis localStorage");
         } catch (error) {
-          console.error("Erreur initialisation auth:", error);
+          console.error("❌ Erreur initialisation auth:", error);
         }
       }
-      setIsLoading(false);
     };
 
     initializeAuth();
 
     const onAuthChange = () => {
-      refreshAuth();
+      const token = UsersService.getToken();
+      setIsAuthenticated(!!token);
     };
 
     window.addEventListener("authChanged", onAuthChange);
-    window.addEventListener("authExpired", onAuthChange);
+    window.addEventListener("authExpired", logout);
 
     return () => {
       window.removeEventListener("authChanged", onAuthChange);
-      window.removeEventListener("authExpired", onAuthChange);
+      window.removeEventListener("authExpired", logout);
     };
   }, []);
 
@@ -183,7 +157,6 @@ export function AuthProvider({ children }) {
       isLoading,
       login, 
       logout, 
-      updateProfile,
       refreshProfile 
     }}>
       {children}

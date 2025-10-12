@@ -4,7 +4,6 @@ import UsersService from "../services/UsersService";
 import { useAuth } from "../../context/AuthContext";
 import logo from '../../assets/logoJO.webp';
 import LoadingSpinner from "../LoadingSpinner/LoadingSpinner";
-
 import "./LoginPage.css";
 
 function LoginPage() {
@@ -36,38 +35,53 @@ function LoginPage() {
     setError("");
 
     try {
+      console.log("🚀 Tentative de connexion pour:", email);
+      
+      // 1. Appel de connexion
       const userData = await UsersService.login(email, password);
-      console.log("RÉPONSE BACKEND:", userData); 
+      console.log("✅ Réponse backend:", userData); 
 
       if (userData?.token) {
+        console.log("🔐 Token reçu, connexion au contexte...");
         
-        login({
+        // 2. Utiliser la fonction login du contexte qui gère le profil
+        const userProfile = await login({
           token: userData.token,
-          id: userData.userId || userData.id, 
+          userId: userData.userId || userData.id, 
           role: userData.role,
         });
 
-        // Réinitialiser les champs avant redirection
+        console.log("🎉 Connexion réussie, profil:", userProfile);
+
+        // Réinitialiser les champs
         setEmail("");
         setPassword("");
         setError("");
 
-        // Laisser le temps à React de vider les champs avant la navigation
+        // Redirection avec un petit délai pour laisser le temps à l'état de se mettre à jour
         setTimeout(() => {
           if (userData.role?.toLowerCase() === "admin") {
+            console.log("➡️ Redirection vers admin");
             navigate("/admin/user-management");
           } else {
+            console.log("➡️ Redirection vers profile");
             navigate("/profile");
           }
-        }, 200);
+        }, 100);
+
       } else {
-        setError(userData.error || "Échec de l'authentification");
+        setError(userData.message || "Échec de l'authentification");
       }
     } catch (err) {
+      console.error("❌ Erreur de connexion:", err);
       setError(err.message || "Identifiants incorrects");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   return (
@@ -79,12 +93,16 @@ function LoginPage() {
           <p>Accédez à votre espace personnel</p>
         </div>
 
-        {error && <div className="error-message">{error}</div>}
+        {error && (
+          <div className="error-message">
+            ❌ {error}
+          </div>
+        )}
 
         {isLoading ? (
           <LoadingSpinner message="Connexion en cours..." />
         ) : (
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} className="auth-form">
             <div className="form-group">
               <label htmlFor="email">Email</label>
               <input
@@ -94,12 +112,14 @@ function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="votre@email.com"
                 required
+                disabled={isLoading}
+                className="form-input"
               />
             </div>
 
             <div className="form-group">
               <label htmlFor="password">Mot de passe</label>
-              <div className="password-input">
+              <div className="password-input-container">
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -108,54 +128,31 @@ function LoginPage() {
                   placeholder="••••••••"
                   required
                   minLength={6}
+                  disabled={isLoading}
+                  className="form-input password-input"
                 />
                 <button
                   type="button"
-                  className="show-password"
-                  onClick={() => setShowPassword(!showPassword)}
+                  className="password-toggle"
+                  onClick={togglePasswordVisibility}
+                  disabled={isLoading}
                   aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                 >
-                  {showPassword ? "Masquer" : "Afficher"}
+                  {showPassword ? "🙈" : "👁️"}
                 </button>
               </div>
 
-              {/* LIEN MOT DE PASSE OUBLIÉ */}
-              <Link 
-                to="/forgot-password" 
-                style={{
-                  display: 'block',
-                  textAlign: 'right',
-                  color: 'blue',
-                  textDecoration: 'underline',
-                  marginTop: '0.5rem',
-                  fontSize: '0.9rem',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: 0,
-                  font: 'inherit'
-                }}
-              >
-                Mot de passe oublié ?
-              </Link>
+              <div className="forgot-password-link">
+                <Link to="/forgot-password">
+                  Mot de passe oublié ?
+                </Link>
+              </div>
             </div>
 
             <button
               type="submit"
-              className="login-button"
+              className={`login-button ${isLoading ? 'loading' : ''}`}
               disabled={isLoading}
-              style={{
-                backgroundColor: isLoading ? "#999" : "#007bff",
-                color: "white",
-                padding: "0.8rem 1.5rem",
-                border: "none",
-                borderRadius: "8px",
-                cursor: isLoading ? "not-allowed" : "pointer",
-                fontWeight: "bold",
-                fontSize: "1rem",
-                width: "100%",
-                transition: "background-color 0.3s ease"
-              }}
             >
               {isLoading ? "Connexion..." : "Se connecter"}
             </button>
@@ -192,6 +189,8 @@ function LoginPage() {
             <li>✔️ Achat et gestion de vos billets</li>
             <li>✔️ Programme personnalisé des épreuves</li>
             <li>✔️ Actualités et résultats en direct</li>
+            <li>✔️ Profil utilisateur avec historique</li>
+            <li>✔️ Support dédié 24/7</li>
           </ul>
         </div>
       </div>

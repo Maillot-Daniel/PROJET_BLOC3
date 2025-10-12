@@ -5,8 +5,7 @@ import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 import './ProfilePage.css';
 
 function ProfilePage() {
-  const { user, logout, refreshProfile } = useAuth(); // Utiliser refreshProfile du contexte
-  const [localProfile, setLocalProfile] = useState(null);
+  const { user, logout, refreshProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -19,49 +18,25 @@ function ProfilePage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   useEffect(() => {
-    console.log("👤 User from AuthContext:", user);
+    console.log("👤 User dans ProfilePage:", user);
     
-    // Si l'utilisateur a des données complètes dans le contexte, les utiliser
-    if (user && user.id && (user.name || user.email)) {
-      console.log("✅ Utilisation des données du contexte Auth");
-      setLocalProfile(user);
-    } else {
-      // Sinon, charger depuis l'API
-      loadProfileFromAPI();
+    // Si l'utilisateur n'a pas de données complètes, les charger
+    if (user?.id && !user.name) {
+      loadProfile();
     }
   }, [user]);
 
-  const loadProfileFromAPI = async () => {
+  const loadProfile = async () => {
     try {
       setIsLoading(true);
       setError('');
-      console.log('🔄 Chargement du profil depuis API...');
+      console.log('🔄 Chargement du profil...');
       
-      const response = await UsersService.getProfile();
-      console.log('📨 Réponse API complète:', response);
+      await refreshProfile();
+      console.log('✅ Profil chargé avec succès');
       
-      let userData = null;
-      
-      if (response?.ourUsers) {
-        userData = response.ourUsers;
-        console.log('✅ Données trouvées dans response.ourUsers');
-      } else if (response?.data?.ourUsers) {
-        userData = response.data.ourUsers;
-        console.log('✅ Données trouvées dans response.data.ourUsers');
-      } else if (response && typeof response === 'object' && response.id) {
-        userData = response;
-        console.log('✅ Données trouvées directement dans response');
-      }
-      
-      if (userData) {
-        console.log('👤 Données utilisateur API:', userData);
-        setLocalProfile(userData);
-      } else {
-        console.error('❌ Aucune donnée utilisateur trouvée dans la réponse API');
-        setError("Aucune donnée de profil trouvée");
-      }
     } catch (err) {
-      console.error('❌ Erreur API:', err);
+      console.error('❌ Erreur chargement profil:', err);
       setError(err.message || "Erreur lors du chargement du profil");
     } finally {
       setIsLoading(false);
@@ -78,16 +53,22 @@ function ProfilePage() {
       return;
     }
 
+    if (passwordData.newPassword.length < 6) {
+      setError("Le mot de passe doit contenir au moins 6 caractères");
+      return;
+    }
+
     setIsChangingPassword(true);
     try {
       await UsersService.changePassword({
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword
       });
-      setMessage("Mot de passe changé avec succès !");
+      setMessage("✅ Mot de passe changé avec succès !");
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setShowPasswordForm(false);
     } catch (err) {
+      console.error('❌ Erreur changement mot de passe:', err);
       setError(err.message || "Erreur lors du changement de mot de passe");
     } finally {
       setIsChangingPassword(false);
@@ -101,12 +82,17 @@ function ProfilePage() {
     }));
   };
 
-  // Utiliser les données du contexte ou celles chargées localement
-  const displayProfile = localProfile || user;
+  const handleRetry = () => {
+    setError('');
+    loadProfile();
+  };
 
   if (isLoading) {
     return <LoadingSpinner message="Chargement du profil..." />;
   }
+
+  // Vérifier si l'utilisateur a des données à afficher
+  const hasUserData = user && user.id;
 
   return (
     <div className="page-wrapper">
@@ -119,7 +105,7 @@ function ProfilePage() {
         {error && (
           <div className="error-message">
             ❌ {error}
-            <button onClick={loadProfileFromAPI} className="btn-retry">
+            <button onClick={handleRetry} className="btn-retry">
               Réessayer
             </button>
           </div>
@@ -127,20 +113,20 @@ function ProfilePage() {
         
         {message && <div className="success-message">✅ {message}</div>}
 
-        {!displayProfile ? (
+        {!hasUserData ? (
           <div className="no-profile">
-            <p>⚠️ Aucun profil trouvé</p>
-            <button onClick={loadProfileFromAPI} className="btn-primary">
-              🔄 Recharger le profil
+            <p>⚠️ Aucun profil utilisateur trouvé</p>
+            <button onClick={loadProfile} className="btn-primary">
+              🔄 Charger le profil
             </button>
           </div>
         ) : (
           <div className="profile-content">
-            {/* Debug info */}
+            {/* Informations de débogage */}
             <div className="debug-info">
-              <strong>Source:</strong> {localProfile ? 'API' : 'Contexte'} | 
-              <strong> ID:</strong> {displayProfile.id} |
-              <strong> Données:</strong> {displayProfile.name ? 'COMPLÈTES' : 'INCOMPLÈTES'}
+              <strong>ID:</strong> {user.id} | 
+              <strong> Données:</strong> {user.name ? 'COMPLÈTES' : 'INCOMPLÈTES'} |
+              <strong> Rôle:</strong> {user.role || 'USER'}
             </div>
 
             <div className="profile-info">
@@ -149,24 +135,24 @@ function ProfilePage() {
               <div className="info-grid">
                 <div className="info-item">
                   <label>ID :</label>
-                  <span>{displayProfile.id || "Non disponible"}</span>
+                  <span className="info-value">{user.id}</span>
                 </div>
                 <div className="info-item">
                   <label>Nom :</label>
-                  <span>{displayProfile.name || displayProfile.nom || "Non renseigné"}</span>
+                  <span className="info-value">{user.name || user.nom || "Non renseigné"}</span>
                 </div>
                 <div className="info-item">
                   <label>Email :</label>
-                  <span>{displayProfile.email || "Non renseigné"}</span>
+                  <span className="info-value">{user.email || "Non renseigné"}</span>
                 </div>
                 <div className="info-item">
                   <label>Ville :</label>
-                  <span>{displayProfile.city || displayProfile.ville || "Non renseigné"}</span>
+                  <span className="info-value">{user.city || user.ville || "Non renseigné"}</span>
                 </div>
                 <div className="info-item">
                   <label>Rôle :</label>
-                  <span className={`role-badge ${(displayProfile.role || 'user').toLowerCase()}`}>
-                    {displayProfile.role || "USER"}
+                  <span className={`role-badge ${(user.role || 'user').toLowerCase()}`}>
+                    {user.role || "USER"}
                   </span>
                 </div>
               </div>
@@ -179,6 +165,7 @@ function ProfilePage() {
                 <button
                   onClick={() => setShowPasswordForm(!showPasswordForm)}
                   className="btn-secondary"
+                  disabled={isChangingPassword}
                 >
                   {showPasswordForm ? "✖ Annuler" : "🔒 Changer le mot de passe"}
                 </button>
@@ -193,6 +180,8 @@ function ProfilePage() {
                       value={passwordData.currentPassword}
                       onChange={(e) => handleInputChange('currentPassword', e.target.value)}
                       required
+                      disabled={isChangingPassword}
+                      placeholder="Entrez votre mot de passe actuel"
                     />
                   </div>
                   
@@ -203,6 +192,9 @@ function ProfilePage() {
                       value={passwordData.newPassword}
                       onChange={(e) => handleInputChange('newPassword', e.target.value)}
                       required
+                      disabled={isChangingPassword}
+                      minLength={6}
+                      placeholder="Au moins 6 caractères"
                     />
                   </div>
                   
@@ -213,22 +205,42 @@ function ProfilePage() {
                       value={passwordData.confirmPassword}
                       onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
                       required
+                      disabled={isChangingPassword}
+                      placeholder="Confirmez votre nouveau mot de passe"
                     />
                   </div>
                   
-                  <button 
-                    type="submit" 
-                    className="btn-primary" 
-                    disabled={isChangingPassword}
-                  >
-                    {isChangingPassword ? "🔄 Modification..." : "✅ Changer le mot de passe"}
-                  </button>
+                  <div className="form-actions">
+                    <button 
+                      type="submit" 
+                      className="btn-primary" 
+                      disabled={isChangingPassword}
+                    >
+                      {isChangingPassword ? "🔄 Modification en cours..." : "✅ Changer le mot de passe"}
+                    </button>
+                    
+                    <button 
+                      type="button" 
+                      className="btn-cancel"
+                      onClick={() => {
+                        setShowPasswordForm(false);
+                        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                        setError('');
+                      }}
+                      disabled={isChangingPassword}
+                    >
+                      Annuler
+                    </button>
+                  </div>
                 </form>
               )}
             </div>
 
-            {/* Actions */}
+            {/* Actions du profil */}
             <div className="profile-actions">
+              <button onClick={loadProfile} className="btn-secondary">
+                🔄 Actualiser le profil
+              </button>
               <button onClick={logout} className="btn-logout">
                 🚪 Se déconnecter
               </button>

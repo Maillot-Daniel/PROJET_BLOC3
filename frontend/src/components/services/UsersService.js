@@ -5,6 +5,7 @@ class UsersService {
   static TOKEN_KEY = "olympics_auth_token";
   static ROLE_KEY = "olympics_user_role";
   static USER_ID_KEY = "olympics_user_id";
+  static USER_PROFILE_KEY = "olympics_user_profile";
 
   static apiClient = axios.create({
     baseURL: UsersService.BASE_URL,
@@ -57,17 +58,30 @@ class UsersService {
     return localStorage.getItem(this.TOKEN_KEY);
   }
 
-  static setAuthData(token, role, userId) {
+  static setAuthData(token, role, userId, userProfile = null) {
     localStorage.setItem(this.TOKEN_KEY, token);
     localStorage.setItem(this.ROLE_KEY, role);
     localStorage.setItem(this.USER_ID_KEY, userId || "");
+    
+    if (userProfile) {
+      localStorage.setItem(this.USER_PROFILE_KEY, JSON.stringify(userProfile));
+    }
+    
+    // Mettre à jour les headers axios immédiatement
+    this.apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    
     window.dispatchEvent(new CustomEvent("authChanged"));
+    console.log("🔐 Données d'authentification stockées");
   }
 
   static clearAuth() {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.ROLE_KEY);
     localStorage.removeItem(this.USER_ID_KEY);
+    localStorage.removeItem(this.USER_PROFILE_KEY);
+    
+    delete this.apiClient.defaults.headers.common["Authorization"];
+    
     window.dispatchEvent(new CustomEvent("authChanged"));
   }
 
@@ -84,12 +98,32 @@ class UsersService {
     return localStorage.getItem(this.USER_ID_KEY);
   }
 
+  static getStoredProfile() {
+    try {
+      const profile = localStorage.getItem(this.USER_PROFILE_KEY);
+      return profile ? JSON.parse(profile) : null;
+    } catch (error) {
+      console.error("Erreur lecture profil stocké:", error);
+      return null;
+    }
+  }
+
   // Auth
   static async login(email, password) {
     try {
       console.log("LOGIN - Tentative de connexion:", email);
       const response = await this.apiClient.post("/auth/login", { email, password });
       console.log("LOGIN - Succès:", response.data);
+      
+      // Stocker immédiatement les données d'authentification
+      if (response.data?.token) {
+        this.setAuthData(
+          response.data.token,
+          response.data.role,
+          response.data.userId
+        );
+      }
+      
       return response.data;
     } catch (error) {
       console.error("LOGIN - Erreur:", error.message);
@@ -166,7 +200,7 @@ class UsersService {
     }
   }
 
-  // ============ NOUVELLES MÉTHODES MOT DE PASSE ============
+  // ============ MÉTHODES MOT DE PASSE ============
 
   static async requestPasswordReset(email) {
     try {
@@ -206,8 +240,6 @@ class UsersService {
       throw this.normalizeError(error, "Erreur lors du changement de mot de passe");
     }
   }
-
-  // ============ FIN DES NOUVELLES MÉTHODES ============
 
   // Normalisation des erreurs
   static normalizeError(error, customMessage = "") {
