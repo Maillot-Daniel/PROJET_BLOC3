@@ -9,15 +9,19 @@ export function AuthProvider({ children }) {
     const savedUser = localStorage.getItem("olympics_user_profile");
     if (savedUser) {
       try {
-        return JSON.parse(savedUser);
+        const parsedUser = JSON.parse(savedUser);
+        console.log("🔑 Utilisateur chargé depuis localStorage:", parsedUser);
+        return parsedUser;
       } catch (error) {
-        console.error("Erreur parsing saved user:", error);
+        console.error("❌ Erreur parsing saved user:", error);
       }
     }
-    return {
+    const basicUser = {
       id: localStorage.getItem("olympics_user_id") || null,
       role: localStorage.getItem("olympics_user_role") || null,
     };
+    console.log("🔑 Utilisateur basique créé:", basicUser);
+    return basicUser;
   });
   
   const [isAuthenticated, setIsAuthenticated] = useState(!!UsersService.getToken());
@@ -89,24 +93,36 @@ export function AuthProvider({ children }) {
     window.dispatchEvent(new CustomEvent("authChanged"));
   };
 
-  // Fonction pour recharger le profil
+  // Fonction pour recharger le profil - CORRIGÉE
   const refreshProfile = async () => {
     try {
-      console.log("🔄 Raffraîchissement du profil...");
+      console.log("🔄 Raffraîchissement du profil dans AuthContext...");
       const profileResponse = await UsersService.getProfile();
+      console.log("📊 Réponse profil reçue:", profileResponse);
       
-      let userProfile = user;
+      let userProfile = { ...user }; // Commencer avec l'utilisateur actuel
 
       if (profileResponse?.ourUsers) {
         userProfile = { 
           ...profileResponse.ourUsers, 
           role: profileResponse.ourUsers.role || user.role 
         };
+        console.log("✅ Profil complet extrait:", userProfile);
+      } else if (profileResponse) {
+        console.warn("⚠️ Structure de réponse inattendue:", profileResponse);
+        // Essayer d'extraire les données d'une autre manière
+        if (profileResponse.id || profileResponse.email) {
+          userProfile = { ...profileResponse, role: user.role };
+        }
       }
 
+      console.log("💾 Stockage du profil:", userProfile);
+      
+      // Stocker et mettre à jour le state
       localStorage.setItem("olympics_user_profile", JSON.stringify(userProfile));
       setUser(userProfile);
-      console.log("✅ Profil rafraîchi:", userProfile);
+      
+      console.log("✅ Profil rafraîchi et state mis à jour");
       
       return userProfile;
     } catch (error) {
@@ -121,15 +137,22 @@ export function AuthProvider({ children }) {
       const token = UsersService.getToken();
       const savedProfile = localStorage.getItem("olympics_user_profile");
       
+      console.log("🔍 Initialisation auth - Token:", !!token, "Profil:", !!savedProfile);
+      
       if (token && savedProfile) {
         try {
           const profile = JSON.parse(savedProfile);
+          console.log("👤 Profil chargé depuis localStorage:", profile);
           setUser(profile);
           setIsAuthenticated(true);
           console.log("🔑 Auth initialisée depuis localStorage");
         } catch (error) {
           console.error("❌ Erreur initialisation auth:", error);
         }
+      } else if (token) {
+        // Si token mais pas de profil, charger le profil
+        console.log("🔑 Token présent mais pas de profil, chargement...");
+        refreshProfile();
       }
     };
 
@@ -137,7 +160,12 @@ export function AuthProvider({ children }) {
 
     const onAuthChange = () => {
       const token = UsersService.getToken();
+      console.log("🔄 Auth changed - Token présent:", !!token);
       setIsAuthenticated(!!token);
+      
+      if (!token) {
+        setUser({ id: null, role: null });
+      }
     };
 
     window.addEventListener("authChanged", onAuthChange);
@@ -148,6 +176,11 @@ export function AuthProvider({ children }) {
       window.removeEventListener("authExpired", logout);
     };
   }, []);
+
+  // Debug: log quand user change
+  useEffect(() => {
+    console.log("🔄 State 'user' mis à jour dans AuthContext:", user);
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ 

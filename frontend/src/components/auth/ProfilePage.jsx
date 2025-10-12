@@ -19,21 +19,16 @@ function ProfilePage() {
 
   useEffect(() => {
     console.log("👤 User dans ProfilePage:", user);
-    
-    // Si l'utilisateur n'a pas de données complètes, les charger
-    if (user?.id && !user.name) {
-      loadProfile();
-    }
   }, [user]);
 
   const loadProfile = async () => {
     try {
       setIsLoading(true);
       setError('');
-      console.log('🔄 Chargement du profil...');
+      console.log('🔄 Chargement du profil depuis ProfilePage...');
       
       await refreshProfile();
-      console.log('✅ Profil chargé avec succès');
+      console.log('✅ Profil rafraîchi depuis ProfilePage');
       
     } catch (err) {
       console.error('❌ Erreur chargement profil:', err);
@@ -82,17 +77,9 @@ function ProfilePage() {
     }));
   };
 
-  const handleRetry = () => {
-    setError('');
-    loadProfile();
-  };
-
   if (isLoading) {
     return <LoadingSpinner message="Chargement du profil..." />;
   }
-
-  // Vérifier si l'utilisateur a des données à afficher
-  const hasUserData = user && user.id;
 
   return (
     <div className="page-wrapper">
@@ -105,7 +92,7 @@ function ProfilePage() {
         {error && (
           <div className="error-message">
             ❌ {error}
-            <button onClick={handleRetry} className="btn-retry">
+            <button onClick={loadProfile} className="btn-retry">
               Réessayer
             </button>
           </div>
@@ -113,46 +100,49 @@ function ProfilePage() {
         
         {message && <div className="success-message">✅ {message}</div>}
 
-        {!hasUserData ? (
+        {/* Debug Info */}
+        <div className="debug-info">
+          <strong>User State:</strong> ID: {user?.id || 'NULL'}, 
+          Name: {user?.name ? '✅' : '❌'}, 
+          Email: {user?.email ? '✅' : '❌'}
+        </div>
+
+        {!user?.id ? (
           <div className="no-profile">
-            <p>⚠️ Aucun profil utilisateur trouvé</p>
+            <p>⚠️ Aucun utilisateur connecté</p>
             <button onClick={loadProfile} className="btn-primary">
               🔄 Charger le profil
             </button>
           </div>
+        ) : !user.name ? (
+          <div className="no-profile">
+            <p>⚠️ Données de profil incomplètes</p>
+            <button onClick={loadProfile} className="btn-primary">
+              🔄 Charger les données complètes
+            </button>
+          </div>
         ) : (
           <div className="profile-content">
-            {/* Informations de débogage */}
-            <div className="debug-info">
-              <strong>ID:</strong> {user.id} | 
-              <strong> Données:</strong> {user.name ? 'COMPLÈTES' : 'INCOMPLÈTES'} |
-              <strong> Rôle:</strong> {user.role || 'USER'}
-            </div>
-
             <div className="profile-info">
               <h3>Informations personnelles</h3>
               
               <div className="info-grid">
                 <div className="info-item">
-                  <label>ID :</label>
-                  <span className="info-value">{user.id}</span>
-                </div>
-                <div className="info-item">
                   <label>Nom :</label>
-                  <span className="info-value">{user.name || user.nom || "Non renseigné"}</span>
+                  <span className="info-value">{user.name}</span>
                 </div>
                 <div className="info-item">
                   <label>Email :</label>
-                  <span className="info-value">{user.email || "Non renseigné"}</span>
+                  <span className="info-value">{user.email}</span>
                 </div>
                 <div className="info-item">
                   <label>Ville :</label>
-                  <span className="info-value">{user.city || user.ville || "Non renseigné"}</span>
+                  <span className="info-value">{user.city || "Non renseigné"}</span>
                 </div>
                 <div className="info-item">
                   <label>Rôle :</label>
-                  <span className={`role-badge ${(user.role || 'user').toLowerCase()}`}>
-                    {user.role || "USER"}
+                  <span className={`role-badge ${user.role.toLowerCase()}`}>
+                    {user.role}
                   </span>
                 </div>
               </div>
@@ -165,7 +155,6 @@ function ProfilePage() {
                 <button
                   onClick={() => setShowPasswordForm(!showPasswordForm)}
                   className="btn-secondary"
-                  disabled={isChangingPassword}
                 >
                   {showPasswordForm ? "✖ Annuler" : "🔒 Changer le mot de passe"}
                 </button>
@@ -180,8 +169,6 @@ function ProfilePage() {
                       value={passwordData.currentPassword}
                       onChange={(e) => handleInputChange('currentPassword', e.target.value)}
                       required
-                      disabled={isChangingPassword}
-                      placeholder="Entrez votre mot de passe actuel"
                     />
                   </div>
                   
@@ -192,9 +179,6 @@ function ProfilePage() {
                       value={passwordData.newPassword}
                       onChange={(e) => handleInputChange('newPassword', e.target.value)}
                       required
-                      disabled={isChangingPassword}
-                      minLength={6}
-                      placeholder="Au moins 6 caractères"
                     />
                   </div>
                   
@@ -205,44 +189,26 @@ function ProfilePage() {
                       value={passwordData.confirmPassword}
                       onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
                       required
-                      disabled={isChangingPassword}
-                      placeholder="Confirmez votre nouveau mot de passe"
                     />
                   </div>
                   
-                  <div className="form-actions">
-                    <button 
-                      type="submit" 
-                      className="btn-primary" 
-                      disabled={isChangingPassword}
-                    >
-                      {isChangingPassword ? "🔄 Modification en cours..." : "✅ Changer le mot de passe"}
-                    </button>
-                    
-                    <button 
-                      type="button" 
-                      className="btn-cancel"
-                      onClick={() => {
-                        setShowPasswordForm(false);
-                        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-                        setError('');
-                      }}
-                      disabled={isChangingPassword}
-                    >
-                      Annuler
-                    </button>
-                  </div>
+                  <button 
+                    type="submit" 
+                    className="btn-primary" 
+                    disabled={isChangingPassword}
+                  >
+                    {isChangingPassword ? "🔄 Modification..." : "✅ Changer le mot de passe"}
+                  </button>
                 </form>
               )}
             </div>
 
-            {/* Actions du profil */}
             <div className="profile-actions">
               <button onClick={loadProfile} className="btn-secondary">
-                🔄 Actualiser le profil
+                🔄 Actualiser
               </button>
               <button onClick={logout} className="btn-logout">
-                🚪 Se déconnecter
+                🚪 Déconnexion
               </button>
             </div>
           </div>
