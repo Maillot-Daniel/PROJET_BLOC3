@@ -37,12 +37,13 @@ function LoginPage() {
 
     try {
       const userData = await UsersService.login(email, password);
+      console.log("RÉPONSE BACKEND:", userData); 
 
       if (userData?.token) {
-        // Connexion réussie
+        
         login({
           token: userData.token,
-          id: userData.userId,
+          id: userData.userId, 
           role: userData.role,
         });
 
@@ -118,7 +119,7 @@ function LoginPage() {
                 </button>
               </div>
 
-              {/* ⬇️ BOUTON CORRIGÉ - REMPLACÉ PAR LINK ⬇️ */}
+              {/* LIEN MOT DE PASSE OUBLIÉ */}
               <Link 
                 to="/forgot-password" 
                 style={{

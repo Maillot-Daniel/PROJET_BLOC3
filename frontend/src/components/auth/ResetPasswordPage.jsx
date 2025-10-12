@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import UsersService from '../service/UsersService';
+import UsersService from '../services/UsersService';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
+import './ResetPasswordPage.css';
 
 function ResetPasswordPage() {
   const navigate = useNavigate();

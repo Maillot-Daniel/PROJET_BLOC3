@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import UsersService from '../service/UsersService';
+import UsersService from '../services/UsersService';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
+import './ForgotPasswordPage.css';
 
 function ForgotPasswordPage() {
   const [email, setEmail] = useState('');

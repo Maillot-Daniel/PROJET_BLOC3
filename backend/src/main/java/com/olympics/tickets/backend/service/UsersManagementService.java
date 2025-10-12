@@ -6,6 +6,7 @@ import com.olympics.tickets.backend.dto.ReqRes;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -88,6 +89,9 @@ public class UsersManagementService {
             response.setRefreshToken(refreshToken);
             response.setExpirationTime("24Hrs");
             response.setMessage("Successfully Logged In");
+
+            // ⬇️ CORRECTION CRITIQUE : ENVOYER L'ID UTILISATEUR
+            response.setUserId(user.getId());
 
         } catch (Exception e) {
             response.setStatusCode(500);
@@ -217,6 +221,36 @@ public class UsersManagementService {
             reqRes.setMessage("Error occurred while getting user info: " + e.getMessage());
         }
         return reqRes;
+    }
+
+    // ==================== MÉTHODE CHANGEMENT MOT DE PASSE ====================
+    public ReqRes changePassword(ReqRes request) {
+        ReqRes response = new ReqRes();
+        try {
+            // Récupérer l'utilisateur connecté
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String email = authentication.getName();
+
+            OurUsers user = usersRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+
+            // Vérifier l'ancien mot de passe
+            if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+                throw new RuntimeException("Mot de passe actuel incorrect");
+            }
+
+            // Mettre à jour avec le nouveau mot de passe
+            user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+            usersRepository.save(user);
+
+            response.setStatusCode(200);
+            response.setMessage("Mot de passe modifié avec succès");
+
+        } catch (Exception e) {
+            response.setStatusCode(500);
+            response.setMessage(e.getMessage());
+        }
+        return response;
     }
 
     // ==================== MÉTHODES RÉINITIALISATION MOT DE PASSE ====================

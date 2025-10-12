@@ -1,7 +1,7 @@
 import axios from "axios";
 
 class UsersService {
-  static BASE_URL = process.env.REACT_APP_API_URL || "https://projet-bloc3.onrender.com";
+  static BASE_URL = "https://projet-bloc3.onrender.com";
   static TOKEN_KEY = "olympics_auth_token";
   static ROLE_KEY = "olympics_user_role";
   static USER_ID_KEY = "olympics_user_id";
@@ -134,7 +134,7 @@ class UsersService {
     }
   }
 
-  // ============ NOUVELLES MÉTHODES RÉINITIALISATION MOT DE PASSE ============
+  // ============ NOUVELLES MÉTHODES MOT DE PASSE ============
 
   static async requestPasswordReset(email) {
     try {
@@ -163,6 +163,15 @@ class UsersService {
       return response.data;
     } catch (error) {
       throw this.normalizeError(error, "Token invalide");
+    }
+  }
+
+  static async changePassword(passwordData) {
+    try {
+      const response = await this.apiClient.post("/auth/change-password", passwordData);
+      return response.data;
+    } catch (error) {
+      throw this.normalizeError(error, "Erreur lors du changement de mot de passe");
     }
   }
 

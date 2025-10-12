@@ -20,8 +20,11 @@ public class ReqRes {
     private String role;
     private String email;
     private String password;
+    private String currentPassword; // ⬅️ NOUVEAU POUR CHANGEMENT MDP
+    private String newPassword;     // ⬅️ NOUVEAU POUR CHANGEMENT MDP
     private OurUsers ourUsers;
     private List<OurUsers> ourUsersList;
+    private Long userId;            // ⬅️ NOUVEAU POUR CORRECTION LOGIN
 
     // Getters and Setters
     public int getStatusCode() {
@@ -112,6 +115,22 @@ public class ReqRes {
         this.password = password;
     }
 
+    public String getCurrentPassword() {
+        return currentPassword;
+    }
+
+    public void setCurrentPassword(String currentPassword) {
+        this.currentPassword = currentPassword;
+    }
+
+    public String getNewPassword() {
+        return newPassword;
+    }
+
+    public void setNewPassword(String newPassword) {
+        this.newPassword = newPassword;
+    }
+
     public OurUsers getOurUsers() {
         return ourUsers;
     }
@@ -126,5 +145,13 @@ public class ReqRes {
 
     public void setOurUsersList(List<OurUsers> ourUsersList) {
         this.ourUsersList = ourUsersList;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 }
