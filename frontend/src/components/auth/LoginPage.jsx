@@ -43,7 +43,7 @@ function LoginPage() {
         
         login({
           token: userData.token,
-          id: userData.userId, 
+          id: userData.userId || userData.id, 
           role: userData.role,
         });
 
