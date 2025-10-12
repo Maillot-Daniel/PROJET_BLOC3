@@ -19,7 +19,12 @@ class UsersService {
     this.apiClient.interceptors.request.use(
       (config) => {
         const token = this.getToken();
-        if (token) config.headers.Authorization = `Bearer ${token}`;
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+          console.log("REQUEST - Token ajouté à la requête:", config.url);
+        } else {
+          console.warn("REQUEST - Aucun token trouvé");
+        }
         return config;
       },
       (error) => Promise.reject(error)
@@ -27,9 +32,19 @@ class UsersService {
 
     // Interceptor pour gérer l'expiration du token
     this.apiClient.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        console.log("RESPONSE - Succès:", response.config.url, response.status);
+        return response;
+      },
       (error) => {
+        console.error("RESPONSE - Erreur:", {
+          url: error.config?.url,
+          status: error.response?.status,
+          message: error.message
+        });
+        
         if (error.response?.status === 401) {
+          console.log("RESPONSE - Token expiré, déconnexion...");
           this.clearAuth();
           window.dispatchEvent(new CustomEvent("authExpired"));
         }
@@ -72,9 +87,12 @@ class UsersService {
   // Auth
   static async login(email, password) {
     try {
+      console.log("LOGIN - Tentative de connexion:", email);
       const response = await this.apiClient.post("/auth/login", { email, password });
+      console.log("LOGIN - Succès:", response.data);
       return response.data;
     } catch (error) {
+      console.error("LOGIN - Erreur:", error.message);
       throw this.normalizeError(error, "Échec de la connexion");
     }
   }
@@ -90,9 +108,23 @@ class UsersService {
 
   static async getProfile() {
     try {
+      console.log("GET PROFILE - Début de la requête");
+      const token = this.getToken();
+      console.log("GET PROFILE - Token:", token ? "PRÉSENT" : "ABSENT");
+      
       const response = await this.apiClient.get("/adminuser/get-profile");
+      
+      console.log("GET PROFILE - Réponse reçue:", response.data);
+      console.log("GET PROFILE - Statut HTTP:", response.status);
+      
       return response.data;
     } catch (error) {
+      console.error("GET PROFILE - Erreur détaillée:", {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        url: error.config?.url
+      });
       throw this.normalizeError(error, "Échec de la récupération du profil");
     }
   }
