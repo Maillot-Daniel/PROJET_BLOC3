@@ -11,16 +11,6 @@ export default function AuthWidget() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [topPosition, setTopPosition] = useState(60);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setTopPosition(window.innerWidth < 768 ? 100 : 60);
-    };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   if (!user) return null;
 
@@ -55,28 +45,25 @@ export default function AuthWidget() {
 
   return (
     <div style={{
-      position: 'fixed',
-      top: `${topPosition}px`,
-      right: '10px',
-      background: 'rgba(0,0,0,0.6)',
-      color: 'white',
-      padding: '10px',
-      borderRadius: '8px',
-      zIndex: 9999,
-      fontFamily: 'monospace',
+      marginTop: '30px', // un peu plus haut
       width: '90%',
-      maxWidth: '250px',
-      boxSizing: 'border-box',
+      maxWidth: '400px',
+      background: 'rgba(0,0,0,0.50)',
+      color: 'white',
+      padding: '15px',
+      borderRadius: '10px',
+      fontFamily: 'monospace',
       display: 'flex',
       flexDirection: 'column',
-      gap: '6px'
+      gap: '10px',
+      alignSelf: 'center'
     }}>
-      <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
+      <div style={{ fontWeight: 'bold', fontSize: '16px' }}>
         👋 Bonjour {user.name.split(" ")[0]} !
       </div>
 
       <div style={{
-        fontSize: '11px',
+        fontSize: '12px',
         color: '#ccc',
         display: 'flex',
         justifyContent: 'space-between',
@@ -86,30 +73,30 @@ export default function AuthWidget() {
         <button
           onClick={() => setShowChangePwd(!showChangePwd)}
           style={{
-            padding: '2px 6px',
-            fontSize: '10px',
-            backgroundColor: 'rgba(0,123,255,0.7)',
+            padding: '4px 8px',
+            fontSize: '12px',
+            backgroundColor: '#007bff',
             color: 'white',
             border: 'none',
-            borderRadius: '4px',
+            borderRadius: '6px',
             cursor: 'pointer'
           }}
         >
-          🔑 Changer Mot de passe
+          🔑 Changer mot de passe
         </button>
       </div>
 
-      <div style={{ fontSize: '11px', color: '#0f0' }}>✅ Connecté</div>
+      <div style={{ fontSize: '12px', color: '#0f0' }}>✅ Connecté</div>
 
       {showChangePwd && (
-        <form onSubmit={handleChangePassword} style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <input
             type="password"
             placeholder="Ancien mot de passe"
             value={oldPassword}
             onChange={(e) => setOldPassword(e.target.value)}
             required
-            style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ccc' }}
+            style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
           />
           <input
             type="password"
@@ -118,7 +105,7 @@ export default function AuthWidget() {
             onChange={(e) => setNewPassword(e.target.value)}
             required
             minLength={6}
-            style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ccc' }}
+            style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
           />
           <input
             type="password"
@@ -127,19 +114,20 @@ export default function AuthWidget() {
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
             minLength={6}
-            style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ccc' }}
+            style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
           />
           <button
             type="submit"
             disabled={isLoading}
             style={{
               width: '100%',
-              padding: '6px',
+              padding: '10px',
               backgroundColor: '#00cc88',
               color: 'white',
               border: 'none',
-              borderRadius: '4px',
-              cursor: isLoading ? 'not-allowed' : 'pointer'
+              borderRadius: '6px',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              fontWeight: 'bold'
             }}
           >
             {isLoading ? "⏳ ..." : "Modifier"}
@@ -147,8 +135,8 @@ export default function AuthWidget() {
         </form>
       )}
 
-      {message && <div style={{ marginTop: '4px', color: '#00ff88', fontSize: '11px' }}>{message}</div>}
-      {error && <div style={{ marginTop: '4px', color: '#ff4444', fontSize: '11px' }}>{error}</div>}
+      {message && <div style={{ color: '#00ff88', fontSize: '12px' }}>{message}</div>}
+      {error && <div style={{ color: '#ff4444', fontSize: '12px' }}>{error}</div>}
     </div>
   );
 }

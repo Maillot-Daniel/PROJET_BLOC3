@@ -4,19 +4,19 @@ import UsersService from "../services/UsersService";
 import { useAuth } from "../../context/AuthContext";
 import logo from '../../assets/logoJO.webp';
 import LoadingSpinner from "../LoadingSpinner/LoadingSpinner";
+
 import "./LoginPage.css";
 
 function LoginPage() {
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Redirige si déjà connecté
+  // Redirection si déjà connecté
   useEffect(() => {
     if (isAuthenticated) {
       navigate("/profile");
@@ -35,53 +35,28 @@ function LoginPage() {
     setError("");
 
     try {
-      console.log("🚀 Tentative de connexion pour:", email);
-      
-      // 1. Appel de connexion
       const userData = await UsersService.login(email, password);
-      console.log("✅ Réponse backend:", userData); 
 
       if (userData?.token) {
-        console.log("🔐 Token reçu, connexion au contexte...");
-        
-        // 2. Utiliser la fonction login du contexte qui gère le profil
-        const userProfile = await login({
+        login({
           token: userData.token,
-          userId: userData.userId || userData.id, 
+          id: userData.userId,
           role: userData.role,
         });
 
-        console.log("🎉 Connexion réussie, profil:", userProfile);
-
-        // Réinitialiser les champs
-        setEmail("");
-        setPassword("");
-        setError("");
-
-        // Redirection avec un petit délai pour laisser le temps à l'état de se mettre à jour
-        setTimeout(() => {
-          if (userData.role?.toLowerCase() === "admin") {
-            console.log("➡️ Redirection vers admin");
-            navigate("/admin/user-management");
-          } else {
-            console.log("➡️ Redirection vers profile");
-            navigate("/profile");
-          }
-        }, 100);
-
+        if (userData.role?.toLowerCase() === "admin") {
+          navigate("/admin/user-management");
+        } else {
+          navigate("/profile");
+        }
       } else {
-        setError(userData.message || "Échec de l'authentification");
+        setError(userData.error || "Échec de l'authentification");
       }
-    } catch (err) {
-      console.error("❌ Erreur de connexion:", err);
-      setError(err.message || "Identifiants incorrects");
+    } catch (error) {
+      setError(error.message || "Identifiants incorrects");
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
   };
 
   return (
@@ -93,11 +68,7 @@ function LoginPage() {
           <p>Accédez à votre espace personnel</p>
         </div>
 
-        {error && (
-          <div className="error-message">
-            ❌ {error}
-          </div>
-        )}
+        {error && <div className="error-message">{error}</div>}
 
         {isLoading ? (
           <LoadingSpinner message="Connexion en cours..." />
@@ -112,14 +83,12 @@ function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="votre@email.com"
                 required
-                disabled={isLoading}
-                className="form-input"
               />
             </div>
 
             <div className="form-group">
               <label htmlFor="password">Mot de passe</label>
-              <div className="password-input-container">
+              <div className="password-input-container" style={{ position: "relative" }}>
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -128,30 +97,32 @@ function LoginPage() {
                   placeholder="••••••••"
                   required
                   minLength={6}
-                  disabled={isLoading}
-                  className="form-input password-input"
+                  className="password-input"
                 />
                 <button
                   type="button"
-                  className="password-toggle"
-                  onClick={togglePasswordVisibility}
-                  disabled={isLoading}
+                  className="show-password"
+                  onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    position: "absolute",
+                    right: "12px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    cursor: "pointer",
+                    fontSize: "18px",
+                  }}
                 >
                   {showPassword ? "🙈" : "👁️"}
                 </button>
-              </div>
-
-              <div className="forgot-password-link">
-                <Link to="/forgot-password">
-                  Mot de passe oublié ?
-                </Link>
               </div>
             </div>
 
             <button
               type="submit"
-              className={`login-button ${isLoading ? 'loading' : ''}`}
+              className="login-button"
               disabled={isLoading}
             >
               {isLoading ? "Connexion..." : "Se connecter"}
