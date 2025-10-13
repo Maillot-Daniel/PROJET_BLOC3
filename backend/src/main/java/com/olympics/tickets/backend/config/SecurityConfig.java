@@ -22,6 +22,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -40,27 +41,25 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // Désactive CSRF uniquement pour le webhook Stripe
+                // ✅ Désactive CSRF uniquement pour le webhook Stripe
                 .csrf(csrf -> csrf
                         .ignoringRequestMatchers("/api/stripe/webhook", "/api/stripe/webhook/")
                 )
 
-                // Active CORS global
+                // ✅ CORS global
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
                 .authorizeHttpRequests(auth -> auth
-                        // Autoriser préflight OPTIONS
+                        // Préflight OPTIONS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         // Webhook Stripe
                         .requestMatchers("/api/stripe/webhook", "/api/stripe/webhook/").permitAll()
 
-                        // Auth / Public / Docs
+                        // Endpoints publics
                         .requestMatchers(
                                 "/auth/**",
                                 "/public/**",
-                                "/api/test",
-                                "/api/db-test",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
@@ -68,11 +67,18 @@ public class SecurityConfig {
 
                         // Events publics
                         .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/events").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/events/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasRole("ADMIN")
+
+                        // Routes admin
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
 
                         // Tout le reste nécessite authentification
                         .anyRequest().authenticated()
                 )
 
+                // Session stateless
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
@@ -83,7 +89,7 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // Configuration CORS
+    // ✅ CORS configuration
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
@@ -95,8 +101,8 @@ public class SecurityConfig {
                 "https://projet-bloc3.onrender.com"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Stripe-Signature"));
-        configuration.setExposedHeaders(Arrays.asList("Authorization"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Stripe-Signature"));
+        configuration.setExposedHeaders(List.of("Authorization"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
