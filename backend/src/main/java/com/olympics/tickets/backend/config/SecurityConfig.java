@@ -22,7 +22,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
-import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -41,50 +40,65 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // ✅ CSRF désactivé uniquement pour le webhook Stripe (avec trailing slash)
-                .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/api/stripe/webhook", "/api/stripe/webhook/")
-                )
+                // ✅ DÉSACTIVER CSRF COMPLÈTEMENT (cause principale du 403)
+                .csrf(AbstractHttpConfigurer::disable)
+
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        // Autoriser préflight OPTIONS
+                        // 1. OPTIONS requests (CORS preflight)
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // Webhook Stripe (accessible publiquement)
+                        // 2. Webhook Stripe
                         .requestMatchers("/api/stripe/webhook", "/api/stripe/webhook/").permitAll()
 
-                        // Endpoints publics
+                        // 3. Authentication endpoints - BIEN EXPLICITE
                         .requestMatchers(
-                                "/auth/**",
-                                "/public/**",
-                                "/api/test",
-                                "/api/db-test",
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html"
+                                "/auth/login",
+                                "/auth/register",
+                                "/auth/refresh-token",
+                                "/auth/password-reset-request",
+                                "/auth/reset-password",
+                                "/auth/validate-reset-token",
+                                "/auth/change-password",
+                                "/auth/**"
                         ).permitAll()
 
-                        // Offre et events
-                        .requestMatchers(HttpMethod.GET, "/api/offer_types", "/api/offer_types/**").permitAll()
+                        // 4. Documentation Swagger
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/swagger-resources/**",
+                                "/webjars/**"
+                        ).permitAll()
+
+                        // 5. Endpoints de test et publics
+                        .requestMatchers(
+                                "/api/test",
+                                "/api/db-test",
+                                "/public/**"
+                        ).permitAll()
+
+                        // 6. Resources publiques en lecture (GET)
+                        .requestMatchers(HttpMethod.GET, "/api/offer_types/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
+
+                        // 7. Administration - Opérations CRUD
                         .requestMatchers(HttpMethod.POST, "/api/offer_types/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/offer_types/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/offer_types/**").hasRole("ADMIN")
-
-                        .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/events/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/events/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasRole("ADMIN")
 
-                        // Panier, paiement et tickets (authentification nécessaire)
-                        .requestMatchers("/api/cart/**", "/api/pay/**", "/api/tickets/**").authenticated()
-
-                        // Admin
+                        // 8. Routes admin
                         .requestMatchers("/admin/**").hasRole("ADMIN")
 
-                        // Profil utilisateur
+                        // 9. Routes authentifiées (utilisateurs normaux)
+                        .requestMatchers("/api/cart/**", "/api/pay/**", "/api/tickets/**").authenticated()
                         .requestMatchers("/adminuser/**").authenticated()
 
-                        // Toutes les autres requêtes nécessitent authentification
+                        // 10. Toutes les autres routes nécessitent une authentification
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
@@ -96,7 +110,7 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // Configuration CORS
+    // Configuration CORS améliorée
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
@@ -107,11 +121,21 @@ public class SecurityConfig {
                 "https://*.vercel.app",
                 "https://projet-bloc3.onrender.com"
         ));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"));
         configuration.setAllowedHeaders(Arrays.asList(
-                "Authorization", "Content-Type", "Stripe-Signature"
+                "Authorization",
+                "Content-Type",
+                "Stripe-Signature",
+                "X-Requested-With",
+                "Accept",
+                "Cache-Control",
+                "Origin"
         ));
-        configuration.setExposedHeaders(Arrays.asList("Authorization"));
+        configuration.setExposedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Disposition",
+                "X-Total-Count"
+        ));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
