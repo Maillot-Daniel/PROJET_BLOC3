@@ -41,55 +41,62 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // ✅ Désactive CSRF uniquement pour le webhook Stripe
+                // ✅ CSRF désactivé uniquement pour le webhook Stripe (avec trailing slash)
                 .csrf(csrf -> csrf
                         .ignoringRequestMatchers("/api/stripe/webhook", "/api/stripe/webhook/")
                 )
-
-                // ✅ CORS global
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
                 .authorizeHttpRequests(auth -> auth
-                        // Préflight OPTIONS
+                        // Autoriser préflight OPTIONS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // Webhook Stripe
+                        // Webhook Stripe (accessible publiquement)
                         .requestMatchers("/api/stripe/webhook", "/api/stripe/webhook/").permitAll()
 
                         // Endpoints publics
                         .requestMatchers(
                                 "/auth/**",
                                 "/public/**",
+                                "/api/test",
+                                "/api/db-test",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
 
-                        // Events publics
+                        // Offre et events
+                        .requestMatchers(HttpMethod.GET, "/api/offer_types", "/api/offer_types/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/offer_types/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/offer_types/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/offer_types/**").hasRole("ADMIN")
+
                         .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/events").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/events/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/events/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasRole("ADMIN")
 
-                        // Routes admin
+                        // Panier, paiement et tickets (authentification nécessaire)
+                        .requestMatchers("/api/cart/**", "/api/pay/**", "/api/tickets/**").authenticated()
+
+                        // Admin
                         .requestMatchers("/admin/**").hasRole("ADMIN")
 
-                        // Tout le reste nécessite authentification
+                        // Profil utilisateur
+                        .requestMatchers("/adminuser/**").authenticated()
+
+                        // Toutes les autres requêtes nécessitent authentification
                         .anyRequest().authenticated()
                 )
-
-                // Session stateless
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // ✅ CORS configuration
+    // Configuration CORS
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
@@ -101,8 +108,10 @@ public class SecurityConfig {
                 "https://projet-bloc3.onrender.com"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Stripe-Signature"));
-        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Authorization", "Content-Type", "Stripe-Signature"
+        ));
+        configuration.setExposedHeaders(Arrays.asList("Authorization"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
@@ -113,10 +122,10 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(ourUserDetailsService);
-        provider.setPasswordEncoder(passwordEncoder());
-        return provider;
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        authProvider.setUserDetailsService(ourUserDetailsService);
+        authProvider.setPasswordEncoder(passwordEncoder());
+        return authProvider;
     }
 
     @Bean
