@@ -1,4 +1,3 @@
-
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import Navbar from './components/common/Navbar';
@@ -18,6 +17,7 @@ import CartPage from './components/cart/CartPage';
 
 import OffersPage from './components/OffersPage/OffersPage';
 import OffersGestion from './components/OffersGestion/OffersGestion';
+import TicketValidator from './components/tickets/TicketValidator'; // ← NOUVEAU IMPORT
 
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
@@ -68,12 +68,11 @@ function App() {
                 <Route path="/admin/update-user/:userId" element={<RequireAdmin><UpdateUser /></RequireAdmin>} />
                 <Route path="/admin/create-event" element={<RequireAdmin><CreateEventForm /></RequireAdmin>} />
                 <Route path="/admin/offers-gestion" element={<RequireAdmin><OffersGestion /></RequireAdmin>} />
+                <Route path="/admin/validate-tickets" element={<RequireAdmin><TicketValidator /></RequireAdmin>} /> {/* ← NOUVELLE ROUTE */}
 
                 {/* Authenticated users */}
-
                 <Route path="/public-events" element={<RequireUser><Events /></RequireUser>} />
                 <Route path="/cart" element={<RequireUser><CartPage /></RequireUser>} />
-
 
                 {/* Static pages */}
                 <Route path="/cgu" element={<CguPages />} />

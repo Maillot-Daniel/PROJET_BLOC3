@@ -10,7 +10,9 @@ function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {}, [user, isAuthenticated]);
+  useEffect(() => {
+    // Logique d'effet si nécessaire
+  }, [user, isAuthenticated]);
 
   const isAdmin = user?.role?.toLowerCase() === "admin";
 
@@ -73,6 +75,7 @@ function Navbar() {
 
         <div id="nav-menu" className={`nav-container ${isMobileMenuOpen ? "open" : ""}`}>
           <ul className="nav-list">
+            {/* Liens publics */}
             <li className="nav-item">
               <Link to="/" className="nav-link" onClick={closeMobileMenu}>
                 Accueil
@@ -91,12 +94,14 @@ function Navbar() {
 
             {isAuthenticated ? (
               <>
+                {/* Liens utilisateur connecté */}
                 <li className="nav-item">
                   <Link to="/cart" className="nav-link" onClick={closeMobileMenu}>
                     Panier
                   </Link>
                 </li>
 
+                {/* Section administration */}
                 {isAdmin && (
                   <>
                     <li className="nav-item admin-divider" aria-hidden="true">
@@ -122,9 +127,16 @@ function Navbar() {
                         Gestion Offres
                       </Link>
                     </li>
+                    {/* NOUVEAU LIEN POUR LA VALIDATION DES TICKETS */}
+                    <li className="nav-item">
+                      <Link to="/admin/validate-tickets" className="nav-link admin-link" onClick={closeMobileMenu}>
+                        🎫 Valider Tickets
+                      </Link>
+                    </li>
                   </>
                 )}
 
+                {/* Déconnexion */}
                 <li className="nav-item">
                   <button
                     className="nav-link logout-link"
@@ -137,6 +149,7 @@ function Navbar() {
                 </li>
               </>
             ) : (
+              /* Liens visiteurs non connectés */
               <>
                 <li className="nav-item">
                   <Link to="/login" className="nav-link auth-link" onClick={closeMobileMenu}>
