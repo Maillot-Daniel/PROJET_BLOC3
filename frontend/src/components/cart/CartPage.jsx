@@ -7,27 +7,8 @@ function CartPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const getApiUrl = () => {
-    try {
-      // 1️⃣ Variable d'environnement définie (prod)
-      if (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim() !== "") {
-        return import.meta.env.VITE_API_URL;
-      }
-
-      // 2️⃣ En local (dev)
-      if (["localhost", "127.0.0.1"].includes(window.location.hostname)) {
-        return "http://localhost:8080";
-      }
-
-      // 3️⃣ Fallback (prod sans variable) → backend Render
-      return "https://projet-bloc3.onrender.com";
-    } catch (error) {
-      console.warn("⚠️ Erreur lors de la lecture de VITE_API_URL :", error);
-      return "https://projet-bloc3.onrender.com";
-    }
-  };
-
-  const API_URL = getApiUrl();
+  // ✅ URL API FIXE - Plus d'erreur VITE_API_URL
+  const API_URL = "https://projet-bloc3.onrender.com";
 
   // --- Calcul du total ---
   const totalPrice = items.reduce(

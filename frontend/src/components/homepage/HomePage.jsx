@@ -9,8 +9,8 @@ const HomePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Récupérer l'URL du backend depuis l'environnement
-  const API_URL = process.env.REACT_APP_API_URL;
+  // ✅ URL API FIXE - Plus d'erreur REACT_APP_API_URL
+  const API_URL = "https://projet-bloc3.onrender.com";
 
   useEffect(() => {
     fetchLastThreeEvents();
@@ -95,7 +95,7 @@ const HomePage = () => {
             >
               {event.imageUrl && (
                 <img 
-                  src={`${API_URL}/${event.imageUrl}`} 
+                  src={`${API_URL}${event.imageUrl}`} 
                   alt={event.title} 
                   className="event-image"
                 />

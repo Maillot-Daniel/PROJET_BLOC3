@@ -15,7 +15,9 @@ function Events() {
 
   const { addItem } = useCart();
   const navigate = useNavigate();
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+  
+  // ✅ URL API FIXE - Plus d'erreur REACT_APP_API_URL
+  const API_URL = "https://projet-bloc3.onrender.com";
 
   useEffect(() => {
     // Déplacer STATIC_OFFERS dans le useEffect pour éviter le warning
@@ -56,7 +58,7 @@ function Events() {
       }
     };
     fetchData();
-  }, [API_URL]); // ✅ Plus de warning !
+  }, []); // ✅ Retiré API_URL des dépendances
 
   const formatter = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
 

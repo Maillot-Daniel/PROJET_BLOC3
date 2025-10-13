@@ -19,7 +19,8 @@ function EventList() {
   const location = useLocation();
   const refs = useRef({}); // Pour scroller vers un event
 
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+  // ✅ URL API FIXE - Plus d'erreur REACT_APP_API_URL
+  const API_URL = "https://projet-bloc3.onrender.com";
   const token = localStorage.getItem('olympics_auth_token');
 
   // 🔹 Récupération des événements

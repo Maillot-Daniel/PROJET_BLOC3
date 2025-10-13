@@ -10,6 +10,9 @@ const TicketValidator = () => {
         signature: ''
     });
 
+    // ✅ URL API FIXE - Plus d'erreur REACT_APP_API_URL
+    const API_URL = "https://projet-bloc3.onrender.com";
+
     // Validation manuelle
     const handleManualValidate = () => {
         const { primaryKey, secondaryKey, signature } = manualInput;
@@ -27,7 +30,7 @@ const TicketValidator = () => {
         
         try {
             const response = await axios.post(
-                `${process.env.REACT_APP_API_URL || 'http://localhost:8080'}/api/secure-tickets/validate`,
+                `${API_URL}/api/secure-tickets/validate`,
                 { qrData },
                 {
                     headers: {
@@ -88,7 +91,7 @@ const TicketValidator = () => {
         
         try {
             const response = await axios.post(
-                `${process.env.REACT_APP_API_URL || 'http://localhost:8080'}/api/secure-tickets/validate-manual`,
+                `${API_URL}/api/secure-tickets/validate-manual`,
                 { primaryKey, secondaryKey, signature },
                 {
                     headers: {
