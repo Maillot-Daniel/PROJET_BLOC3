@@ -27,9 +27,12 @@ public class Ticket {
     @Builder.Default
     private String qrCodeUrl = "";
 
-    // NOUVEAUX CHAMPS POUR LA SÉCURITÉ
-    @Column(name = "ticket_key", unique = true, length = 255)
-    private String ticketKey;
+    // CHAMPS DE SÉCURITÉ CORRIGÉS
+    @Column(name = "primary_key", unique = true, length = 255)
+    private String primaryKey;
+
+    @Column(name = "secondary_key", length = 255)
+    private String secondaryKey;
 
     @Column(name = "hashed_key", length = 255)
     private String hashedKey;
@@ -71,7 +74,10 @@ public class Ticket {
     private BigDecimal price;
 
     // CONSTRUCTEURS SPÉCIALISÉS
-    // Constructeur pour la méthode factory existante (rétrocompatibilité)
+
+    /**
+     * Méthode factory pour créer un nouveau ticket SANS sécurité (rétrocompatibilité)
+     */
     public static Ticket createNewTicket(Event event, OurUsers user, OfferType offerType,
                                          Integer quantity, BigDecimal basePrice) {
         return Ticket.builder()
@@ -88,16 +94,22 @@ public class Ticket {
                 .build();
     }
 
-    // NOUVELLE méthode factory avec sécurité
+    /**
+     * NOUVELLE méthode factory pour créer un ticket AVEC sécurité
+     */
     public static Ticket createSecureTicket(Event event, OurUsers user, OfferType offerType,
-                                            Integer quantity, BigDecimal basePrice,
-                                            String ticketKey, String hashedKey, String signature) {
+                                            Integer quantity, BigDecimal basePrice) {
+
+        String primaryKey = generateTicketKey();
+        String secondaryKey = generateTicketKey();
+
         return Ticket.builder()
                 .ticketNumber(UUID.randomUUID().toString())
-                .qrCodeUrl(generateSecureQrCodeUrl(ticketKey, signature))
-                .ticketKey(ticketKey)
-                .hashedKey(hashedKey)
-                .signature(signature)
+                .qrCodeUrl("") // Sera généré par le service de sécurité
+                .primaryKey(primaryKey)
+                .secondaryKey(secondaryKey)
+                .hashedKey("") // Sera calculé par le service de sécurité
+                .signature("") // Sera calculé par le service de sécurité
                 .event(event)
                 .user(user)
                 .offerType(offerType)
@@ -109,15 +121,30 @@ public class Ticket {
                 .build();
     }
 
+    // MÉTHODES DE GÉNÉRATION DE CLÉS
+    private static String generateTicketKey() {
+        return UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+    }
+
     // GÉNÉRATION DES QR CODES
     private static String generateQrCodeUrl() {
         return "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + UUID.randomUUID();
     }
 
-    private static String generateSecureQrCodeUrl(String ticketKey, String signature) {
-        String qrData = ticketKey + "|" + signature;
+    /**
+     * Génère l'URL du QR code sécurisé
+     */
+    public String generateSecureQrCodeUrl() {
+        String qrData = this.primaryKey + "|" + this.signature;
         return "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
                 java.net.URLEncoder.encode(qrData, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Retourne les données pour le QR code (primaryKey + signature)
+     */
+    public String getQrData() {
+        return this.primaryKey + "|" + this.signature;
     }
 
     // CALCUL DU PRIX
@@ -132,23 +159,42 @@ public class Ticket {
     }
 
     // MÉTHODES UTILITAIRES AMÉLIORÉES
+
+    /**
+     * Vérifie si le ticket est valide (compatibilité ancien système)
+     */
     public boolean isValid() {
         return !validated && !used && purchaseDate.isBefore(LocalDateTime.now().plusMonths(1));
     }
 
+    /**
+     * Vérifie si le ticket peut être validé (nouveau système sécurisé)
+     */
     public boolean isValidForValidation() {
-        return !used && !validated &&
+        return !used &&
+                !validated &&
                 purchaseDate.isBefore(LocalDateTime.now().plusMonths(1)) &&
-                event != null && event.getDate().isAfter(LocalDateTime.now());
+                event != null &&
+                event.getDate().isAfter(LocalDateTime.now()) &&
+                primaryKey != null &&
+                secondaryKey != null &&
+                signature != null &&
+                hashedKey != null;
     }
 
+    /**
+     * Valide le ticket (ancien système)
+     */
     public void validate() {
         this.validated = true;
     }
 
+    /**
+     * Marque le ticket comme utilisé (nouveau système sécurisé)
+     */
     public void markAsUsed() {
         this.used = true;
-        this.validated = true; // Pour la compatibilité
+        this.validated = true; // Compatibilité avec l'ancien système
         this.usedAt = LocalDateTime.now();
     }
 
@@ -194,9 +240,25 @@ public class Ticket {
                 purchaseDate.isAfter(LocalDateTime.now().minusDays(1));
     }
 
-    // IMPLÉMENTATION CORRECTE DES GETTERS/SETTERS LOMBOK
-    // Lombok génère déjà tous les getters/setters grâce aux annotations
-    // Mais voici les principaux pour être explicite :
+    /**
+     * Vérifie l'intégrité du ticket en recalculant le hash
+     * Utilisé pendant la validation
+     */
+    public boolean checkIntegrity(String recalculatedHash) {
+        return this.hashedKey != null &&
+                this.hashedKey.equals(recalculatedHash);
+    }
+
+    /**
+     * Vérifie la signature du ticket
+     * Utilisé pendant la validation
+     */
+    public boolean checkSignature(String recalculatedSignature) {
+        return this.signature != null &&
+                this.signature.equals(recalculatedSignature);
+    }
+
+    // IMPLÉMENTATION DES GETTERS/SETTERS (Lombok les génère déjà)
 
     public Long getId() {
         return id;
@@ -222,12 +284,20 @@ public class Ticket {
         this.qrCodeUrl = qrCodeUrl;
     }
 
-    public String getTicketKey() {
-        return ticketKey;
+    public String getPrimaryKey() {
+        return primaryKey;
     }
 
-    public void setTicketKey(String ticketKey) {
-        this.ticketKey = ticketKey;
+    public void setPrimaryKey(String primaryKey) {
+        this.primaryKey = primaryKey;
+    }
+
+    public String getSecondaryKey() {
+        return secondaryKey;
+    }
+
+    public void setSecondaryKey(String secondaryKey) {
+        this.secondaryKey = secondaryKey;
     }
 
     public String getHashedKey() {

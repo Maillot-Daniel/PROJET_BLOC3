@@ -8,7 +8,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TicketValidationRequest {
-    private String primaryKey;
-    private String secondaryKey;
-    private String signature;
+    private String qrData; // Pour la validation QR
+    private String primaryKey; // Pour la validation manuelle
+    private String secondaryKey; // Pour la validation manuelle
+    private String signature; // Pour la validation manuelle
 }

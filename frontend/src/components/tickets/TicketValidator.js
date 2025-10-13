@@ -17,22 +17,18 @@ const TicketValidator = () => {
             alert('Veuillez remplir tous les champs');
             return;
         }
-        validateTicket(primaryKey, secondaryKey, signature);
+        validateTicketManual(primaryKey, secondaryKey, signature);
     };
 
-    // Appel API de validation
-    const validateTicket = async (primaryKey, secondaryKey, signature) => {
+    // Appel API pour validation QR Code
+    const validateTicketQR = async (qrData) => {
         setLoading(true);
         setValidationResult('');
         
         try {
             const response = await axios.post(
                 `${process.env.REACT_APP_API_URL || 'http://localhost:8080'}/api/secure-tickets/validate`,
-                { 
-                    primaryKey, 
-                    secondaryKey, 
-                    signature 
-                },
+                { qrData },
                 {
                     headers: {
                         'Content-Type': 'application/json',
@@ -45,19 +41,80 @@ const TicketValidator = () => {
             if (response.data.valid) {
                 setValidationResult({
                     type: 'success',
-                    message: '✅ Ticket validé avec succès',
+                    message: '✅ ' + response.data.message,
                     details: response.data.ticketNumber ? 
                         `Ticket ${response.data.ticketNumber} - ${response.data.eventTitle}` : 
-                        'Ticket marqué comme utilisé'
+                        'Ticket validé avec succès'
                 });
             } else {
                 setValidationResult({
-                    type: 'error', 
-                    message: '❌ ' + (response.data.message || 'Ticket invalide')
+                    type: 'error',
+                    message: '❌ ' + response.data.message
                 });
             }
         } catch (error) {
-            console.error('Erreur validation:', error);
+            console.error('Erreur validation QR:', error);
+            
+            if (error.response?.status === 403) {
+                setValidationResult({
+                    type: 'error',
+                    message: '❌ Accès refusé - Admin uniquement'
+                });
+            } else if (error.response) {
+                setValidationResult({
+                    type: 'error',
+                    message: `❌ ${error.response.data.message || 'Erreur lors de la validation'}`
+                });
+            } else if (error.request) {
+                setValidationResult({
+                    type: 'error',
+                    message: '❌ Impossible de contacter le serveur'
+                });
+            } else {
+                setValidationResult({
+                    type: 'error',
+                    message: '❌ Erreur de configuration'
+                });
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Appel API pour validation manuelle
+    const validateTicketManual = async (primaryKey, secondaryKey, signature) => {
+        setLoading(true);
+        setValidationResult('');
+        
+        try {
+            const response = await axios.post(
+                `${process.env.REACT_APP_API_URL || 'http://localhost:8080'}/api/secure-tickets/validate-manual`,
+                { primaryKey, secondaryKey, signature },
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    timeout: 10000
+                }
+            );
+
+            if (response.data.valid) {
+                setValidationResult({
+                    type: 'success',
+                    message: '✅ ' + response.data.message,
+                    details: response.data.ticketNumber ? 
+                        `Ticket ${response.data.ticketNumber} - ${response.data.eventTitle}` : 
+                        'Ticket validé avec succès'
+                });
+            } else {
+                setValidationResult({
+                    type: 'error',
+                    message: '❌ ' + response.data.message
+                });
+            }
+        } catch (error) {
+            console.error('Erreur validation manuelle:', error);
             
             if (error.response?.status === 403) {
                 setValidationResult({
@@ -95,6 +152,12 @@ const TicketValidator = () => {
         });
     };
 
+    // Simulation de scan QR (pour test)
+    const simulateQRScan = () => {
+        const qrData = "abc123def456ghi7|testSignature123";
+        validateTicketQR(qrData);
+    };
+
     return (
         <div style={{ 
             padding: '20px', 
@@ -117,6 +180,31 @@ const TicketValidator = () => {
                 Validation de Tickets
             </h2>
 
+            {/* Section Test QR Code */}
+            <div style={{ 
+                marginBottom: '20px',
+                padding: '15px',
+                backgroundColor: '#e8f4fd',
+                border: '1px solid #3498db',
+                borderRadius: '6px'
+            }}>
+                <h4 style={{ margin: '0 0 10px 0', color: '#2c3e50' }}>Test Rapide QR Code</h4>
+                <button
+                    onClick={simulateQRScan}
+                    disabled={loading}
+                    style={{
+                        padding: '10px 15px',
+                        backgroundColor: '#3498db',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: loading ? 'not-allowed' : 'pointer'
+                    }}
+                >
+                    {loading ? 'Test en cours...' : '🧪 Tester QR Code'}
+                </button>
+            </div>
+
             {/* Validation manuelle */}
             <div style={{
                 marginBottom: '20px'
@@ -126,7 +214,7 @@ const TicketValidator = () => {
                     marginBottom: '20px',
                     textAlign: 'center'
                 }}>
-                    Validation par Clés de Sécurité
+                    Validation Manuelle
                 </h3>
                 
                 <div style={{ marginBottom: '15px' }}>
@@ -232,7 +320,7 @@ const TicketValidator = () => {
                             minWidth: '150px'
                         }}
                     >
-                        {loading ? 'Validation en cours...' : '✅ Valider le Ticket'}
+                        {loading ? 'Validation...' : '✅ Valider Manuellement'}
                     </button>
                     
                     <button
@@ -300,19 +388,17 @@ const TicketValidator = () => {
                     borderBottom: '1px solid #3498db',
                     paddingBottom: '8px'
                 }}>
-                    📋 Instructions de Validation:
+                    📋 Instructions:
                 </h4>
                 <ul style={{ 
                     margin: 0, 
                     paddingLeft: '20px',
                     lineHeight: '1.6'
                 }}>
-                    <li>Obtenez les clés de sécurité depuis le QR code du ticket</li>
-                    <li>La clé primaire et secondaire font 16 caractères chacune</li>
-                    <li>La signature est une chaîne encodée en Base64</li>
+                    <li><strong>Validation QR</strong>: Utilisez le bouton test ou scannez un vrai QR</li>
+                    <li><strong>Validation manuelle</strong>: Remplissez les 3 champs de sécurité</li>
+                    <li>Format QR: <code>primaryKey|signature</code></li>
                     <li>Le ticket sera <strong>marqué comme utilisé</strong> après validation</li>
-                    <li>Un ticket ne peut être validé qu'<strong>une seule fois</strong></li>
-                    <li>Seuls les administrateurs peuvent valider les tickets</li>
                 </ul>
             </div>
 
@@ -327,9 +413,9 @@ const TicketValidator = () => {
                 color: '#666',
                 textAlign: 'center'
             }}>
-                Endpoint: <code>/api/secure-tickets/validate</code> | 
-                Méthode: <code>POST</code> | 
-                Role requis: <code>ADMIN</code>
+                Endpoints: 
+                <code>/api/secure-tickets/validate</code> (QR) | 
+                <code>/api/secure-tickets/validate-manual</code> (Manuel)
             </div>
         </div>
     );
