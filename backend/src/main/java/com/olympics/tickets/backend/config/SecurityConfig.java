@@ -40,8 +40,10 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // Désactive CSRF pour les API REST
-                .csrf(AbstractHttpConfigurer::disable)
+                // Désactive CSRF uniquement pour le webhook Stripe
+                .csrf(csrf -> csrf
+                        .ignoringRequestMatchers("/api/stripe/webhook", "/api/stripe/webhook/")
+                )
 
                 // Active CORS global
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -51,7 +53,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         // Webhook Stripe
-                        .requestMatchers("/api/stripe/webhook").permitAll()
+                        .requestMatchers("/api/stripe/webhook", "/api/stripe/webhook/").permitAll()
 
                         // Auth / Public / Docs
                         .requestMatchers(
