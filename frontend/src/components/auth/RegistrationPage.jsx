@@ -16,6 +16,7 @@ function RegistrationPage() {
 
   const [formData, setFormData] = useState(initialFormData);
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   // Mise à jour des champs
   const handleInputChange = (e) => {
@@ -26,6 +27,7 @@ function RegistrationPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setSuccessMessage("");
 
     try {
       await UsersService.register(formData);
@@ -33,10 +35,18 @@ function RegistrationPage() {
       // Réinitialiser les champs
       setFormData(initialFormData);
 
-      alert('Utilisateur créé avec succès !');
+      // Afficher le message de succès
+      setSuccessMessage("✅ Votre compte a été créé avec succès ! Vous pouvez maintenant vous connecter.");
 
-      // Petit délai pour que React applique le reset avant navigation
-      setTimeout(() => navigate('/admin/user-management'), 200);
+      // Redirection après un délai pour laisser voir le message
+      setTimeout(() => {
+        if (window.location.pathname.includes('/admin')) {
+          navigate('/admin/user-management');
+        } else {
+          navigate('/login');
+        }
+      }, 3000);
+
     } catch (error) {
       console.error('Erreur lors de la création de l’utilisateur', error);
       alert('Une erreur est survenue lors de la création de l’utilisateur');
@@ -48,6 +58,22 @@ function RegistrationPage() {
   return (
     <div className="auth-container">
       <h2>Créer un utilisateur</h2>
+      
+      {successMessage && (
+        <div style={{
+          backgroundColor: '#d4edda',
+          color: '#155724',
+          padding: '12px',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          border: '1px solid #c3e6cb',
+          textAlign: 'center',
+          fontWeight: 'bold'
+        }}>
+          {successMessage}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label>Nom :</label>
