@@ -11,6 +11,7 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -22,7 +23,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
-import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -41,91 +41,61 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // ✅ Désactive CSRF pour les API REST
                 .csrf(AbstractHttpConfigurer::disable)
+
+                // ✅ Active le CORS global
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
                 .authorizeHttpRequests(auth -> auth
-                        // Autoriser les requêtes préflight (OPTIONS)
+                        // Autoriser préflight OPTIONS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // ⬇️ OFFER_TYPES - LECTURE PUBLIQUE, ÉCRITURE ADMIN ⬇️
-                        .requestMatchers(HttpMethod.GET, "/api/offer_types").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/offer_types/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/offer_types/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/offer_types/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/offer_types/**").hasRole("ADMIN")
+                        // Endpoints Stripe (très important ⚡)
+                        .requestMatchers("/api/stripe/webhook").permitAll()
 
-                        // Endpoints publics
+                        // Auth / Public / Docs
                         .requestMatchers(
                                 "/auth/**",
                                 "/public/**",
                                 "/api/test",
                                 "/api/db-test",
-                                "/api/stripe/webhook",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
 
-                        // Événements - lecture publique, écriture admin
+                        // Events publics
                         .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/events/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/events/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasRole("ADMIN")
 
-                        // Panier - authentifié
-                        .requestMatchers("/api/cart/**").authenticated()
-
-                        // Paiement - authentifié
-                        .requestMatchers("/api/pay/**").authenticated()
-
-                        // Tickets - authentifié
-                        .requestMatchers("/api/tickets/**").authenticated()
-
-                        // Routes admin
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
-
-                        // Profil utilisateur
-                        .requestMatchers("/adminuser/**").authenticated()
-
-                        // Toutes les autres requêtes nécessitent authentification
+                        // Tout le reste nécessite authentification
                         .anyRequest().authenticated()
                 )
+
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // Configuration CORS globale
+    // ✅ Configuration CORS
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(Arrays.asList(
-                "http://localhost:*",                    // dev local
-                "http://127.0.0.1:*",                    // autre variante locale
-                "https://projet-bloc-3.vercel.app",      // frontend Vercel
-                "https://*.vercel.app",                  // tous sous-domaines Vercel
-                "https://projet-bloc3.onrender.com"      // backend (tests internes)
+                "http://localhost:*",
+                "http://127.0.0.1:*",
+                "https://projet-bloc-3.vercel.app",
+                "https://*.vercel.app",
+                "https://projet-bloc3.onrender.com"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(Arrays.asList(
-                "Authorization",
-                "Content-Type",
-                "X-Requested-With",
-                "Accept",
-                "Origin",
-                "Access-Control-Request-Method",
-                "Access-Control-Request-Headers"
-        ));
-        configuration.setExposedHeaders(Arrays.asList(
-                "Authorization",
-                "Content-Type",
-                "Access-Control-Allow-Origin",
-                "Access-Control-Allow-Credentials"
-        ));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Stripe-Signature"));
+        configuration.setExposedHeaders(Arrays.asList("Authorization"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
@@ -136,10 +106,10 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(ourUserDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder());
-        return authProvider;
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(ourUserDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
+        return provider;
     }
 
     @Bean
