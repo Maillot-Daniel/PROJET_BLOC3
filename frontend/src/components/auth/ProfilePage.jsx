@@ -1,20 +1,45 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import './ProfilePage.css';
 
 function ProfilePage() {
-  const { user, logout, loadingProfile } = useAuth();
+  const { user, refreshProfile, logout } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [profileData, setProfileData] = useState(null);
 
-  console.log("User data from backend:", user);
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        setIsLoading(true);
+        const data = await refreshProfile();
+        setProfileData(data); // stocke tout le backend
+      } catch (error) {
+        console.error('Erreur chargement profil:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  if (loadingProfile) {
-    return <div className="page-wrapper">Chargement du profil...</div>;
-  }
+    loadProfile();
+  }, [refreshProfile]);
 
-  if (!user) {
+  if (isLoading) {
     return (
       <div className="page-wrapper">
-        <div>Aucun profil disponible</div>
+        <div className="profile-container">
+          <p>Chargement du profil...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profileData) {
+    return (
+      <div className="page-wrapper">
+        <div className="profile-container">
+          <p>Aucune donnée disponible.</p>
+          <button onClick={refreshProfile}>Rafraîchir</button>
+        </div>
       </div>
     );
   }
@@ -22,40 +47,29 @@ function ProfilePage() {
   return (
     <div className="page-wrapper">
       <div className="profile-container">
-        <div className="profile-header">
-          <h1>Mon Profil</h1>
-          <p>Bienvenue sur votre espace personnel</p>
-        </div>
+        <h1>Mon Profil</h1>
+        <p>Voici toutes les données reçues du backend :</p>
 
-        <div className="profile-content">
-          <div className="profile-info">
-            <h3>Informations personnelles</h3>
+        <pre
+          style={{
+            background: '#222',
+            color: '#0f0',
+            padding: '12px',
+            borderRadius: '8px',
+            overflowX: 'auto',
+            fontSize: '12px',
+          }}
+        >
+          {JSON.stringify(profileData, null, 2)}
+        </pre>
 
-            <div className="info-grid">
-              <div className="info-item">
-                <label>Nom :</label>
-                <span className="info-value">{user.name}</span>
-              </div>
-              <div className="info-item">
-                <label>Email :</label>
-                <span className="info-value">{user.email}</span>
-              </div>
-              <div className="info-item">
-                <label>Ville :</label>
-                <span className="info-value">{user.city || "Non renseigné"}</span>
-              </div>
-              <div className="info-item">
-                <label>Rôle :</label>
-                <span className="info-value">{user.role}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="profile-actions">
-            <button onClick={logout} className="btn-logout">
-              🚪 Déconnexion
-            </button>
-          </div>
+        <div style={{ marginTop: '16px' }}>
+          <button onClick={refreshProfile} className="btn-secondary">
+            🔄 Actualiser
+          </button>
+          <button onClick={logout} className="btn-logout">
+            🚪 Déconnexion
+          </button>
         </div>
       </div>
     </div>
