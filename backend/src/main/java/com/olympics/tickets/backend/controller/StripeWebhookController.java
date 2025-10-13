@@ -32,11 +32,10 @@ public class StripeWebhookController {
     public ResponseEntity<String> handleStripeWebhook(HttpServletRequest request,
                                                       @RequestHeader("Stripe-Signature") String sigHeader) {
         String payload;
-
         try {
             payload = new String(request.getInputStream().readAllBytes());
         } catch (IOException e) {
-            log.error("❌ Impossible de lire le payload Stripe", e);
+            log.error("Impossible de lire le payload Stripe", e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Cannot read payload");
         }
 
@@ -44,11 +43,11 @@ public class StripeWebhookController {
         try {
             event = Webhook.constructEvent(payload, sigHeader, endpointSecret);
         } catch (SignatureVerificationException e) {
-            log.warn("⚠️ Signature Stripe invalide : {}", e.getMessage());
+            log.warn("Signature Stripe invalide : {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid signature");
         }
 
-        log.info("📦 Événement Stripe reçu : {}", event.getType());
+        log.info("Événement Stripe reçu : {}", event.getType());
 
         if ("checkout.session.completed".equals(event.getType())) {
             Session session = (Session) event.getDataObjectDeserializer()
@@ -56,20 +55,20 @@ public class StripeWebhookController {
                     .orElse(null);
 
             if (session != null) {
-                log.info("💰 Paiement réussi pour la session ID={}", session.getId());
+                log.info("Paiement réussi pour la session ID={}", session.getId());
                 try {
                     ticketService.processSuccessfulPayment(session);
-                    log.info("🎟️ Tickets créés avec succès pour {}", session.getCustomerDetails().getEmail());
+                    log.info("Tickets créés avec succès pour {}", session.getCustomerDetails().getEmail());
                 } catch (Exception e) {
-                    log.error("❌ Erreur lors du traitement du paiement Stripe", e);
+                    log.error("Erreur lors du traitement du paiement Stripe", e);
                     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                             .body("Failed to process payment");
                 }
             } else {
-                log.warn("⚠️ Session Stripe introuvable dans le payload");
+                log.warn("Session Stripe introuvable dans le payload");
             }
         }
 
-        return ResponseEntity.ok("✅ Webhook reçu avec succès");
+        return ResponseEntity.ok("Webhook reçu avec succès");
     }
 }
