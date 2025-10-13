@@ -1,84 +1,20 @@
-import React, { useEffect, useState } from "react";
-import { useAuth } from "../../context/AuthContext";
-import UsersService from "../services/UsersService";
-import "./ProfilePage.css";
+import React from 'react';
+import { useAuth } from '../../context/AuthContext';
+import './ProfilePage.css';
 
 function ProfilePage() {
-  const { user, logout, loadUserProfile } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [oldPassword, setOldPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const { user, logout, loadingProfile } = useAuth();
 
-  useEffect(() => {
-    if (user?.id && !user?.name) {
-      loadProfile();
-    }
-  }, [user]);
+  console.log("User data from backend:", user);
 
-  const loadProfile = async () => {
-    setIsLoading(true);
-    try {
-      await loadUserProfile();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-    setError("");
-    setMessage("");
-
-    if (!oldPassword || !newPassword || !confirmPassword) {
-      setError("Tous les champs sont obligatoires");
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setError("Le nouveau mot de passe et la confirmation ne correspondent pas");
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      setError("Le mot de passe doit contenir au moins 6 caractères");
-      return;
-    }
-
-    try {
-      await UsersService.changePassword({
-        oldPassword,
-        newPassword
-      });
-      setMessage("✅ Mot de passe changé avec succès !");
-      setOldPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch (err) {
-      setError(err.message || "Erreur lors du changement de mot de passe");
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="page-wrapper">
-        <div className="profile-container">
-          <p>Chargement du profil...</p>
-        </div>
-      </div>
-    );
+  if (loadingProfile) {
+    return <div className="page-wrapper">Chargement du profil...</div>;
   }
 
-  if (!user?.id) {
+  if (!user) {
     return (
       <div className="page-wrapper">
-        <div className="profile-container">
-          <p>Aucun profil disponible. Veuillez vous connecter.</p>
-        </div>
+        <div>Aucun profil disponible</div>
       </div>
     );
   }
@@ -86,61 +22,40 @@ function ProfilePage() {
   return (
     <div className="page-wrapper">
       <div className="profile-container">
-        <h1>Mon Profil</h1>
-        <div className="profile-info">
-          <p><strong>Nom :</strong> {user.name}</p>
-          <p><strong>Email :</strong> {user.email}</p>
-          <p><strong>Ville :</strong> {user.city || "Non renseigné"}</p>
-          <p><strong>Rôle :</strong> {user.role}</p>
+        <div className="profile-header">
+          <h1>Mon Profil</h1>
+          <p>Bienvenue sur votre espace personnel</p>
         </div>
 
-        <div className="profile-actions">
-          <button onClick={loadProfile}>🔄 Actualiser le profil</button>
-          <button onClick={logout}>🚪 Déconnexion</button>
-        </div>
+        <div className="profile-content">
+          <div className="profile-info">
+            <h3>Informations personnelles</h3>
 
-        <hr />
-
-        <div className="change-password">
-          <h2>Changer le mot de passe</h2>
-          {error && <p className="error-message">{error}</p>}
-          {message && <p className="success-message">{message}</p>}
-
-          <form onSubmit={handleChangePassword}>
-            <div className="form-group">
-              <label>Mot de passe actuel</label>
-              <input
-                type="password"
-                value={oldPassword}
-                onChange={(e) => setOldPassword(e.target.value)}
-                required
-              />
+            <div className="info-grid">
+              <div className="info-item">
+                <label>Nom :</label>
+                <span className="info-value">{user.name}</span>
+              </div>
+              <div className="info-item">
+                <label>Email :</label>
+                <span className="info-value">{user.email}</span>
+              </div>
+              <div className="info-item">
+                <label>Ville :</label>
+                <span className="info-value">{user.city || "Non renseigné"}</span>
+              </div>
+              <div className="info-item">
+                <label>Rôle :</label>
+                <span className="info-value">{user.role}</span>
+              </div>
             </div>
+          </div>
 
-            <div className="form-group">
-              <label>Nouveau mot de passe</label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Confirmer le nouveau mot de passe</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
-            </div>
-
-            <button type="submit" className="btn-primary">
-              🔐 Changer le mot de passe
+          <div className="profile-actions">
+            <button onClick={logout} className="btn-logout">
+              🚪 Déconnexion
             </button>
-          </form>
+          </div>
         </div>
       </div>
     </div>

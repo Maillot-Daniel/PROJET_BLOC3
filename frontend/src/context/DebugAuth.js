@@ -1,11 +1,9 @@
 import { useAuth } from './AuthContext';
 
 export default function DebugAuth() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, loadingProfile } = useAuth();
 
-  if (isLoading) {
-    return null; // Ne rien afficher pendant le chargement
-  }
+  if (loadingProfile) return null; // ne rien afficher pendant le chargement
 
   return (
     <div style={{
@@ -32,7 +30,6 @@ export default function DebugAuth() {
       <div style={{ fontWeight: 'bold', marginBottom: '4px', color: '#00ff88' }}>
         🔐 AUTH DEBUG
       </div>
-      <div>UserID: <span style={{ color: '#ffa500' }}>{user?.id || 'null'}</span></div>
       <div>Role: <span style={{ color: '#ffa500' }}>{user?.role || 'null'}</span></div>
       <div>Status: <span style={{ color: isAuthenticated ? '#00ff88' : '#ff4444' }}>
         {isAuthenticated ? '✅ Connecté' : '❌ Déconnecté'}
