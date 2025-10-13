@@ -4,44 +4,44 @@ import UsersService from "../components/services/UsersService";
 
 export default function AuthWidget() {
   const { user } = useAuth();
-  const [showChangePwd, setShowChangePwd] = useState(false);
-  const [oldPassword, setOldPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  // const [showChangePwd, setShowChangePwd] = useState(false);
+  // const [oldPassword, setOldPassword] = useState("");
+  // const [newPassword, setNewPassword] = useState("");
+  // const [confirmPassword, setConfirmPassword] = useState("");
+  // const [message, setMessage] = useState("");
+  // const [error, setError] = useState("");
+  // const [isLoading, setIsLoading] = useState(false);
 
   if (!user) return null;
 
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-    setMessage("");
-    setError("");
+  // const handleChangePassword = async (e) => {
+  //   e.preventDefault();
+  //   setMessage("");
+  //   setError("");
 
-    if (newPassword !== confirmPassword) {
-      setError("Les mots de passe ne correspondent pas");
-      return;
-    }
-    if (newPassword.length < 6) {
-      setError("Le mot de passe doit contenir au moins 6 caractères");
-      return;
-    }
+  //   if (newPassword !== confirmPassword) {
+  //     setError("Les mots de passe ne correspondent pas");
+  //     return;
+  //   }
+  //   if (newPassword.length < 6) {
+  //     setError("Le mot de passe doit contenir au moins 6 caractères");
+  //     return;
+  //   }
 
-    try {
-      setIsLoading(true);
-      await UsersService.changePassword({ oldPassword, newPassword });
-      setMessage("✅ Mot de passe modifié avec succès !");
-      setOldPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setShowChangePwd(false);
-    } catch (err) {
-      setError(err.message || "Erreur lors du changement de mot de passe");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  //   try {
+  //     setIsLoading(true);
+  //     await UsersService.changePassword({ oldPassword, newPassword });
+  //     setMessage("✅ Mot de passe modifié avec succès !");
+  //     setOldPassword("");
+  //     setNewPassword("");
+  //     setConfirmPassword("");
+  //     setShowChangePwd(false);
+  //   } catch (err) {
+  //     setError(err.message || "Erreur lors du changement de mot de passe");
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
 
   return (
     <div style={{
@@ -70,7 +70,7 @@ export default function AuthWidget() {
         alignItems: 'center'
       }}>
         <span>Rôle : {user.role}</span>
-        <button
+        {/* <button
           onClick={() => setShowChangePwd(!showChangePwd)}
           style={{
             padding: '4px 8px',
@@ -83,12 +83,12 @@ export default function AuthWidget() {
           }}
         >
           🔑 Changer mot de passe
-        </button>
+        </button> */}
       </div>
 
       <div style={{ fontSize: '12px', color: '#0f0' }}>✅ Connecté</div>
 
-      {showChangePwd && (
+      {/* {showChangePwd && (
         <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <input
             type="password"
@@ -133,10 +133,10 @@ export default function AuthWidget() {
             {isLoading ? "⏳ ..." : "Modifier"}
           </button>
         </form>
-      )}
+      )} */}
 
-      {message && <div style={{ color: '#00ff88', fontSize: '12px' }}>{message}</div>}
-      {error && <div style={{ color: '#ff4444', fontSize: '12px' }}>{error}</div>}
+      {/* {message && <div style={{ color: '#00ff88', fontSize: '12px' }}>{message}</div>}
+      {error && <div style={{ color: '#ff4444', fontSize: '12px' }}>{error}</div>} */}
     </div>
   );
 }
