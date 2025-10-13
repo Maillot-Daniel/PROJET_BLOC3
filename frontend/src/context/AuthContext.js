@@ -5,81 +5,146 @@ const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    // Récupérer les données depuis localStorage au démarrage
-    const savedUser = localStorage.getItem("olympics_user_profile");
-    if (savedUser) {
+    // Charger le profil complet depuis localStorage
+    const savedProfile = localStorage.getItem("olympics_user_profile");
+    if (savedProfile) {
       try {
-        const parsedUser = JSON.parse(savedUser);
-        console.log("🔑 Utilisateur chargé depuis localStorage:", parsedUser);
-        return parsedUser;
+        const profile = JSON.parse(savedProfile);
+        console.log("🔑 Profil chargé depuis localStorage:", profile);
+        return profile;
       } catch (error) {
-        console.error("❌ Erreur parsing saved user:", error);
+        console.error("❌ Erreur parsing saved profile:", error);
       }
     }
-    const basicUser = {
+    // Fallback aux données basiques
+    return {
       id: localStorage.getItem("olympics_user_id") || null,
       role: localStorage.getItem("olympics_user_role") || null,
     };
-    console.log("🔑 Utilisateur basique créé:", basicUser);
-    return basicUser;
   });
   
   const [isAuthenticated, setIsAuthenticated] = useState(!!UsersService.getToken());
-  const [isLoading, setIsLoading] = useState(false);
 
   const isAdmin = user?.role?.toLowerCase() === "admin";
 
-  // Fonction de connexion avec stockage IMMÉDIAT du token
+  console.log("🔄 AUTH CONTEXT - User state:", user);
+
+  // Fonction pour extraire les données utilisateur de la réponse API
+  const extractUserData = (apiResponse) => {
+    console.log("🔍 Extraction données depuis:", apiResponse);
+    
+    // Plusieurs façons possibles d'accéder aux données
+    let userData = null;
+    
+    if (apiResponse?.ourUsers) {
+      userData = apiResponse.ourUsers;
+      console.log("✅ Données trouvées dans 'ourUsers'");
+    } else if (apiResponse?.data?.ourUsers) {
+      userData = apiResponse.data.ourUsers;
+      console.log("✅ Données trouvées dans 'data.ourUsers'");
+    } else if (apiResponse?.id) {
+      userData = apiResponse;
+      console.log("✅ Données trouvées directement dans la réponse");
+    } else if (apiResponse) {
+      console.warn("⚠️ Structure inattendue, utilisation directe:", apiResponse);
+      userData = apiResponse;
+    }
+    
+    if (userData) {
+      console.log("👤 Données utilisateur extraites:", userData);
+      console.log("📝 Détails:");
+      console.log("  - ID:", userData.id);
+      console.log("  - Name:", userData.name);
+      console.log("  - Email:", userData.email);
+      console.log("  - City:", userData.city);
+      console.log("  - Role:", userData.role);
+    }
+    
+    return userData;
+  };
+
+  // Fonction pour charger le profil complet
+  const loadUserProfile = async () => {
+    try {
+      console.log("📡 Chargement du profil utilisateur...");
+      
+      const profileResponse = await UsersService.getProfile();
+      console.log("📊 Réponse API complète:", profileResponse);
+
+      const userData = extractUserData(profileResponse);
+      
+      if (userData) {
+        // S'assurer que toutes les propriétés nécessaires sont présentes
+        const completeUserProfile = {
+          id: userData.id,
+          name: userData.name || userData.nom || "Non spécifié",
+          email: userData.email || "Non spécifié",
+          city: userData.city || userData.ville || "Non spécifié",
+          role: userData.role || "USER",
+          // Autres champs possibles
+          password: userData.password, // Normalement pas affiché
+          ...userData // Inclure tous les autres champs
+        };
+        
+        console.log("✅ Profil complet construit:", completeUserProfile);
+        
+        // Stocker le profil complet
+        localStorage.setItem("olympics_user_profile", JSON.stringify(completeUserProfile));
+        setUser(completeUserProfile);
+        
+        return completeUserProfile;
+      } else {
+        throw new Error("Aucune donnée utilisateur trouvée dans la réponse");
+      }
+    } catch (error) {
+      console.error("❌ Erreur chargement profil:", error);
+      throw error;
+    }
+  };
+
+  // Fonction de connexion
   const login = async (loginData) => {
     try {
       const { token, userId: id, role } = loginData;
       
       console.log("🔐 Stockage des données d'authentification...");
       
-      // Stocker IMMÉDIATEMENT le token avant toute autre requête
-      UsersService.setAuthData(token, role, id);
-      
-      // Maintenant récupérer le profil
-      console.log("📡 Récupération du profil...");
-      const profileResponse = await UsersService.getProfile();
-      console.log("📊 Profil reçu dans AuthContext:", profileResponse);
+      // Stocker les données de base IMMÉDIATEMENT
+      localStorage.setItem("olympics_auth_token", token);
+      localStorage.setItem("olympics_user_id", id);
+      localStorage.setItem("olympics_user_role", role);
 
-      let userProfile = { id, role };
-
-      // Extraire les données du profil
-      if (profileResponse?.ourUsers) {
-        userProfile = { 
-          ...profileResponse.ourUsers, 
-          role: profileResponse.ourUsers.role || role 
-        };
-        console.log("✅ Profil complet chargé:", userProfile);
-      } else {
-        console.warn("⚠️ Structure de profil inattendue:", profileResponse);
-        userProfile = { id, role, name: "Utilisateur", email: "" };
-      }
-
-      // Stocker le profil complet
-      localStorage.setItem("olympics_user_profile", JSON.stringify(userProfile));
-      setUser(userProfile);
-      setIsAuthenticated(true);
-
-      window.dispatchEvent(new CustomEvent("authChanged"));
-      
-      return userProfile;
-    } catch (error) {
-      console.error("❌ Erreur lors du chargement du profil:", error);
-      // Fallback: stocker au moins les infos de base
-      const basicUser = { id: loginData.userId, role: loginData.role };
-      localStorage.setItem("olympics_user_profile", JSON.stringify(basicUser));
+      // Mettre à jour le state avec les données basiques
+      const basicUser = { id, role };
       setUser(basicUser);
       setIsAuthenticated(true);
       
+      // Configurer le token dans axios
+      UsersService.apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+      // Maintenant charger le profil complet
+      console.log("📡 Chargement du profil après connexion...");
+      const userProfile = await loadUserProfile();
+      
+      window.dispatchEvent(new CustomEvent("authChanged"));
+      
+      console.log("🎉 Connexion réussie avec profil complet:", userProfile);
+      return userProfile;
+      
+    } catch (error) {
+      console.error("❌ Erreur lors de la connexion:", error);
+      // En cas d'erreur, garder au moins les données basiques
+      const basicUser = { id: loginData.userId, role: loginData.role };
+      setUser(basicUser);
+      setIsAuthenticated(true);
       return basicUser;
     }
   };
 
   // Fonction de déconnexion
   const logout = () => {
+    console.log("🚪 Déconnexion...");
+    
     localStorage.removeItem("olympics_auth_token");
     localStorage.removeItem("olympics_user_id");
     localStorage.removeItem("olympics_user_role");
@@ -87,48 +152,14 @@ export function AuthProvider({ children }) {
 
     setUser({ id: null, role: null });
     setIsAuthenticated(false);
-
-    UsersService.clearAuth();
+    delete UsersService.apiClient.defaults.headers.common["Authorization"];
 
     window.dispatchEvent(new CustomEvent("authChanged"));
   };
 
-  // Fonction pour recharger le profil - CORRIGÉE
+  // Fonction pour rafraîchir le profil
   const refreshProfile = async () => {
-    try {
-      console.log("🔄 Raffraîchissement du profil dans AuthContext...");
-      const profileResponse = await UsersService.getProfile();
-      console.log("📊 Réponse profil reçue:", profileResponse);
-      
-      let userProfile = { ...user }; // Commencer avec l'utilisateur actuel
-
-      if (profileResponse?.ourUsers) {
-        userProfile = { 
-          ...profileResponse.ourUsers, 
-          role: profileResponse.ourUsers.role || user.role 
-        };
-        console.log("✅ Profil complet extrait:", userProfile);
-      } else if (profileResponse) {
-        console.warn("⚠️ Structure de réponse inattendue:", profileResponse);
-        // Essayer d'extraire les données d'une autre manière
-        if (profileResponse.id || profileResponse.email) {
-          userProfile = { ...profileResponse, role: user.role };
-        }
-      }
-
-      console.log("💾 Stockage du profil:", userProfile);
-      
-      // Stocker et mettre à jour le state
-      localStorage.setItem("olympics_user_profile", JSON.stringify(userProfile));
-      setUser(userProfile);
-      
-      console.log("✅ Profil rafraîchi et state mis à jour");
-      
-      return userProfile;
-    } catch (error) {
-      console.error("❌ Erreur rafraîchissement profil:", error);
-      throw error;
-    }
+    return await loadUserProfile();
   };
 
   // Au montage, initialiser l'authentification
@@ -137,22 +168,21 @@ export function AuthProvider({ children }) {
       const token = UsersService.getToken();
       const savedProfile = localStorage.getItem("olympics_user_profile");
       
-      console.log("🔍 Initialisation auth - Token:", !!token, "Profil:", !!savedProfile);
+      console.log("🔍 Initialisation auth - Token:", !!token, "Profil sauvegardé:", !!savedProfile);
       
       if (token && savedProfile) {
         try {
           const profile = JSON.parse(savedProfile);
-          console.log("👤 Profil chargé depuis localStorage:", profile);
           setUser(profile);
           setIsAuthenticated(true);
-          console.log("🔑 Auth initialisée depuis localStorage");
+          console.log("✅ Profil chargé depuis le stockage local");
         } catch (error) {
-          console.error("❌ Erreur initialisation auth:", error);
+          console.error("❌ Erreur chargement profil stocké:", error);
         }
       } else if (token) {
         // Si token mais pas de profil, charger le profil
-        console.log("🔑 Token présent mais pas de profil, chargement...");
-        refreshProfile();
+        console.log("🔄 Token présent mais pas de profil, chargement...");
+        loadUserProfile();
       }
     };
 
@@ -160,12 +190,8 @@ export function AuthProvider({ children }) {
 
     const onAuthChange = () => {
       const token = UsersService.getToken();
-      console.log("🔄 Auth changed - Token présent:", !!token);
+      console.log("🔄 Événement authChanged - Token présent:", !!token);
       setIsAuthenticated(!!token);
-      
-      if (!token) {
-        setUser({ id: null, role: null });
-      }
     };
 
     window.addEventListener("authChanged", onAuthChange);
@@ -177,17 +203,11 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  // Debug: log quand user change
-  useEffect(() => {
-    console.log("🔄 State 'user' mis à jour dans AuthContext:", user);
-  }, [user]);
-
   return (
     <AuthContext.Provider value={{ 
       user, 
       isAuthenticated, 
       isAdmin, 
-      isLoading,
       login, 
       logout, 
       refreshProfile 

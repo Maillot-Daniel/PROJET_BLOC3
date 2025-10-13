@@ -69,7 +69,8 @@ function App() {
                 <Route path="/admin/offers-gestion" element={<RequireAdmin><OffersGestion /></RequireAdmin>} />
 
                 {/* Authenticated users */}
-                <Route path="/profile" element={<RequireUser><ProfilePage /></RequireUser>} />
+                <Route path="/profile-new" element={<ProfilePage />} />
+                <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/public-events" element={<RequireUser><Events /></RequireUser>} />
                 <Route path="/cart" element={<RequireUser><CartPage /></RequireUser>} />
 
