@@ -8,7 +8,7 @@ import LoginPage from './components/auth/LoginPage';
 import RegistrationPage from './components/auth/RegistrationPage';
 import RequireAdmin from './components/auth/RequireAdmin';
 import RequireUser from './components/auth/RequireUser';
-import ProfilePage from './components/userpage/ProfilePage';
+
 import UserManagementPage from './components/userpage/UserManagementPage';
 import UpdateUser from './components/userpage/UpdateUser';
 import Events from './components/events/Events';
@@ -22,7 +22,8 @@ import OffersGestion from './components/OffersGestion/OffersGestion';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
 import GuestOnlyRoute from './components/GuestOnlyRoute/GuestOnlyRoute';
-import DebugAuth from './context/DebugAuth';
+
+import AuthWidget from './context/AuthWidget';
 import CguPages from './components/CguPages/CguPages';
 import AboutPage from './components/AboutPage/AboutPage';
 import PrivacyPage from './components/PrivacyPage/PrivacyPage';
@@ -48,7 +49,7 @@ function App() {
             }}
           >
             <Navbar />
-            <DebugAuth />
+            <AuthWidget />
 
             <div className="content">
               <Routes>
@@ -69,7 +70,7 @@ function App() {
                 <Route path="/admin/offers-gestion" element={<RequireAdmin><OffersGestion /></RequireAdmin>} />
 
                 {/* Authenticated users */}
-                <Route path="/profile" element={<RequireUser><ProfilePage /></RequireUser>} />
+
                 <Route path="/public-events" element={<RequireUser><Events /></RequireUser>} />
                 <Route path="/cart" element={<RequireUser><CartPage /></RequireUser>} />
 
