@@ -9,7 +9,8 @@ function CreateEventForm() {
     date: '',
     location: '',
     price: '',
-    totalTickets: ''
+    totalTickets: '',
+    image: ''
   });
 
   const navigate = useNavigate();
@@ -21,6 +22,16 @@ function CreateEventForm() {
       ...prev,
       [name]: name === 'price' || name === 'totalTickets' ? (value === '' ? '' : Number(value)) : value
     }));
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setEvent(prev => ({
+        ...prev,
+        image: file.name
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -47,7 +58,9 @@ function CreateEventForm() {
 
     const formattedEvent = {
       ...event,
-      date: event.date + "T00:00:00"
+      date: event.date + "T00:00:00",
+      // Chemin relatif depuis la racine du frontend
+      image: event.image ? `/images/events/${event.image}` : '/images/events/default-event.jpg'
     };
 
     try {
@@ -64,7 +77,8 @@ function CreateEventForm() {
         date: '',
         location: '',
         price: '',
-        totalTickets: ''
+        totalTickets: '',
+        image: ''
       });
     } catch (err) {
       console.error("Erreur API création événement :", err.response?.data || err.message);
@@ -72,7 +86,7 @@ function CreateEventForm() {
       if (err.response?.status === 403) {
         alert('Permission refusée : vous devez être administrateur.');
       } else {
-        alert('Erreur lors de la création de l’événement : ' + message);
+        alert('Erreur lors de la création de l\'événement : ' + message);
       }
     }
   };
@@ -133,6 +147,24 @@ function CreateEventForm() {
         min="0"
         required
       />
+
+      <div className="form-group">
+        <label htmlFor="image">Image de l'événement :</label>
+        <input
+          type="file"
+          id="image"
+          accept="image/*"
+          onChange={handleImageChange}
+        />
+        {event.image && (
+          <div className="image-info">
+            <p>Image sélectionnée : <strong>{event.image}</strong></p>
+            <p className="instruction">
+              ⚠️ Copiez manuellement cette image dans : <code>frontend/public/images/events/</code>
+            </p>
+          </div>
+        )}
+      </div>
 
       <button type="submit">Créer</button>
     </form>

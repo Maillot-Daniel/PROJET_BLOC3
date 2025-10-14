@@ -12,18 +12,17 @@ function EventList() {
     date: '',
     location: '',
     price: 0,
-    totalTickets: 0
+    totalTickets: 0,
+    image: ''
   });
 
   const navigate = useNavigate();
   const location = useLocation();
-  const refs = useRef({}); // Pour scroller vers un event
+  const refs = useRef({});
 
-  // ✅ URL API FIXE - Plus d'erreur REACT_APP_API_URL
   const API_URL = "https://projet-bloc3.onrender.com";
   const token = localStorage.getItem('olympics_auth_token');
 
-  // 🔹 Récupération des événements
   const fetchEvents = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/events`);
@@ -31,7 +30,8 @@ function EventList() {
 
       const eventsWithTickets = rawEvents.map(ev => ({
         ...ev,
-        totalTickets: Number(ev.remainingTickets ?? ev.remaining_tickets ?? ev.tickets_remaining) || 0
+        totalTickets: Number(ev.remainingTickets ?? ev.remaining_tickets ?? ev.tickets_remaining) || 0,
+        image: ev.image || '/images/events/default-event.jpg'
       }));
 
       setEvents(eventsWithTickets);
@@ -45,7 +45,6 @@ function EventList() {
     fetchEvents();
   }, []);
 
-  // 🔹 Scroll vers un événement si ID dans l'URL
   useEffect(() => {
     const query = new URLSearchParams(location.search);
     const id = query.get('id');
@@ -56,7 +55,6 @@ function EventList() {
     }
   }, [events, location.search]);
 
-  // 🔹 Supprimer un événement
   const handleDelete = async (id) => {
     if (!token) return navigate('/login');
     if (!window.confirm('Êtes-vous sûr de vouloir supprimer cet événement ?')) return;
@@ -73,7 +71,6 @@ function EventList() {
     }
   };
 
-  // 🔹 Cliquer sur modifier
   const handleEditClick = (event) => {
     setEditEvent(event);
     const formattedDate = new Date(event.date).toISOString().slice(0, 16);
@@ -83,11 +80,11 @@ function EventList() {
       date: formattedDate,
       location: event.location,
       price: event.price,
-      totalTickets: event.totalTickets
+      totalTickets: event.totalTickets,
+      image: event.image || ''
     });
   };
 
-  // 🔹 Modifier formulaire
   const handleEditChange = (e) => {
     const { name, value } = e.target;
     setEditFormData({
@@ -156,6 +153,18 @@ function EventList() {
                 </div>
               </div>
 
+              <div className="form-group">
+                <label>Image :</label>
+                <input 
+                  type="text" 
+                  name="image" 
+                  value={editFormData.image} 
+                  onChange={handleEditChange}
+                  placeholder="/images/events/nom-image.jpg"
+                />
+                <small>Chemin depuis la racine : /images/events/nom-image.jpg</small>
+              </div>
+
               <div className="form-actions">
                 <button type="submit" className="save-btn">Enregistrer</button>
                 <button type="button" className="cancel-btn" onClick={() => setEditEvent(null)}>Annuler</button>
@@ -168,6 +177,16 @@ function EventList() {
       <div className="events-grid">
         {events.length > 0 ? events.map(event => (
           <div className="event-card" key={event.id} ref={el => (refs.current[event.id] = el)}>
+            <div className="event-image-container">
+              <img 
+                src={event.image} 
+                alt={event.title}
+                className="event-image"
+                onError={(e) => {
+                  e.target.src = '/images/events/default-event.jpg';
+                }}
+              />
+            </div>
             <div className="card-header">
               <h3>{event.title}</h3>
               <p className="event-date">

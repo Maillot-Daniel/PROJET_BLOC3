@@ -16,11 +16,9 @@ function Events() {
   const { addItem } = useCart();
   const navigate = useNavigate();
   
-  // ✅ URL API FIXE - Plus d'erreur REACT_APP_API_URL
   const API_URL = "https://projet-bloc3.onrender.com";
 
   useEffect(() => {
-    // Déplacer STATIC_OFFERS dans le useEffect pour éviter le warning
     const STATIC_OFFERS = [
       { id: 1, name: 'SOLO', people: 1, multiplier: 1 },
       { id: 2, name: 'DUO', people: 2, multiplier: 1.9 },
@@ -29,18 +27,17 @@ function Events() {
 
     const fetchData = async () => {
       try {
-        // Récupérer les événements
         const eventsRes = await axios.get(`${API_URL}/api/events`);
         const eventsData = Array.isArray(eventsRes.data.content) ? eventsRes.data.content : eventsRes.data;
 
         const eventsWithTickets = eventsData.map(ev => ({
           ...ev,
-          remainingTickets: Number(ev.remainingTickets ?? ev.remaining_tickets ?? ev.tickets_remaining) || 0
+          remainingTickets: Number(ev.remainingTickets ?? ev.remaining_tickets ?? ev.tickets_remaining) || 0,
+          image: ev.image || '/images/events/default-event.jpg'
         }));
 
         setEvents(eventsWithTickets);
 
-        // Récupérer les offres depuis l'API
         try {
           const offersRes = await axios.get(`${API_URL}/api/offer_types`);
           console.log('✅ Offres chargées depuis API:', offersRes.data);
@@ -58,7 +55,7 @@ function Events() {
       }
     };
     fetchData();
-  }, []); // ✅ Retiré API_URL des dépendances
+  }, []);
 
   const formatter = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
 
@@ -82,6 +79,7 @@ function Events() {
     const itemToAdd = {
       eventId: selectedEvent.id,
       eventTitle: selectedEvent.title,
+      eventImage: selectedEvent.image,
       offerTypeId: offer.id,
       offerName: offer.name,
       quantity,
@@ -96,68 +94,152 @@ function Events() {
     navigate('/cart');
   };
 
-  if (loading) return <div>Chargement...</div>;
-  if (error) return <div>{error}</div>;
+  if (loading) return <div className="loading">Chargement des événements...</div>;
+  if (error) return <div className="error">{error}</div>;
 
   return (
-    <div>
-      <h2>Liste des événements</h2>
-      <ul className="events-list">
+    <div className="events-page">
+      <h2>Événements Olympiques</h2>
+      <div className="events-grid">
         {events.map(event => (
-          <li key={event.id}>
-            <img src={event.image_url} alt={event.title} loading="lazy" />
-            <strong>{event.title}</strong> - {formatter.format(event.price)}
-            <p>Places disponibles : {event.remainingTickets}</p>
-            <button onClick={() => { setSelectedEvent(event); setSelectedOfferId(''); setQuantity(1); }}>
-              Acheter
-            </button>
-          </li>
+          <div key={event.id} className="event-card">
+            <div className="event-image-container">
+              <img 
+                src={event.image} 
+                alt={event.title}
+                className="event-image"
+                onError={(e) => {
+                  e.target.src = '/images/events/default-event.jpg';
+                }}
+              />
+              {event.remainingTickets === 0 && (
+                <div className="sold-out-badge">COMPLET</div>
+              )}
+            </div>
+            <div className="event-info">
+              <h3>{event.title}</h3>
+              <p className="event-description">{event.description}</p>
+              <div className="event-details">
+                <p><strong>📍 {event.location}</strong></p>
+                <p className="event-price">{formatter.format(event.price)}</p>
+                <p className={`event-tickets ${event.remainingTickets < 10 ? 'low-tickets' : ''}`}>
+                  🎫 {event.remainingTickets} place(s) disponible(s)
+                </p>
+              </div>
+              <button 
+                className={`buy-btn ${event.remainingTickets === 0 ? 'disabled' : ''}`}
+                onClick={() => { 
+                  setSelectedEvent(event); 
+                  setSelectedOfferId(''); 
+                  setQuantity(1); 
+                }}
+                disabled={event.remainingTickets === 0}
+              >
+                {event.remainingTickets === 0 ? 'COMPLET' : 'Réserver'}
+              </button>
+            </div>
+          </div>
         ))}
-      </ul>
+      </div>
 
       {selectedEvent && (
-        <div className="purchase-section">
-          <h3>Achat pour : {selectedEvent.title}</h3>
-          <label>
-            Offre : 
-            <select
-              value={selectedOfferId}
-              onChange={e => { setSelectedOfferId(e.target.value); setQuantity(1); }}
+        <div className="purchase-modal">
+          <div className="purchase-content">
+            <button 
+              className="close-modal"
+              onClick={() => setSelectedEvent(null)}
             >
-              <option value="">-- Choisir une offre --</option>
-              {offers.map(offer => (
-                <option key={offer.id} value={offer.id}>
-                  {offer.name} ({offer.people} pers.) - {formatter.format(selectedEvent.price * offer.multiplier)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <br />
-          <label>
-            Quantité (max {selectedOfferId ? Math.floor(selectedEvent.remainingTickets / offers.find(o => o.id === parseInt(selectedOfferId))?.people || 1) : '-'}) :
-            <input 
-              type="number" 
-              min="1" 
-              step="1"
-              value={quantity} 
-              onChange={e => {
-                if (!selectedOfferId) return;
-                const val = Math.floor(Number(e.target.value));
-                const offer = offers.find(o => o.id === parseInt(selectedOfferId));
-                if (!offer) return;
-                const maxQty = Math.floor(selectedEvent.remainingTickets / offer.people);
-                setQuantity(Math.max(1, Math.min(val, maxQty)));
-              }}
-            />
-          </label>
-          <br />
-          <p>
-            Prix total : {selectedOfferId 
-              ? formatter.format(selectedEvent.price * (offers.find(o => o.id === parseInt(selectedOfferId))?.multiplier || 1) * quantity) 
-              : formatter.format(0)}
-          </p>
-          <button onClick={handleAddToCart} disabled={!selectedOfferId || quantity < 1}>Ajouter au panier</button>
-          <button onClick={() => setSelectedEvent(null)} className="cancel-button">Annuler</button>
+              ×
+            </button>
+            
+            <h3>Réserver : {selectedEvent.title}</h3>
+            
+            <div className="selected-event-info">
+              <img 
+                src={selectedEvent.image} 
+                alt={selectedEvent.title}
+                className="selected-event-image"
+              />
+              <div className="selected-event-details">
+                <p><strong>Lieu:</strong> {selectedEvent.location}</p>
+                <p><strong>Date:</strong> {new Date(selectedEvent.date).toLocaleDateString('fr-FR', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}</p>
+                <p><strong>Places disponibles:</strong> {selectedEvent.remainingTickets}</p>
+              </div>
+            </div>
+
+            <div className="purchase-form">
+              <div className="form-group">
+                <label>Type d'offre :</label>
+                <select
+                  value={selectedOfferId}
+                  onChange={e => { setSelectedOfferId(e.target.value); setQuantity(1); }}
+                >
+                  <option value="">-- Choisir une offre --</option>
+                  {offers.map(offer => (
+                    <option key={offer.id} value={offer.id}>
+                      {offer.name} ({offer.people} personne(s)) - {formatter.format(selectedEvent.price * offer.multiplier)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedOfferId && (
+                <div className="form-group">
+                  <label>
+                    Quantité d'offres :
+                    <input 
+                      type="number" 
+                      min="1" 
+                      step="1"
+                      value={quantity} 
+                      onChange={e => {
+                        const val = Math.floor(Number(e.target.value));
+                        const offer = offers.find(o => o.id === parseInt(selectedOfferId));
+                        if (!offer) return;
+                        const maxQty = Math.floor(selectedEvent.remainingTickets / offer.people);
+                        setQuantity(Math.max(1, Math.min(val, maxQty)));
+                      }}
+                    />
+                  </label>
+                  <small>
+                    Maximum: {Math.floor(selectedEvent.remainingTickets / offers.find(o => o.id === parseInt(selectedOfferId))?.people || 1)} 
+                    offre(s) - Soit {quantity * offers.find(o => o.id === parseInt(selectedOfferId))?.people} place(s)
+                  </small>
+                </div>
+              )}
+
+              {selectedOfferId && (
+                <div className="total-price">
+                  <strong>
+                    Total : {formatter.format(selectedEvent.price * (offers.find(o => o.id === parseInt(selectedOfferId))?.multiplier || 1) * quantity)}
+                  </strong>
+                </div>
+              )}
+
+              <div className="purchase-actions">
+                <button 
+                  onClick={handleAddToCart} 
+                  disabled={!selectedOfferId || quantity < 1}
+                  className="add-to-cart-btn"
+                >
+                  🛒 Ajouter au panier
+                </button>
+                <button 
+                  onClick={() => setSelectedEvent(null)} 
+                  className="cancel-button"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
