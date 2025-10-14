@@ -45,25 +45,25 @@ export default function AuthWidget() {
 
   return (
     <div style={{
-      marginTop: '30px', // un peu plus haut
-      width: '90%',
-      maxWidth: '400px',
+      marginTop: '15px', // réduit de moitié
+      width: '45%', // réduit de moitié (au lieu de 90%)
+      maxWidth: '200px', // réduit de moitié (au lieu de 400px)
       background: 'rgba(0,0,0,0.50)',
       color: 'white',
-      padding: '15px',
+      padding: '8px', // réduit de moitié
       borderRadius: '10px',
       fontFamily: 'monospace',
       display: 'flex',
       flexDirection: 'column',
-      gap: '10px',
+      gap: '5px', // réduit de moitié
       alignSelf: 'center'
     }}>
-      <div style={{ fontWeight: 'bold', fontSize: '16px' }}>
+      <div style={{ fontWeight: 'bold', fontSize: '14px' }}> {/* texte légèrement plus petit */}
         👋 Bonjour {user.name.split(" ")[0]} !
       </div>
 
       <div style={{
-        fontSize: '12px',
+        fontSize: '11px', // texte plus petit
         color: '#ccc',
         display: 'flex',
         justifyContent: 'space-between',
@@ -86,7 +86,7 @@ export default function AuthWidget() {
         </button> */}
       </div>
 
-      <div style={{ fontSize: '12px', color: '#0f0' }}>✅ Connecté</div>
+      <div style={{ fontSize: '11px', color: '#0f0' }}>✅ Connecté</div> {/* texte plus petit */}
 
       {/* {showChangePwd && (
         <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
