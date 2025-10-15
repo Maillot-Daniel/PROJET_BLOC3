@@ -35,12 +35,13 @@ public class SecurityConfig {
                           JWTAuthFilter jwtAuthFilter) {
         this.ourUserDetailsService = ourUserDetailsService;
         this.jwtAuthFilter = jwtAuthFilter;
+
+        // ✅ LOG SIMPLE
+        System.out.println("🛡️ Configuration SecurityConfig chargée");
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        log.info("🛡️  Configuration SecurityConfig chargée");
-
         http
                 // ✅ DÉSACTIVER COMPLÈTEMENT CSRF
                 .csrf(AbstractHttpConfigurer::disable)
