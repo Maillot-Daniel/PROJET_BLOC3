@@ -6,6 +6,8 @@ function CartPage() {
   const { items, removeItem, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
+  const [tickets, setTickets] = useState([]); // <-- billets générés
+  const [modalOpen, setModalOpen] = useState(false); // <-- état modal
   const navigate = useNavigate();
   const API_URL = "https://projet-bloc3.onrender.com";
 
@@ -59,9 +61,10 @@ function CartPage() {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        alert("✅ Commande validée avec succès ! Vos billets ont été envoyés par email.");
+        // billets générés côté backend
+        setTickets(data.tickets || []);
+        setModalOpen(true); // <-- ouvre le pop-up
         clearCart();
-        navigate('/public-events');
       }
     } catch (error) {
       console.error('Erreur lors de la validation :', error);
@@ -71,19 +74,22 @@ function CartPage() {
     }
   };
 
-  const handleContinueShopping = () => {
-    navigate('/public-events');
-  };
-
-  const handleClearCart = () => {
-    if (window.confirm("Voulez-vous vraiment vider tout le panier ?")) clearCart();
-  };
-
-  const handleRemoveItem = (eventId, offerTypeId) => {
-    if (window.confirm("Voulez-vous retirer cet article du panier ?")) {
-      removeItem(eventId, offerTypeId);
+  const handleSendTicketEmail = async (ticket) => {
+    try {
+      const res = await fetch(`${API_URL}/api/send-ticket?primaryKey=${ticket.primaryKey}&email=${encodeURIComponent(email)}`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error("Échec de l'envoi du billet");
+      alert(`Billet pour ${ticket.eventTitle} envoyé à ${email}`);
+    } catch (err) {
+      console.error(err);
+      alert("Erreur lors de l'envoi du billet par email.");
     }
   };
+
+  const handleContinueShopping = () => navigate('/public-events');
+  const handleClearCart = () => { if (window.confirm("Vider le panier ?")) clearCart(); };
+  const handleRemoveItem = (eventId, offerTypeId) => { if (window.confirm("Supprimer cet article ?")) removeItem(eventId, offerTypeId); };
 
   const styles = {
     container: { padding: 30, maxWidth: 800, margin: "0 auto", backgroundColor: "#f9fafb", borderRadius: 16 },
@@ -96,19 +102,10 @@ function CartPage() {
     continueBtn: { backgroundColor: "#3b82f6", color: "#fff" },
     clearBtn: { backgroundColor: "#dc2626", color: "#fff" },
     removeBtn: { backgroundColor: "#f87171", color: "#fff", padding: "6px 10px", fontSize: 20, borderRadius: "50%" },
-    emailInput: { padding: "8px 12px", fontSize: 16, width: "100%", marginBottom: 10, borderRadius: 6, border: "1px solid #cbd5e1" }
+    emailInput: { padding: "8px 12px", fontSize: 16, width: "100%", marginBottom: 10, borderRadius: 6, border: "1px solid #cbd5e1" },
+    modalOverlay: { position: "fixed", top:0,left:0,width:"100%",height:"100%", backgroundColor:"rgba(0,0,0,0.5)", display:"flex", justifyContent:"center", alignItems:"center" },
+    modalContent: { backgroundColor:"#fff", padding:30, borderRadius:10, maxWidth:500, width:"90%" }
   };
-
-  if (items.length === 0) {
-    return (
-      <div style={styles.container}>
-        <h2 style={styles.title}>Votre panier est vide</h2>
-        <button onClick={handleContinueShopping} style={{ ...styles.button, ...styles.continueBtn }}>
-          Découvrir les événements
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div style={styles.container}>
@@ -145,13 +142,29 @@ function CartPage() {
         <button onClick={handleValidateOrder} disabled={loading} style={{ ...styles.button, ...styles.validateBtn }}>
           {loading ? "Traitement..." : "✅ Valider la commande"}
         </button>
-        <button onClick={handleContinueShopping} disabled={loading} style={{ ...styles.button, ...styles.continueBtn, marginTop: 8 }}>
-          🛍️ Continuer mes achats
-        </button>
-        <button onClick={handleClearCart} disabled={loading} style={{ ...styles.button, ...styles.clearBtn, marginTop: 8 }}>
-          🗑️ Vider le panier
-        </button>
+        <button onClick={handleContinueShopping} style={{ ...styles.button, ...styles.continueBtn, marginTop:8 }}>🛍️ Continuer mes achats</button>
+        <button onClick={handleClearCart} style={{ ...styles.button, ...styles.clearBtn, marginTop:8 }}>🗑️ Vider le panier</button>
       </div>
+
+      {/* --- MODAL BILLETS --- */}
+      {modalOpen && (
+        <div style={styles.modalOverlay} onClick={() => setModalOpen(false)}>
+          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <h3>Vos billets</h3>
+            {tickets.map((ticket, idx) => (
+              <div key={idx} style={{ marginBottom: 15, padding:10, border:"1px solid #cbd5e1", borderRadius:6 }}>
+                <p><strong>Événement:</strong> {ticket.eventTitle}</p>
+                <p><strong>Quantité:</strong> {ticket.quantity}</p>
+                <p><strong>Clé du billet:</strong> {ticket.primaryKey}</p>
+                <button onClick={() => handleSendTicketEmail(ticket)} style={{ ...styles.button, ...styles.validateBtn, marginTop:5 }}>
+                  Envoyer par email
+                </button>
+              </div>
+            ))}
+            <button onClick={() => setModalOpen(false)} style={{ ...styles.button, ...styles.clearBtn, marginTop:10 }}>Fermer</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
