@@ -43,17 +43,19 @@ public class SecurityConfig {
                 // ✅ DÉSACTIVER COMPLÈTEMENT CSRF
                 .csrf(AbstractHttpConfigurer::disable)
 
-                // ✅ DÉSACTIVER frameOptions POUR ÉVITER TOUT BLOQUAGE
+                // ✅ DÉSACTIVER frameOptions
                 .headers(headers -> headers
                         .frameOptions(frame -> frame.disable())
                 )
 
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        // 🚨 CRITIQUE : NOUVEAU CHEMIN WEBHOOK COMPLÈTEMENT PUBLIC
-                        .requestMatchers("/webhook/**").permitAll()
+                        // 🚨 CRITIQUE : TOUT AUTORISER SUR /public/**
+                        .requestMatchers("/public/**").permitAll()
 
-                        // Ancien chemin (au cas où)
+                        // Anciens chemins webhook (au cas où)
+                        .requestMatchers("/stripe-webhook-emergency").permitAll()
+                        .requestMatchers("/webhook/**").permitAll()
                         .requestMatchers("/api/stripe/webhook", "/api/stripe/webhook/").permitAll()
 
                         // 1. OPTIONS requests (CORS preflight)
@@ -132,7 +134,7 @@ public class SecurityConfig {
         configuration.setAllowedHeaders(Arrays.asList(
                 "Authorization",
                 "Content-Type",
-                "Stripe-Signature", // ✅ IMPORTANT pour Stripe
+                "Stripe-Signature",
                 "X-Requested-With",
                 "Accept",
                 "Cache-Control",
