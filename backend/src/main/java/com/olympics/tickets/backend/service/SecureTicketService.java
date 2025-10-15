@@ -1,301 +1,208 @@
 package com.olympics.tickets.backend.service;
 
-import com.olympics.tickets.backend.dto.DailySalesResponse;
-import com.olympics.tickets.backend.dto.TicketValidationResponse;
 import com.olympics.tickets.backend.entity.Ticket;
+import com.olympics.tickets.backend.repository.EventRepository;
 import com.olympics.tickets.backend.repository.TicketRepository;
+import com.olympics.tickets.backend.repository.UsersRepository;
+import com.stripe.model.checkout.Session;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SecureTicketService {
 
     private final TicketRepository ticketRepository;
+    private final EventRepository eventRepository;
+    private final UsersRepository usersRepository;
+    private final SecurityAndQrService securityService;
+    private final EmailService emailService;
 
-    @Value("${app.hmac.secret:YourDefaultSecretKeyChangeInProduction123!}")
-    private String hmacSecret;
-
-    /**
-     * Génère une clé de ticket sécurisée
-     */
-    public String generateTicketKey() {
-        return UUID.randomUUID().toString().replace("-", "").substring(0, 16);
-    }
-
-    /**
-     * Hash une clé avec SHA-256
-     */
-    public String hashKey(String key) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] hash = md.digest(key.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hash);
-        } catch (Exception e) {
-            throw new RuntimeException("Erreur lors du hashage", e);
-        }
-    }
-
-    /**
-     * Génère une signature HMAC
-     */
-    public String generateHMAC(String data) {
-        try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secretKeySpec = new SecretKeySpec(hmacSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-            mac.init(secretKeySpec);
-            byte[] hmac = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hmac);
-        } catch (Exception e) {
-            throw new RuntimeException("Erreur génération HMAC", e);
-        }
-    }
-
-    /**
-     * Sécurise un ticket en calculant le hash et la signature
-     */
+    // -------------------- Paiement et création ticket --------------------
     @Transactional
-    public Ticket secureTicket(Ticket ticket) {
-        if (ticket.getPrimaryKey() == null || ticket.getSecondaryKey() == null) {
-            throw new IllegalArgumentException("Le ticket doit avoir des clés primaire et secondaire");
+    public void processSuccessfulPayment(Session session) {
+        log.info("🎫 Traitement du paiement pour la session: {}", session.getId());
+
+        String primaryKey = getPrimaryKeyFromSession(session);
+
+        if (ticketRepository.existsByPrimaryKey(primaryKey)) {
+            log.warn("Paiement déjà traité pour primaryKey: {}", primaryKey);
+            return;
         }
 
-        String combinedKey = ticket.getPrimaryKey() + ticket.getSecondaryKey();
+        var metadata = session.getMetadata();
+        Long userId = extractLongFromMetadata(metadata, "userId");
+        Long eventId = extractLongFromMetadata(metadata, "eventId");
+        Long offerTypeId = extractLongFromMetadata(metadata, "offerTypeId");
+        Integer quantity = extractIntegerFromMetadata(metadata, "quantity", 1);
 
-        // Calculer et assigner le hash et la signature
-        ticket.setHashedKey(hashKey(combinedKey));
-        ticket.setSignature(generateHMAC(combinedKey));
+        Ticket ticket = createSecureTicketFromSession(session, userId, eventId, offerTypeId, quantity);
+        log.info("🎫 Ticket créé avec succès: {} pour l'utilisateur ID: {}", ticket.getTicketNumber(), userId);
+        sendConfirmationEmail(ticket, userId);
+    }
 
-        // Générer l'URL du QR code
-        ticket.setQrCodeUrl(ticket.generateSecureQrCodeUrl());
+    private Ticket createSecureTicketFromSession(Session session, Long userId, Long eventId,
+                                                 Long offerTypeId, Integer quantity) {
+
+        var event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Événement introuvable: " + eventId));
+
+        if (event.getRemainingTickets() < quantity) {
+            throw new IllegalStateException(String.format(
+                    "Stock insuffisant. Demande: %d, Disponible: %d", quantity, event.getRemainingTickets()));
+        }
+        event.setRemainingTickets(event.getRemainingTickets() - quantity);
+        eventRepository.save(event);
+
+        if (!usersRepository.existsById(userId)) {
+            throw new IllegalArgumentException("Utilisateur introuvable: " + userId);
+        }
+
+        BigDecimal totalPrice = BigDecimal.valueOf(session.getAmountTotal() / 100.0);
+        String primaryKey = getPrimaryKeyFromSession(session);
+        String secondaryKey = securityService.generateRandomKey();
+        String hashedKey = primaryKey + "|" + secondaryKey;
+        String signature = securityService.createSignature(hashedKey);
+
+        Ticket ticket = Ticket.createSecureTicket(eventId, userId, offerTypeId, quantity, totalPrice, primaryKey, secondaryKey);
+        ticket.setHashedKey(hashedKey);
+        ticket.setSignature(signature);
+        ticket.setValidated(true);
+
+        String qrData = hashedKey + "|" + signature;
+        ticket.setQrCodeUrl(securityService.generateQrCodeFile(qrData));
 
         return ticketRepository.save(ticket);
     }
 
-    /**
-     * Valide un ticket à partir des données QR (primaryKey + signature)
-     */
+    // -------------------- Validation ticket --------------------
     @Transactional
-    public TicketValidationResponse validateSecureTicket(String qrData) {
-        try {
-            // Vérifier le format des données QR
-            if (qrData == null || !qrData.contains("|")) {
-                return new TicketValidationResponse(false, "Format de données QR invalide");
-            }
+    public Ticket validateTicket(String validationData) {
+        String[] parts = validationData.split("\\|");
+        if (parts.length != 2) throw new IllegalArgumentException("Format attendu: primaryKey|signature");
 
-            // Extraire primaryKey et signature du QR code
-            String[] parts = qrData.split("\\|");
-            if (parts.length != 2) {
-                return new TicketValidationResponse(false, "Format de données QR incorrect");
-            }
+        String primaryKey = parts[0];
+        String signature = parts[1];
 
-            String primaryKey = parts[0].trim();
-            String signatureFromQR = parts[1].trim();
+        Ticket ticket = ticketRepository.findByPrimaryKey(primaryKey)
+                .orElseThrow(() -> new IllegalArgumentException("Ticket non trouvé pour la clé: " + primaryKey));
 
-            if (primaryKey.isEmpty() || signatureFromQR.isEmpty()) {
-                return new TicketValidationResponse(false, "Données QR incomplètes");
-            }
-
-            // Chercher le ticket par primaryKey
-            Optional<Ticket> ticketOpt = ticketRepository.findByPrimaryKey(primaryKey);
-            if (ticketOpt.isEmpty()) {
-                return new TicketValidationResponse(false, "Ticket non trouvé");
-            }
-
-            Ticket ticket = ticketOpt.get();
-
-            // Vérifier si le ticket est déjà utilisé
-            if (ticket.getUsed()) {
-                return new TicketValidationResponse(false, "Ticket déjà utilisé");
-            }
-
-            // Vérifier la validité générale du ticket
-            if (!ticket.isValidForValidation()) {
-                return new TicketValidationResponse(false, "Ticket expiré ou invalide");
-            }
-
-            // Reconstituer la clé combinée avec la secondaryKey stockée
-            String combinedKey = ticket.getPrimaryKey() + ticket.getSecondaryKey();
-
-            // Vérifier la signature
-            String expectedSignature = generateHMAC(combinedKey);
-            if (!ticket.checkSignature(expectedSignature)) {
-                return new TicketValidationResponse(false, "Signature de sécurité invalide");
-            }
-
-            // Vérifier que la signature du QR correspond
-            if (!signatureFromQR.equals(ticket.getSignature())) {
-                return new TicketValidationResponse(false, "Signature QR invalide");
-            }
-
-            // Vérifier l'intégrité avec le hash stocké
-            String expectedHash = hashKey(combinedKey);
-            if (!ticket.checkIntegrity(expectedHash)) {
-                return new TicketValidationResponse(false, "Intégrité du ticket compromise");
-            }
-
-            // Tout est valide - marquer le ticket comme utilisé
-            ticket.markAsUsed();
-            Ticket savedTicket = ticketRepository.save(ticket);
-
-            return new TicketValidationResponse(
-                    true,
-                    "Ticket validé avec succès",
-                    savedTicket.getTicketNumber(),
-                    savedTicket.getEventTitle()
-            );
-
-        } catch (Exception e) {
-            return new TicketValidationResponse(false,
-                    "Erreur lors de la validation: " + e.getMessage());
+        if (!securityService.verifySignature(ticket.getHashedKey(), signature)) {
+            throw new SecurityException("Signature invalide");
         }
+
+        if (!ticket.isValidForValidation()) {
+            throw new IllegalStateException("Ticket déjà utilisé ou non validé");
+        }
+
+        ticket.markAsUsed();
+        return ticketRepository.save(ticket);
     }
 
-    /**
-     * Valide un ticket avec les trois composants séparés (pour l'API manuelle)
-     */
+    public Ticket validateSecureTicket(String validationData) {
+        return validateTicket(validationData);
+    }
+
+    public Ticket validateSecureTicketManual(String primaryKey, String secondaryKey, String signature) {
+        Ticket ticket = ticketRepository.findByPrimaryKey(primaryKey)
+                .orElseThrow(() -> new IllegalArgumentException("Ticket non trouvé"));
+
+        String hashedKey = primaryKey + "|" + secondaryKey;
+
+        if (!securityService.verifySignature(hashedKey, signature)) {
+            throw new SecurityException("Signature invalide");
+        }
+
+        if (!ticket.isValidForValidation()) {
+            throw new IllegalStateException("Ticket déjà utilisé ou non validé");
+        }
+
+        ticket.markAsUsed();
+        return ticketRepository.save(ticket);
+    }
+
+    // -------------------- Annulation ticket --------------------
     @Transactional
-    public TicketValidationResponse validateSecureTicketManual(String primaryKey, String secondaryKey, String signature) {
-        try {
-            if (primaryKey == null || secondaryKey == null || signature == null) {
-                return new TicketValidationResponse(false, "Tous les champs doivent être remplis");
-            }
+    public boolean cancelTicket(Long ticketId, Long userId) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new IllegalArgumentException("Ticket introuvable"));
 
-            // Chercher le ticket par primaryKey
-            Optional<Ticket> ticketOpt = ticketRepository.findByPrimaryKey(primaryKey.trim());
-            if (ticketOpt.isEmpty()) {
-                return new TicketValidationResponse(false, "Ticket non trouvé");
-            }
+        if (!ticket.getUserId().equals(userId)) throw new SecurityException("Non autorisé");
+        if (!ticket.canBeCancelled()) throw new IllegalStateException("Ce ticket ne peut pas être annulé");
 
-            Ticket ticket = ticketOpt.get();
+        eventRepository.findById(ticket.getEventId()).ifPresent(event -> {
+            event.setRemainingTickets(event.getRemainingTickets() + ticket.getQuantity());
+            eventRepository.save(event);
+        });
 
-            // Vérifications de base
-            if (ticket.getUsed()) {
-                return new TicketValidationResponse(false, "Ticket déjà utilisé");
-            }
+        ticket.setUsed(true);
+        ticket.setValidated(true);
+        ticket.setUsedAt(LocalDateTime.now());
+        ticketRepository.save(ticket);
 
-            if (!ticket.isValidForValidation()) {
-                return new TicketValidationResponse(false, "Ticket expiré ou invalide");
-            }
-
-            // Vérifier que la secondaryKey fournie correspond à celle stockée
-            if (!secondaryKey.trim().equals(ticket.getSecondaryKey())) {
-                return new TicketValidationResponse(false, "Clé secondaire invalide");
-            }
-
-            // Vérifier la signature
-            String combinedKey = primaryKey.trim() + secondaryKey.trim();
-            String expectedSignature = generateHMAC(combinedKey);
-
-            if (!signature.trim().equals(expectedSignature)) {
-                return new TicketValidationResponse(false, "Signature invalide");
-            }
-
-            // Vérifier l'intégrité
-            String expectedHash = hashKey(combinedKey);
-            if (!ticket.getHashedKey().equals(expectedHash)) {
-                return new TicketValidationResponse(false, "Hash de sécurité invalide");
-            }
-
-            // Validation réussie
-            ticket.markAsUsed();
-            Ticket savedTicket = ticketRepository.save(ticket);
-
-            return new TicketValidationResponse(
-                    true,
-                    "Ticket validé avec succès",
-                    savedTicket.getTicketNumber(),
-                    savedTicket.getEventTitle()
-            );
-
-        } catch (Exception e) {
-            return new TicketValidationResponse(false,
-                    "Erreur lors de la validation manuelle: " + e.getMessage());
-        }
+        return true;
     }
 
-    /**
-     * Récupère les statistiques de ventes journalières
-     */
-    @Transactional(readOnly = true)
-    public DailySalesResponse getDailySales() {
-        try {
-            LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
-            LocalDateTime endOfDay = startOfDay.plusDays(1);
-
-            Long ticketsUsedToday = ticketRepository.countByUsedTrueAndUsedAtBetween(startOfDay, endOfDay);
-            Double totalSalesToday = ticketRepository.sumPriceByUsedTrueAndUsedAtBetween(startOfDay, endOfDay);
-
-            return new DailySalesResponse(
-                    ticketsUsedToday != null ? ticketsUsedToday : 0L,
-                    totalSalesToday != null ? totalSalesToday : 0.0
-            );
-        } catch (Exception e) {
-            // En cas d'erreur, retourner des valeurs par défaut
-            return new DailySalesResponse(0L, 0.0);
-        }
+    // -------------------- Statistiques --------------------
+    public BigDecimal getDailySales() {
+        BigDecimal dailyRevenue = ticketRepository.getDailyRevenue();
+        return dailyRevenue != null ? dailyRevenue : BigDecimal.ZERO;
     }
 
-    /**
-     * Crée et sécurise un nouveau ticket complet
-     */
-    @Transactional
-    public Ticket createAndSecureTicket(Ticket ticket) {
-        // S'assurer que le ticket a des clés
-        if (ticket.getPrimaryKey() == null) {
-            ticket.setPrimaryKey(generateTicketKey());
-        }
-        if (ticket.getSecondaryKey() == null) {
-            ticket.setSecondaryKey(generateTicketKey());
-        }
-
-        // Sécuriser le ticket
-        return secureTicket(ticket);
+    // -------------------- Récupération tickets --------------------
+    public Ticket getTicketByPrimaryKey(String primaryKey) {
+        return ticketRepository.findByPrimaryKey(primaryKey)
+                .orElseThrow(() -> new IllegalArgumentException("Ticket non trouvé pour la clé: " + primaryKey));
     }
 
-    /**
-     * Vérifie l'état d'un ticket sans le valider
-     */
-    @Transactional(readOnly = true)
-    public TicketValidationResponse checkTicketStatus(String primaryKey) {
-        try {
-            Optional<Ticket> ticketOpt = ticketRepository.findByPrimaryKey(primaryKey);
-            if (ticketOpt.isEmpty()) {
-                return new TicketValidationResponse(false, "Ticket non trouvé");
+    public Ticket checkTicketStatus(String primaryKey) {
+        return getTicketByPrimaryKey(primaryKey);
+    }
+
+    public List<Ticket> getUserTickets(Long userId) {
+        if (!usersRepository.existsById(userId)) throw new IllegalArgumentException("Utilisateur introuvable");
+        return ticketRepository.findByUserId(userId);
+    }
+
+    // -------------------- Utilitaires --------------------
+    private String getPrimaryKeyFromSession(Session session) {
+        return session.getPaymentIntent() != null ? session.getPaymentIntent() : session.getId();
+    }
+
+    private Long extractLongFromMetadata(java.util.Map<String, String> metadata, String key) {
+        if (metadata != null && metadata.get(key) != null) {
+            try {
+                return Long.parseLong(metadata.get(key));
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Métadonnée invalide: " + key);
             }
-
-            Ticket ticket = ticketOpt.get();
-
-            if (ticket.getUsed()) {
-                return new TicketValidationResponse(false, "Ticket déjà utilisé le " +
-                        ticket.getUsedAt().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
-            }
-
-            if (!ticket.isValidForValidation()) {
-                return new TicketValidationResponse(false, "Ticket non valide pour validation");
-            }
-
-            return new TicketValidationResponse(
-                    true,
-                    "Ticket valide et prêt pour validation",
-                    ticket.getTicketNumber(),
-                    ticket.getEventTitle()
-            );
-
-        } catch (Exception e) {
-            return new TicketValidationResponse(false,
-                    "Erreur lors de la vérification: " + e.getMessage());
         }
+        throw new IllegalArgumentException("Métadonnée manquante: " + key);
+    }
+
+    private Integer extractIntegerFromMetadata(java.util.Map<String, String> metadata, String key, Integer defaultValue) {
+        if (metadata != null && metadata.get(key) != null) {
+            try {
+                return Integer.parseInt(metadata.get(key));
+            } catch (NumberFormatException e) {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
+    }
+
+    private void sendConfirmationEmail(Ticket ticket, Long userId) {
+        String userEmail = usersRepository.findById(userId)
+                .map(u -> u.getEmail())
+                .orElse("utilisateur-inconnu@example.com");
+        log.info("📧 Email de confirmation envoyé à {} pour le ticket: {}", userEmail, ticket.getTicketNumber());
     }
 }

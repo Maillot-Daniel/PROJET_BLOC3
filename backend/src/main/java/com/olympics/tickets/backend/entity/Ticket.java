@@ -13,227 +13,151 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString
 public class Ticket {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "ticket_number", nullable = false, unique = true)
+    @Column(name = "ticket_number", nullable = false, unique = true, length = 50)
     private String ticketNumber;
 
-    @Column(name = "qr_code_url", length = 500)
-    @Builder.Default
-    private String qrCodeUrl = "";
+    @Column(name = "qr_code_url", length = 1024)
+    private String qrCodeUrl;
 
-    // CHAMPS DE SÉCURITÉ
-    @Column(name = "primary_key", unique = true, length = 255)
-    private String primaryKey;
+    @Column(name = "event_id", nullable = false)
+    private Long eventId;
 
-    @Column(name = "secondary_key", length = 255)
-    private String secondaryKey;
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
 
-    @Column(name = "hashed_key", length = 255)
-    private String hashedKey;
+    @Column(name = "offer_type_id", nullable = false)
+    private Long offerTypeId;
 
-    @Column(name = "signature", columnDefinition = "TEXT")
-    private String signature;
-
-    @Column(name = "used")
-    @Builder.Default
-    private Boolean used = false;
-
-    @Column(name = "used_at")
-    private LocalDateTime usedAt;
-
-    // CHAMPS OBLIGATOIRES POUR LE DEBUG
     @Column(name = "purchase_date", nullable = false)
     private LocalDateTime purchaseDate;
 
     @Column(nullable = false)
-    private Integer quantity;
-
-    @Column(precision = 38, scale = 2, nullable = false)
-    private BigDecimal price;
-
-    @Column(name = "validated", nullable = false)
     @Builder.Default
     private Boolean validated = false;
 
-    // CHAMPS OPTIONNELS (peuvent être null pour le debug)
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean used = false;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer quantity = 1;
+
+    @Column(name = "price", precision = 10, scale = 2, nullable = false)
+    private BigDecimal price;
+
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @Column(name = "primary_key", length = 512)
+    private String primaryKey;
+
+    @Column(name = "secondary_key", length = 512)
+    private String secondaryKey;
+
+    @Column(name = "hashed_key", length = 1024)
+    private String hashedKey;
+
+    @Column(name = "signature", length = 512)
+    private String signature;
+
+    @Column(name = "used_at")
+    private LocalDateTime usedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "event_id")
+    @JoinColumn(name = "event_id", insertable = false, updatable = false)
     private Event event;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", insertable = false, updatable = false)
     private OurUsers user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "offer_type_id", referencedColumnName = "id")
-    private OfferType offerType;
-
-    // CONSTRUCTEURS SPÉCIALISÉS
-    public static Ticket createNewTicket(Event event, OurUsers user, OfferType offerType,
-                                         Integer quantity, BigDecimal basePrice) {
-        return Ticket.builder()
-                .ticketNumber(UUID.randomUUID().toString())
-                .qrCodeUrl(generateQrCodeUrl())
-                .event(event)
-                .user(user)
-                .offerType(offerType)
-                .purchaseDate(LocalDateTime.now())
-                .validated(false)
-                .used(false)
-                .quantity(quantity)
-                .price(calculateFinalPrice(basePrice, offerType.getName(), quantity))
-                .build();
-    }
-
-    public static Ticket createSecureTicket(Event event, OurUsers user, OfferType offerType,
-                                            Integer quantity, BigDecimal basePrice) {
-        String primaryKey = generateTicketKey();
-        String secondaryKey = generateTicketKey();
-
-        return Ticket.builder()
-                .ticketNumber(UUID.randomUUID().toString())
-                .qrCodeUrl("")
-                .primaryKey(primaryKey)
-                .secondaryKey(secondaryKey)
-                .hashedKey("")
-                .signature("")
-                .event(event)
-                .user(user)
-                .offerType(offerType)
-                .purchaseDate(LocalDateTime.now())
-                .validated(false)
-                .used(false)
-                .quantity(quantity)
-                .price(calculateFinalPrice(basePrice, offerType.getName(), quantity))
-                .build();
-    }
-
-    // MÉTHODES GÉNÉRATION DE CLÉS
-    private static String generateTicketKey() {
-        return UUID.randomUUID().toString().replace("-", "").substring(0, 16);
-    }
-
-    private static String generateQrCodeUrl() {
-        return "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + UUID.randomUUID();
-    }
+    // ---------------- Méthodes utilitaires ----------------
 
     public String generateSecureQrCodeUrl() {
-        String qrData = this.primaryKey + "|" + this.signature;
-        return "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
-                java.net.URLEncoder.encode(qrData, java.nio.charset.StandardCharsets.UTF_8);
+        if (this.primaryKey != null && this.signature != null) {
+            String qrData = this.primaryKey + "|" + this.signature;
+            this.qrCodeUrl = "https://yourdomain.com/api/tickets/validate?data=" +
+                    java.net.URLEncoder.encode(qrData, java.nio.charset.StandardCharsets.UTF_8);
+        }
+        return this.qrCodeUrl;
     }
 
-    public String getQrData() {
-        return this.primaryKey + "|" + this.signature;
+    public boolean checkSignature(String sig) {
+        return this.signature != null && this.signature.equals(sig);
     }
 
-    // CALCUL DU PRIX
-    private static BigDecimal calculateFinalPrice(BigDecimal basePrice, String offerType, Integer quantity) {
-        BigDecimal priceMultiplier = switch (offerType.toUpperCase()) {
-            case "DUO" -> BigDecimal.valueOf(1.8);
-            case "FAMILLE" -> BigDecimal.valueOf(3.2);
-            default -> BigDecimal.ONE;
-        };
-        return basePrice.multiply(priceMultiplier)
-                .multiply(BigDecimal.valueOf(quantity));
+    public boolean checkIntegrity(String hash) {
+        return this.hashedKey != null && this.hashedKey.equals(hash);
     }
 
-    // MÉTHODES UTILITAIRES
-    public boolean isValid() {
-        return !validated && !used && purchaseDate.isBefore(LocalDateTime.now().plusMonths(1));
+    public Event getEvent() {
+        return this.event;
     }
+
+    public OurUsers getUser() {
+        return this.user;
+    }
+
+    public String getEventTitle() {
+        return event != null ? event.getTitle() : null;
+    }
+
+    public Double getPriceDouble() {
+        return price != null ? price.doubleValue() : 0.0;
+    }
+
+    // ---------------- Méthodes manquantes pour TicketService ----------------
 
     public boolean isValidForValidation() {
-        return !used &&
-                !validated &&
-                purchaseDate.isBefore(LocalDateTime.now().plusMonths(1)) &&
-                event != null &&
-                event.getDate().isAfter(LocalDateTime.now()) &&
-                primaryKey != null &&
-                secondaryKey != null &&
-                signature != null &&
-                hashedKey != null;
-    }
-
-    public void validate() {
-        this.validated = true;
+        // Un ticket est valide si non utilisé et validé
+        return Boolean.TRUE.equals(this.validated) && Boolean.FALSE.equals(this.used);
     }
 
     public void markAsUsed() {
         this.used = true;
-        this.validated = true;
         this.usedAt = LocalDateTime.now();
     }
 
-    // GETTERS CALCULÉS
-    public BigDecimal getUnitPrice() {
-        if (quantity == null || quantity == 0) {
-            return BigDecimal.ZERO;
-        }
-        return price.divide(BigDecimal.valueOf(quantity), BigDecimal.ROUND_HALF_UP);
-    }
-
-    public String getEventTitle() {
-        return event != null ? event.getTitle() : "Événement inconnu";
-    }
-
-    public String getUserEmail() {
-        return user != null ? user.getEmail() : "Utilisateur inconnu";
-    }
-
-    public String getOfferTypeName() {
-        return offerType != null ? offerType.getName() : "Type inconnu";
-    }
-
-    public String getEventLocation() {
-        return event != null ? event.getLocation() : "Lieu inconnu";
-    }
-
-    public LocalDateTime getEventDate() {
-        return event != null ? event.getDate() : null;
-    }
-
-    // MÉTHODES DE VÉRIFICATION D'ÉTAT
-    public boolean isExpired() {
-        return purchaseDate.isBefore(LocalDateTime.now().minusMonths(1));
-    }
-
-    public boolean isUpcomingEvent() {
-        return event != null && event.getDate().isAfter(LocalDateTime.now());
-    }
-
     public boolean canBeCancelled() {
-        return !used && !validated && isUpcomingEvent() &&
-                purchaseDate.isAfter(LocalDateTime.now().minusDays(1));
+        // Autoriser annulation si pas encore utilisé
+        return Boolean.FALSE.equals(this.used);
     }
 
-    public boolean checkIntegrity(String recalculatedHash) {
-        return this.hashedKey != null &&
-                this.hashedKey.equals(recalculatedHash);
+    public void setUsedAt(LocalDateTime usedAt) {
+        this.usedAt = usedAt;
     }
 
-    public boolean checkSignature(String recalculatedSignature) {
-        return this.signature != null &&
-                this.signature.equals(recalculatedSignature);
-    }
+    // ---------------- Constructeurs utilitaires ----------------
 
-    // EQUALS AND HASHCODE
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Ticket ticket = (Ticket) o;
-        return id != null && id.equals(ticket.id);
-    }
-
-    @Override
-    public int hashCode() {
-        return getClass().hashCode();
+    public static Ticket createSecureTicket(Long eventId, Long userId, Long offerTypeId,
+                                            Integer quantity, BigDecimal price,
+                                            String primaryKey, String secondaryKey) {
+        String ticketNumber = "TCK-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        return Ticket.builder()
+                .ticketNumber(ticketNumber)
+                .qrCodeUrl("")
+                .eventId(eventId)
+                .userId(userId)
+                .offerTypeId(offerTypeId)
+                .quantity(quantity)
+                .price(price)
+                .primaryKey(primaryKey)
+                .secondaryKey(secondaryKey)
+                .purchaseDate(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .validated(false)
+                .used(false)
+                .build();
     }
 }
