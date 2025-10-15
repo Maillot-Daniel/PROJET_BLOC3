@@ -14,7 +14,7 @@ import java.util.Optional;
 @Repository
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
-    // ✅ MÉTHODE AJOUTÉE POUR LE DEBUG
+    // ✅ MÉTHODE AJOUTÉE POUR DEBUG
     @Query("SELECT COUNT(t) FROM Ticket t")
     long count();
 

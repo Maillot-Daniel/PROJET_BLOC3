@@ -129,7 +129,7 @@ public class TicketService {
         }
     }
 
-    // ✅ MÉTHODE TEMPORAIRE : Récupérer les items du panier
+    // ✅ MÉTHODE TEMPORAIRE : Récupérer items du panier
     private List<CartItem> getCartItemsFromSessionId(String sessionId) {
         System.out.println("⚠️ Méthode getCartItemsFromSessionId non implémentée");
         return List.of();

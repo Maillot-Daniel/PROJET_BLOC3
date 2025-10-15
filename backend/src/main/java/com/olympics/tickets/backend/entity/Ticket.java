@@ -114,7 +114,7 @@ public class Ticket {
                 .build();
     }
 
-    // MÉTHODES DE GÉNÉRATION DE CLÉS
+    // MÉTHODES GÉNÉRATION DE CLÉS
     private static String generateTicketKey() {
         return UUID.randomUUID().toString().replace("-", "").substring(0, 16);
     }
