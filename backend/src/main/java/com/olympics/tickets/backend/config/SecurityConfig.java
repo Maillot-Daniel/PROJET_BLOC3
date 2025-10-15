@@ -40,17 +40,20 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // ✅ DÉSACTIVER COMPLÈTEMENT CSRF (CRITIQUE)
+                // ✅ DÉSACTIVER COMPLÈTEMENT CSRF
                 .csrf(AbstractHttpConfigurer::disable)
 
-                // ✅ DÉSACTIVER AUSSI frameOptions POUR STRIPE
+                // ✅ DÉSACTIVER frameOptions POUR ÉVITER TOUT BLOQUAGE
                 .headers(headers -> headers
                         .frameOptions(frame -> frame.disable())
                 )
 
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        // 🚨 TOUJOURS EN PREMIER - WEBHOOK STRIPE
+                        // 🚨 CRITIQUE : NOUVEAU CHEMIN WEBHOOK COMPLÈTEMENT PUBLIC
+                        .requestMatchers("/webhook/**").permitAll()
+
+                        // Ancien chemin (au cas où)
                         .requestMatchers("/api/stripe/webhook", "/api/stripe/webhook/").permitAll()
 
                         // 1. OPTIONS requests (CORS preflight)
@@ -115,7 +118,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // Configuration CORS (garder la vôtre)
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
