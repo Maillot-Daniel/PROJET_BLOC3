@@ -27,7 +27,7 @@ public class Ticket {
     @Builder.Default
     private String qrCodeUrl = "";
 
-    // CHAMPS DE SÉCURITÉ CORRIGÉS
+    // CHAMPS DE SÉCURITÉ
     @Column(name = "primary_key", unique = true, length = 255)
     private String primaryKey;
 
@@ -47,25 +47,9 @@ public class Ticket {
     @Column(name = "used_at")
     private LocalDateTime usedAt;
 
-    // CHAMPS EXISTANTS
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "event_id", nullable = false)
-    private Event event;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private OurUsers user;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "offer_type_id", referencedColumnName = "id", nullable = false)
-    private OfferType offerType;
-
+    // CHAMPS OBLIGATOIRES POUR LE DEBUG
     @Column(name = "purchase_date", nullable = false)
     private LocalDateTime purchaseDate;
-
-    @Column(name = "validated", nullable = false)
-    @Builder.Default
-    private Boolean validated = false;
 
     @Column(nullable = false)
     private Integer quantity;
@@ -73,11 +57,24 @@ public class Ticket {
     @Column(precision = 38, scale = 2, nullable = false)
     private BigDecimal price;
 
-    // CONSTRUCTEURS SPÉCIALISÉS
+    @Column(name = "validated", nullable = false)
+    @Builder.Default
+    private Boolean validated = false;
 
-    /**
-     * Méthode factory pour créer un nouveau ticket SANS sécurité (rétrocompatibilité)
-     */
+    // CHAMPS OPTIONNELS (peuvent être null pour le debug)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "event_id")
+    private Event event;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private OurUsers user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "offer_type_id", referencedColumnName = "id")
+    private OfferType offerType;
+
+    // CONSTRUCTEURS SPÉCIALISÉS
     public static Ticket createNewTicket(Event event, OurUsers user, OfferType offerType,
                                          Integer quantity, BigDecimal basePrice) {
         return Ticket.builder()
@@ -94,22 +91,18 @@ public class Ticket {
                 .build();
     }
 
-    /**
-     * NOUVELLE méthode factory pour créer un ticket AVEC sécurité
-     */
     public static Ticket createSecureTicket(Event event, OurUsers user, OfferType offerType,
                                             Integer quantity, BigDecimal basePrice) {
-
         String primaryKey = generateTicketKey();
         String secondaryKey = generateTicketKey();
 
         return Ticket.builder()
                 .ticketNumber(UUID.randomUUID().toString())
-                .qrCodeUrl("") // Sera généré par le service de sécurité
+                .qrCodeUrl("")
                 .primaryKey(primaryKey)
                 .secondaryKey(secondaryKey)
-                .hashedKey("") // Sera calculé par le service de sécurité
-                .signature("") // Sera calculé par le service de sécurité
+                .hashedKey("")
+                .signature("")
                 .event(event)
                 .user(user)
                 .offerType(offerType)
@@ -126,23 +119,16 @@ public class Ticket {
         return UUID.randomUUID().toString().replace("-", "").substring(0, 16);
     }
 
-    // GÉNÉRATION DES QR CODES
     private static String generateQrCodeUrl() {
         return "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + UUID.randomUUID();
     }
 
-    /**
-     * Génère l'URL du QR code sécurisé
-     */
     public String generateSecureQrCodeUrl() {
         String qrData = this.primaryKey + "|" + this.signature;
         return "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
                 java.net.URLEncoder.encode(qrData, java.nio.charset.StandardCharsets.UTF_8);
     }
 
-    /**
-     * Retourne les données pour le QR code (primaryKey + signature)
-     */
     public String getQrData() {
         return this.primaryKey + "|" + this.signature;
     }
@@ -158,18 +144,11 @@ public class Ticket {
                 .multiply(BigDecimal.valueOf(quantity));
     }
 
-    // MÉTHODES UTILITAIRES AMÉLIORÉES
-
-    /**
-     * Vérifie si le ticket est valide (compatibilité ancien système)
-     */
+    // MÉTHODES UTILITAIRES
     public boolean isValid() {
         return !validated && !used && purchaseDate.isBefore(LocalDateTime.now().plusMonths(1));
     }
 
-    /**
-     * Vérifie si le ticket peut être validé (nouveau système sécurisé)
-     */
     public boolean isValidForValidation() {
         return !used &&
                 !validated &&
@@ -182,19 +161,13 @@ public class Ticket {
                 hashedKey != null;
     }
 
-    /**
-     * Valide le ticket (ancien système)
-     */
     public void validate() {
         this.validated = true;
     }
 
-    /**
-     * Marque le ticket comme utilisé (nouveau système sécurisé)
-     */
     public void markAsUsed() {
         this.used = true;
-        this.validated = true; // Compatibilité avec l'ancien système
+        this.validated = true;
         this.usedAt = LocalDateTime.now();
     }
 
@@ -240,152 +213,14 @@ public class Ticket {
                 purchaseDate.isAfter(LocalDateTime.now().minusDays(1));
     }
 
-    /**
-     * Vérifie l'intégrité du ticket en recalculant le hash
-     * Utilisé pendant la validation
-     */
     public boolean checkIntegrity(String recalculatedHash) {
         return this.hashedKey != null &&
                 this.hashedKey.equals(recalculatedHash);
     }
 
-    /**
-     * Vérifie la signature du ticket
-     * Utilisé pendant la validation
-     */
     public boolean checkSignature(String recalculatedSignature) {
         return this.signature != null &&
                 this.signature.equals(recalculatedSignature);
-    }
-
-    // IMPLÉMENTATION DES GETTERS/SETTERS (Lombok les génère déjà)
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getTicketNumber() {
-        return ticketNumber;
-    }
-
-    public void setTicketNumber(String ticketNumber) {
-        this.ticketNumber = ticketNumber;
-    }
-
-    public String getQrCodeUrl() {
-        return qrCodeUrl;
-    }
-
-    public void setQrCodeUrl(String qrCodeUrl) {
-        this.qrCodeUrl = qrCodeUrl;
-    }
-
-    public String getPrimaryKey() {
-        return primaryKey;
-    }
-
-    public void setPrimaryKey(String primaryKey) {
-        this.primaryKey = primaryKey;
-    }
-
-    public String getSecondaryKey() {
-        return secondaryKey;
-    }
-
-    public void setSecondaryKey(String secondaryKey) {
-        this.secondaryKey = secondaryKey;
-    }
-
-    public String getHashedKey() {
-        return hashedKey;
-    }
-
-    public void setHashedKey(String hashedKey) {
-        this.hashedKey = hashedKey;
-    }
-
-    public String getSignature() {
-        return signature;
-    }
-
-    public void setSignature(String signature) {
-        this.signature = signature;
-    }
-
-    public Boolean getUsed() {
-        return used;
-    }
-
-    public void setUsed(Boolean used) {
-        this.used = used;
-    }
-
-    public LocalDateTime getUsedAt() {
-        return usedAt;
-    }
-
-    public void setUsedAt(LocalDateTime usedAt) {
-        this.usedAt = usedAt;
-    }
-
-    public Event getEvent() {
-        return event;
-    }
-
-    public void setEvent(Event event) {
-        this.event = event;
-    }
-
-    public OurUsers getUser() {
-        return user;
-    }
-
-    public void setUser(OurUsers user) {
-        this.user = user;
-    }
-
-    public OfferType getOfferType() {
-        return offerType;
-    }
-
-    public void setOfferType(OfferType offerType) {
-        this.offerType = offerType;
-    }
-
-    public LocalDateTime getPurchaseDate() {
-        return purchaseDate;
-    }
-
-    public void setPurchaseDate(LocalDateTime purchaseDate) {
-        this.purchaseDate = purchaseDate;
-    }
-
-    public Boolean getValidated() {
-        return validated;
-    }
-
-    public void setValidated(Boolean validated) {
-        this.validated = validated;
-    }
-
-    public Integer getQuantity() {
-        return quantity;
-    }
-
-    public void setQuantity(Integer quantity) {
-        this.quantity = quantity;
-    }
-
-    public BigDecimal getPrice() {
-        return price;
-    }
-
-    public void setPrice(BigDecimal price) {
-        this.price = price;
     }
 
     // EQUALS AND HASHCODE
