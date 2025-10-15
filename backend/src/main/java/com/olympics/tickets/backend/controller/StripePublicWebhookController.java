@@ -12,6 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 @RestController
 @RequestMapping("/public")
 @RequiredArgsConstructor
@@ -24,15 +26,18 @@ public class StripePublicWebhookController {
     @PostMapping("/stripe-webhook")
     public ResponseEntity<String> handlePublicWebhook(
             @RequestBody String payload,
-            @RequestHeader("Stripe-Signature") String sigHeader) {
+            @RequestHeader("Stripe-Signature") String sigHeader,
+            HttpServletRequest request) {
 
-        log.info("🎯 PUBLIC WEBHOOK APPELE - Chemin: /public/stripe-webhook");
+        log.info("🎯 PUBLIC WEBHOOK APPELE - Méthode: {}, URI: {}",
+                request.getMethod(), request.getRequestURI());
+        log.info("📨 Stripe-Signature: {}", sigHeader != null ? "PRÉSENT" : "ABSENT");
+        log.info("📦 Payload reçu ({} caractères)", payload.length());
 
-        // Récupération de la clé webhook
         String endpointSecret = env.getProperty("STRIPE_WEBHOOK_SECRET");
 
         if (endpointSecret == null || endpointSecret.isEmpty()) {
-            log.error("❌ STRIPE_WEBHOOK_SECRET non configuré");
+            log.error("❌ STRIPE_WEBHOOK_SECRET NON CONFIGURÉE");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Configuration webhook manquante");
         }
@@ -40,11 +45,9 @@ public class StripePublicWebhookController {
         log.info("✅ Webhook secret trouvé ({} caractères)", endpointSecret.length());
 
         try {
-            // Validation de la signature Stripe
             Event stripeEvent = Webhook.constructEvent(payload, sigHeader, endpointSecret);
             log.info("✅ Événement Stripe validé: {}", stripeEvent.getType());
 
-            // Traitement des paiements réussis
             if ("checkout.session.completed".equals(stripeEvent.getType())) {
                 Session session = (Session) stripeEvent.getDataObjectDeserializer()
                         .getObject()
@@ -54,7 +57,6 @@ public class StripePublicWebhookController {
                     log.info("💰 Session payée: {} - Montant: {} - Email: {}",
                             session.getId(), session.getAmountTotal(), session.getCustomerEmail());
 
-                    // Traitement du paiement réussi
                     ticketService.processSuccessfulPayment(session);
                     log.info("✅ Paiement traité avec succès pour: {}", session.getId());
                 }

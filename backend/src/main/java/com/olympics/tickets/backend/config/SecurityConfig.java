@@ -39,6 +39,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        log.info("🛡️  Configuration SecurityConfig chargée");
+
         http
                 // ✅ DÉSACTIVER COMPLÈTEMENT CSRF
                 .csrf(AbstractHttpConfigurer::disable)
@@ -53,15 +55,15 @@ public class SecurityConfig {
                         // 🚨 CRITIQUE : TOUT AUTORISER SUR /public/**
                         .requestMatchers("/public/**").permitAll()
 
-                        // Anciens chemins webhook (au cas où)
+                        // Anciens chemins webhook
                         .requestMatchers("/stripe-webhook-emergency").permitAll()
                         .requestMatchers("/webhook/**").permitAll()
                         .requestMatchers("/api/stripe/webhook", "/api/stripe/webhook/").permitAll()
 
-                        // 1. OPTIONS requests (CORS preflight)
+                        // OPTIONS requests
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // 2. Authentication endpoints
+                        // Authentication endpoints
                         .requestMatchers(
                                 "/auth/login",
                                 "/auth/register",
@@ -73,7 +75,7 @@ public class SecurityConfig {
                                 "/auth/**"
                         ).permitAll()
 
-                        // 3. Documentation Swagger
+                        // Documentation Swagger
                         .requestMatchers(
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
@@ -82,18 +84,17 @@ public class SecurityConfig {
                                 "/webjars/**"
                         ).permitAll()
 
-                        // 4. Endpoints de test et publics
+                        // Endpoints de test
                         .requestMatchers(
                                 "/api/test",
-                                "/api/db-test",
-                                "/public/**"
+                                "/api/db-test"
                         ).permitAll()
 
-                        // 5. Resources publiques en lecture (GET)
+                        // Resources publiques
                         .requestMatchers(HttpMethod.GET, "/api/offer_types/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
 
-                        // 6. Administration - Opérations CRUD
+                        // Administration
                         .requestMatchers(HttpMethod.POST, "/api/offer_types/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/offer_types/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/offer_types/**").hasRole("ADMIN")
@@ -101,14 +102,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/events/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasRole("ADMIN")
 
-                        // 7. Routes admin
+                        // Routes admin
                         .requestMatchers("/admin/**").hasRole("ADMIN")
 
-                        // 8. Routes authentifiées (utilisateurs normaux)
+                        // Routes authentifiées
                         .requestMatchers("/api/cart/**", "/api/pay/**", "/api/tickets/**").authenticated()
                         .requestMatchers("/adminuser/**").authenticated()
 
-                        // 9. Toutes les autres routes nécessitent une authentification
+                        // Toutes les autres routes
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

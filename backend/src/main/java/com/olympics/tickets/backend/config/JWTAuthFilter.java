@@ -31,15 +31,24 @@ public class JWTAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         final String path = request.getRequestURI();
+        final String method = request.getMethod();
+
+        log.info("🔍 JWTAuthFilter - {} {}", method, path);
 
         // ✅ CRITIQUE : IGNORER ABSOLUMENT TOUS LES WEBHOOKS
-        if (path.startsWith("/webhook/") || path.contains("/api/stripe/webhook")) {
-            System.out.println("✅ WEBHOOK DÉTOURNÉ - Pas d'authentification JWT pour: " + path);
+        if (path.startsWith("/public/") ||
+                path.contains("/webhook") ||
+                path.contains("/stripe") ||
+                path.equals("/public/stripe-webhook")) {
+
+            log.info("✅ JWTAuthFilter IGNORÉ - Webhook détecté: {}", path);
             filterChain.doFilter(request, response);
             return;
         }
 
-        // ✅ Ensuite seulement, vérifier l'authentification pour les autres routes
+        log.info("➡️ JWTAuthFilter CONTINUE - Route normale: {}", path);
+
+        // Ensuite seulement, vérifier l'authentification pour les autres routes
         final String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
