@@ -19,7 +19,7 @@ public class JWTUtils {
     private final SecretKey key;
 
     // Expiration token d'accès : 24 heures
-    private static final long ACCESS_TOKEN_EXPIRATION = 24 * 60 * 60 * 1000; // 24 heures
+    private static final long ACCESS_TOKEN_EXPIRATION = 60 * 60 * 1000; // 15 minutes
 
     // Expiration refresh token : 7 jours
     private static final long REFRESH_TOKEN_EXPIRATION = 7 * 24 * 60 * 60 * 1000; // 7 jours

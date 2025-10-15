@@ -30,13 +30,17 @@ public class JWTAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        // Ignorer le webhook Stripe
-        String path = request.getRequestURI();
-        if (path.startsWith("/api/stripe/webhook")) {
+        // ✅ CORRECTION CRITIQUE : TOUJOURS EN PREMIER
+        final String path = request.getRequestURI();
+
+        // ✅ IGNORER ABSOLUMENT TOUS LES WEBHOOKS STRIPE
+        if (path.contains("/api/stripe/webhook")) {
+            System.out.println("✅ Webhook Stripe détourné - Pas d'authentification JWT");
             filterChain.doFilter(request, response);
             return;
         }
 
+        // ✅ Ensuite seulement, vérifier l'authentification pour les autres routes
         final String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);

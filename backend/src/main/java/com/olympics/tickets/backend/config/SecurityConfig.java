@@ -40,18 +40,23 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // ✅ DÉSACTIVER CSRF COMPLÈTEMENT (cause principale du 403)
+                // ✅ DÉSACTIVER COMPLÈTEMENT CSRF (CRITIQUE)
                 .csrf(AbstractHttpConfigurer::disable)
+
+                // ✅ DÉSACTIVER AUSSI frameOptions POUR STRIPE
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.disable())
+                )
 
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
+                        // 🚨 TOUJOURS EN PREMIER - WEBHOOK STRIPE
+                        .requestMatchers("/api/stripe/webhook", "/api/stripe/webhook/").permitAll()
+
                         // 1. OPTIONS requests (CORS preflight)
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // 2. Webhook Stripe
-                        .requestMatchers("/api/stripe/webhook", "/api/stripe/webhook/").permitAll()
-
-                        // 3. Authentication endpoints - BIEN EXPLICITE
+                        // 2. Authentication endpoints
                         .requestMatchers(
                                 "/auth/login",
                                 "/auth/register",
@@ -63,7 +68,7 @@ public class SecurityConfig {
                                 "/auth/**"
                         ).permitAll()
 
-                        // 4. Documentation Swagger
+                        // 3. Documentation Swagger
                         .requestMatchers(
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
@@ -72,18 +77,18 @@ public class SecurityConfig {
                                 "/webjars/**"
                         ).permitAll()
 
-                        // 5. Endpoints de test et publics
+                        // 4. Endpoints de test et publics
                         .requestMatchers(
                                 "/api/test",
                                 "/api/db-test",
                                 "/public/**"
                         ).permitAll()
 
-                        // 6. Resources publiques en lecture (GET)
+                        // 5. Resources publiques en lecture (GET)
                         .requestMatchers(HttpMethod.GET, "/api/offer_types/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
 
-                        // 7. Administration - Opérations CRUD
+                        // 6. Administration - Opérations CRUD
                         .requestMatchers(HttpMethod.POST, "/api/offer_types/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/offer_types/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/offer_types/**").hasRole("ADMIN")
@@ -91,14 +96,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/events/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasRole("ADMIN")
 
-                        // 8. Routes admin
+                        // 7. Routes admin
                         .requestMatchers("/admin/**").hasRole("ADMIN")
 
-                        // 9. Routes authentifiées (utilisateurs normaux)
+                        // 8. Routes authentifiées (utilisateurs normaux)
                         .requestMatchers("/api/cart/**", "/api/pay/**", "/api/tickets/**").authenticated()
                         .requestMatchers("/adminuser/**").authenticated()
 
-                        // 10. Toutes les autres routes nécessitent une authentification
+                        // 9. Toutes les autres routes nécessitent une authentification
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
@@ -110,7 +115,7 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // Configuration CORS améliorée
+    // Configuration CORS (garder la vôtre)
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
@@ -125,7 +130,7 @@ public class SecurityConfig {
         configuration.setAllowedHeaders(Arrays.asList(
                 "Authorization",
                 "Content-Type",
-                "Stripe-Signature",
+                "Stripe-Signature", // ✅ IMPORTANT pour Stripe
                 "X-Requested-With",
                 "Accept",
                 "Cache-Control",
