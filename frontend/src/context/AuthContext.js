@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import UsersService from "../components/services/UsersService";
 
 const AuthContext = createContext();
@@ -11,13 +11,13 @@ export function AuthProvider({ children }) {
   const isAdmin = user?.role?.toLowerCase() === "admin";
 
   // Extraire les données utilisateur depuis l'API
-  const extractUserData = (apiResponse) => {
+  const extractUserData = useCallback((apiResponse) => {
     if (!apiResponse) return null;
     return apiResponse.ourUsers || apiResponse.data?.ourUsers || apiResponse;
-  };
+  }, []);
 
   // Charger le profil complet
-  const loadUserProfile = async () => {
+  const loadUserProfile = useCallback(async () => {
     try {
       setLoadingProfile(true);
       const profileResponse = await UsersService.getProfile();
@@ -43,10 +43,10 @@ export function AuthProvider({ children }) {
     } finally {
       setLoadingProfile(false);
     }
-  };
+  }, [extractUserData]);
 
   // Connexion
-  const login = async ({ token, userId, role }) => {
+  const login = useCallback(async ({ token, userId, role }) => {
     try {
       localStorage.setItem("olympics_auth_token", token);
       localStorage.setItem("olympics_user_id", userId);
@@ -66,10 +66,10 @@ export function AuthProvider({ children }) {
       setUser(null);
       return null;
     }
-  };
+  }, [loadUserProfile]);
 
   // Déconnexion
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem("olympics_auth_token");
     localStorage.removeItem("olympics_user_id");
     localStorage.removeItem("olympics_user_role");
@@ -80,10 +80,10 @@ export function AuthProvider({ children }) {
     setIsAuthenticated(false);
 
     window.dispatchEvent(new CustomEvent("authChanged"));
-  };
+  }, []);
 
   // Rafraîchir le profil
-  const refreshProfile = async () => await loadUserProfile();
+  const refreshProfile = useCallback(async () => await loadUserProfile(), [loadUserProfile]);
 
   // Initialisation du contexte au montage
   useEffect(() => {
@@ -117,7 +117,7 @@ export function AuthProvider({ children }) {
       window.removeEventListener("authChanged", handleAuthChange);
       window.removeEventListener("authExpired", logout);
     };
-  }, []);
+  }, [loadUserProfile, logout]);
 
   return (
     <AuthContext.Provider

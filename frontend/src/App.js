@@ -14,10 +14,11 @@ import Events from './components/events/Events';
 import EventList from './components/events/EventList';
 import CreateEventForm from './components/events/CreateEventForm';
 import CartPage from './components/cart/CartPage';
+import MyTickets from './components/cart/MyTickets'; // ← NOUVEAU IMPORT
 
 import OffersPage from './components/OffersPage/OffersPage';
 import OffersGestion from './components/OffersGestion/OffersGestion';
-import TicketValidator from './components/tickets/TicketValidator'; // ← NOUVEAU IMPORT
+import TicketValidator from './components/tickets/TicketValidator';
 
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
@@ -68,11 +69,12 @@ function App() {
                 <Route path="/admin/update-user/:userId" element={<RequireAdmin><UpdateUser /></RequireAdmin>} />
                 <Route path="/admin/create-event" element={<RequireAdmin><CreateEventForm /></RequireAdmin>} />
                 <Route path="/admin/offers-gestion" element={<RequireAdmin><OffersGestion /></RequireAdmin>} />
-                <Route path="/admin/validate-tickets" element={<RequireAdmin><TicketValidator /></RequireAdmin>} /> {/* ← NOUVELLE ROUTE */}
+                <Route path="/admin/validate-tickets" element={<RequireAdmin><TicketValidator /></RequireAdmin>} />
 
                 {/* Authenticated users */}
                 <Route path="/public-events" element={<RequireUser><Events /></RequireUser>} />
                 <Route path="/cart" element={<RequireUser><CartPage /></RequireUser>} />
+                <Route path="/my-tickets" element={<RequireUser><MyTickets /></RequireUser>} /> {/* ← NOUVELLE ROUTE */}
 
                 {/* Static pages */}
                 <Route path="/cgu" element={<CguPages />} />
