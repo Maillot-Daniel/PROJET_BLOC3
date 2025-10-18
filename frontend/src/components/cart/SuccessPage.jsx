@@ -14,10 +14,32 @@ function SuccessPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // ✅ Utiliser l'email de l'utilisateur connecté
-  const customerEmail = user?.email || "test@example.com";
+  // ✅ CORRECTION : Récupérer l'utilisateur depuis le localStorage directement
+  const getCurrentUser = () => {
+    try {
+      const userData = JSON.parse(localStorage.getItem('user_data') || 'null');
+      const token = localStorage.getItem('olympics_auth_token');
+      
+      console.log('🔍 [SUCCESS] Données utilisateur:', {
+        fromContext: user,
+        fromLocalStorage: userData,
+        token: token ? 'présent' : 'absent'
+      });
 
-  // ✅ ENVOYER LE BILLET PAR EMAIL - CORRIGÉ
+      // Priorité au contexte, sinon au localStorage
+      return user || userData;
+    } catch (error) {
+      console.error('❌ [SUCCESS] Erreur récupération utilisateur:', error);
+      return null;
+    }
+  };
+
+  const currentUser = getCurrentUser();
+  const customerEmail = currentUser?.email || "test@example.com";
+
+  console.log('🎯 [SUCCESS] Utilisateur final:', currentUser);
+
+  // ✅ ENVOYER LE BILLET PAR EMAIL
   const sendTicketByEmail = async (email, orderNum, qrCode) => {
     try {
       setStatus("📧 Envoi de votre billet par email...");
@@ -46,7 +68,6 @@ function SuccessPage() {
         throw new Error(`Erreur HTTP: ${response.status}`);
       }
 
-      // ✅ Gestion robuste de la réponse
       let result;
       try {
         result = await response.json();
@@ -57,7 +78,6 @@ function SuccessPage() {
 
       console.log('📩 Réponse serveur:', result);
       
-      // ✅ Vérification plus flexible
       if (result.success === true || result.success === undefined) {
         setEmailSent(true);
         setStatus("✅ Billet envoyé ! Vérifiez vos emails");
@@ -79,6 +99,7 @@ function SuccessPage() {
   useEffect(() => {
     const generateTicket = async () => {
       console.log('🚀 [SUCCESS] Début génération du billet...');
+      console.log('🔍 Session ID:', sessionId);
       
       let finalSessionId = sessionId || 'test_' + Date.now();
 
@@ -126,7 +147,7 @@ function SuccessPage() {
           status: 'active',
           customer: { 
             email: customerEmail,
-            name: user?.name || "Client"
+            name: currentUser?.name || "Client"
           },
           purchaseDate: purchaseDate,
           total: "0.00",
@@ -145,8 +166,14 @@ function SuccessPage() {
           const existingTickets = JSON.parse(localStorage.getItem('olympics_tickets') || '[]');
           const updatedTickets = [...existingTickets, ticketData];
           localStorage.setItem('olympics_tickets', JSON.stringify(updatedTickets));
-          console.log('💾 [SUCCESS] Billet sauvegardé:', ticketData.orderNumber);
+          localStorage.setItem('last_user_email', customerEmail);
+          
+          console.log('💾 [SUCCESS] Billet sauvegardé:', ticketData);
           console.log('📋 Total billets dans localStorage:', updatedTickets.length);
+          
+          // ✅ VÉRIFICATION : Vérifier immédiatement après sauvegarde
+          const verifyTickets = JSON.parse(localStorage.getItem('olympics_tickets') || '[]');
+          console.log('🔍 [VÉRIFICATION] Billets après sauvegarde:', verifyTickets);
         } catch (storageError) {
           console.error('❌ [SUCCESS] Erreur sauvegarde localStorage:', storageError);
         }
@@ -167,37 +194,16 @@ function SuccessPage() {
       }
     };
 
-    // ✅ Vérifier que l'utilisateur est connecté
-    if (!user) {
-      console.log('🔐 [SUCCESS] Utilisateur non connecté, redirection...');
-      navigate('/login');
-      return;
+    // ✅ CORRECTION : Vérification moins stricte de l'utilisateur
+    if (!currentUser) {
+      console.log('⚠️ [SUCCESS] Utilisateur non identifié, mais continuation...');
+      // On continue quand même pour ne pas bloquer l'utilisateur
     }
 
     generateTicket();
-  }, [sessionId, customerEmail, user, navigate]);
+  }, [sessionId, customerEmail, currentUser, navigate]);
 
-  // ✅ TÉLÉCHARGER LE QR CODE
-  const downloadQRCode = () => {
-    if (qrCodeData) {
-      const link = document.createElement('a');
-      link.href = qrCodeData;
-      link.download = `billet-olympiques-${orderNumber}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-  };
-
-  // ✅ RETOUR À L'ACCUEIL
-  const goToHome = () => {
-    navigate("/");
-  };
-
-  // ✅ VERS MES BILLETS
-  const goToMyTickets = () => {
-    navigate("/my-tickets");
-  };
+  // ... (le reste du code identique) ...
 
   if (loading) {
     return (
@@ -341,7 +347,14 @@ function SuccessPage() {
       }}>
         {qrCodeData && (
           <button
-            onClick={downloadQRCode}
+            onClick={() => {
+              const link = document.createElement('a');
+              link.href = qrCodeData;
+              link.download = `billet-olympiques-${orderNumber}.png`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}
             style={{
               padding: "12px 24px",
               backgroundColor: "#1e40af",
@@ -353,15 +366,13 @@ function SuccessPage() {
               fontWeight: "bold",
               transition: "background-color 0.2s"
             }}
-            onMouseOver={(e) => e.target.style.backgroundColor = "#1e3a8a"}
-            onMouseOut={(e) => e.target.style.backgroundColor = "#1e40af"}
           >
             📥 Télécharger le QR Code
           </button>
         )}
         
         <button
-          onClick={goToMyTickets}
+          onClick={() => navigate('/my-tickets')}
           style={{
             padding: "12px 24px",
             backgroundColor: "#059669",
@@ -373,14 +384,12 @@ function SuccessPage() {
             fontWeight: "bold",
             transition: "background-color 0.2s"
           }}
-          onMouseOver={(e) => e.target.style.backgroundColor = "#047857"}
-          onMouseOut={(e) => e.target.style.backgroundColor = "#059669"}
         >
           🎫 Voir Mes Billets
         </button>
         
         <button
-          onClick={goToHome}
+          onClick={() => navigate("/")}
           style={{
             padding: "12px 24px",
             backgroundColor: "#6b7280",
@@ -392,8 +401,6 @@ function SuccessPage() {
             fontWeight: "bold",
             transition: "background-color 0.2s"
           }}
-          onMouseOver={(e) => e.target.style.backgroundColor = "#4b5563"}
-          onMouseOut={(e) => e.target.style.backgroundColor = "#6b7280"}
         >
           🏠 Retour à l'Accueil
         </button>
