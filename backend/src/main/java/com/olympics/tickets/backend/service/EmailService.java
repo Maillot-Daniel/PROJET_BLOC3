@@ -16,25 +16,37 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
 
-    @Value("${spring.mail.username}")
+    @Value("${spring.mail.username:no-reply@olympics2024.com}")
     private String fromEmail;
 
+    @Value("${spring.mail.host:not-configured}")
+    private String mailHost;
+
+    // ✅ CONSTRUCTEUR AVEC VÉRIFICATION
     public EmailService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
         System.out.println("✅ EmailService initialisé");
+        System.out.println("📧 Host: " + mailHost);
+        System.out.println("📧 From: " + fromEmail);
+
+        // Test de configuration
+        if ("not-configured".equals(mailHost)) {
+            System.out.println("⚠️ Configuration mail non détectée - Mode simulation activé");
+        } else {
+            System.out.println("🎯 Configuration mail détectée - Emails réels activés");
+        }
     }
 
-    // ✅ MÉTHODE POUR PaymentService
-    public void sendTicketsEmail(String customerEmail, List<Object> tickets) {
-        System.out.println("📧 Envoi de " + tickets.size() + " billets à: " + customerEmail);
-        // Pour l'instant, on simule l'envoi
-        sendTicket(customerEmail, "BATCH-" + System.currentTimeMillis(), null);
-    }
-
-    // ✅ MÉTHODE POUR ENVOYER UN BILLET (utilisée par SuccessPage)
+    // ✅ ENVOYER UN BILLET
     public boolean sendTicket(String toEmail, String orderNumber, String qrCodeBase64) {
+        // Vérifier si la configuration mail est présente
+        if ("not-configured".equals(mailHost)) {
+            System.out.println("📧 [SIMULATION] Email à: " + toEmail + " - Commande: " + orderNumber);
+            return true;
+        }
+
         try {
-            System.out.println("📧 Envoi billet à: " + toEmail);
+            System.out.println("📧 [REEL] Envoi billet à: " + toEmail);
 
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -75,13 +87,14 @@ public class EmailService {
                     byte[] qrCodeBytes = Base64.getDecoder().decode(base64Data);
                     helper.addAttachment("billet-" + orderNumber + ".png",
                             new ByteArrayResource(qrCodeBytes), "image/png");
+                    System.out.println("📎 QR Code joint");
                 } catch (Exception e) {
                     System.out.println("⚠️ QR Code non joint: " + e.getMessage());
                 }
             }
 
             mailSender.send(message);
-            System.out.println("✅ Email envoyé avec succès");
+            System.out.println("✅ Email envoyé avec succès vers Mailtrap");
             return true;
 
         } catch (Exception e) {
@@ -90,8 +103,12 @@ public class EmailService {
         }
     }
 
-    // ✅ MÉTHODE quickTest() POUR EmailController
+    // ✅ TEST MAILTRAP
     public String quickTest() {
+        if ("not-configured".equals(mailHost)) {
+            return "✅ Mode simulation - Configuration mail non détectée";
+        }
+
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message);
@@ -107,9 +124,12 @@ public class EmailService {
         }
     }
 
-    // ✅ MÉTHODE sendOlympicsTicket() POUR EmailController
     public boolean sendOlympicsTicket(String customerEmail, String orderNumber, String qrCodeBase64) {
-        // C'est un alias de sendTicket pour garder la compatibilité
         return sendTicket(customerEmail, orderNumber, qrCodeBase64);
+    }
+
+    public void sendTicketsEmail(String customerEmail, List<Object> tickets) {
+        System.out.println("📧 Envoi de " + tickets.size() + " billets à: " + customerEmail);
+        sendTicket(customerEmail, "BATCH-" + System.currentTimeMillis(), null);
     }
 }
