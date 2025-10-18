@@ -1,64 +1,84 @@
 package com.olympics.tickets.backend.controller;
 
 import com.olympics.tickets.backend.service.EmailService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/email")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "*")
 public class EmailController {
 
     private final EmailService emailService;
 
     public EmailController(EmailService emailService) {
         this.emailService = emailService;
+        System.out.println("✅ EmailController initialisé");
     }
 
-    // ✅ TEST MAILTRAP
-    @GetMapping("/test")
-    public Map<String, Object> testMailtrap() {
-        String result = emailService.quickTest(); // ✅ MÉTHODE EXISTE MAINTENANT
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", result.startsWith("✅"));
-        response.put("message", result);
-        response.put("sandboxUrl", "https://mailtrap.io/inboxes");
-
-        return response;
+    // 🔧 TEST DE CONFIGURATION
+    @GetMapping("/test-config")
+    public ResponseEntity<?> testEmailConfig() {
+        System.out.println("🧪 Appel test configuration email");
+        String result = emailService.quickTest();
+        return ResponseEntity.ok(Map.of("message", result));
     }
 
-    // ✅ ENVOYER UN BILLET
+    // 🎫 ENVOI DE BILLET
     @PostMapping("/send-ticket")
-    public Map<String, Object> sendTicket(@RequestBody TicketRequest request) {
-        boolean success = emailService.sendOlympicsTicket( // ✅ MÉTHODE EXISTE MAINTENANT
-                request.getCustomerEmail(),
-                request.getOrderNumber(),
-                request.getQrCodeData()
-        );
+    public ResponseEntity<?> sendTicket(@RequestBody Map<String, Object> request) {
+        try {
+            System.out.println("📧 REQUÊTE REÇUE - Send Ticket:");
+            System.out.println("   Données: " + request);
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", success);
-        response.put("message", success ? "Billet envoyé !" : "Erreur d'envoi");
-        response.put("customerEmail", request.getCustomerEmail());
-        response.put("orderNumber", request.getOrderNumber());
-        response.put("sandboxUrl", "https://mailtrap.io/inboxes");
+            String customerEmail = (String) request.get("customerEmail");
+            String orderNumber = (String) request.get("orderNumber");
+            Map<String, Object> ticketData = (Map<String, Object>) request.get("ticketData");
 
-        return response;
+            String qrCodeBase64 = null;
+            if (ticketData != null) {
+                qrCodeBase64 = (String) ticketData.get("qrCode");
+                System.out.println("   📦 Order: " + orderNumber);
+                System.out.println("   📧 Email: " + customerEmail);
+                System.out.println("   🖼️  QR Code: " + (qrCodeBase64 != null ? "Présent" : "Absent"));
+            }
+
+            if (customerEmail == null || orderNumber == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "message", "Email et numéro de commande requis"
+                ));
+            }
+
+            boolean success = emailService.sendOlympicsTicket(customerEmail, orderNumber, qrCodeBase64, ticketData);
+
+            return ResponseEntity.ok(Map.of(
+                    "success", success,
+                    "message", success ? "Email envoyé avec succès" : "Échec envoi email",
+                    "customerEmail", customerEmail,
+                    "orderNumber", orderNumber,
+                    "sandboxUrl", "https://mailtrap.io/inboxes"
+            ));
+
+        } catch (Exception e) {
+            System.err.println("❌ ERREUR CONTROLLER: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of(
+                    "success", false,
+                    "message", "Erreur serveur: " + e.getMessage()
+            ));
+        }
     }
 
-    public static class TicketRequest {
-        private String customerEmail;
-        private String orderNumber;
-        private String qrCodeData;
-
-        public String getCustomerEmail() { return customerEmail; }
-        public void setCustomerEmail(String customerEmail) { this.customerEmail = customerEmail; }
-        public String getOrderNumber() { return orderNumber; }
-        public void setOrderNumber(String orderNumber) { this.orderNumber = orderNumber; }
-        public String getQrCodeData() { return qrCodeData; }
-        public void setQrCodeData(String qrCodeData) { this.qrCodeData = qrCodeData; }
+    // 🩹 ENDPOINT DE SANTÉ
+    @GetMapping("/health")
+    public ResponseEntity<?> healthCheck() {
+        return ResponseEntity.ok(Map.of(
+                "status", "OK",
+                "service", "Email Service",
+                "timestamp", System.currentTimeMillis()
+        ));
     }
 }

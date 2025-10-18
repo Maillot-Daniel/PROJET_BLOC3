@@ -9,6 +9,8 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.9.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.3",
     "jwt-decode": "^4.0.0",
     "jwt-simple": "^0.5.6",
     "lucide-react": "^0.511.0",
