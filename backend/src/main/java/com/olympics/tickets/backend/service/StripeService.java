@@ -10,6 +10,7 @@ import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 
 @Service
@@ -26,17 +27,22 @@ public class StripeService {
 
     @PostConstruct
     public void init() {
+        // Assurez-vous que la clé est valide avant de lancer l'application
+        if (stripeApiKey == null || stripeApiKey.isBlank()) {
+            throw new IllegalStateException("Stripe API key not configured!");
+        }
         Stripe.apiKey = stripeApiKey;
     }
 
     public String createCheckoutSession(CartDTO cart, String customerEmail) throws StripeException {
+        // Création des items Stripe
         SessionCreateParams.LineItem[] lineItems = cart.getItems().stream().map(item ->
                 SessionCreateParams.LineItem.builder()
                         .setQuantity((long) item.getQuantity())
                         .setPriceData(
                                 SessionCreateParams.LineItem.PriceData.builder()
                                         .setCurrency("eur")
-                                        .setUnitAmount(item.getUnitPrice().multiply(new java.math.BigDecimal(100)).longValue())
+                                        .setUnitAmount(item.getUnitPrice().multiply(new BigDecimal(100)).longValue())
                                         .setProductData(
                                                 SessionCreateParams.LineItem.PriceData.ProductData.builder()
                                                         .setName(item.getEventTitle())
@@ -47,9 +53,10 @@ public class StripeService {
                         .build()
         ).toArray(SessionCreateParams.LineItem[]::new);
 
+        // Paramètres de la session Stripe
         SessionCreateParams params = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.PAYMENT)
-                .setSuccessUrl(successUrl + "?session_id={CHECKOUT_SESSION_ID}")
+                .setSuccessUrl(successUrl + "?success=true&session_id={CHECKOUT_SESSION_ID}")
                 .setCancelUrl(cancelUrl)
                 .setCustomerEmail(customerEmail)
                 .addAllLineItem(Arrays.asList(lineItems))
