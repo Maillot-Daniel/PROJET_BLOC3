@@ -13,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -155,6 +154,13 @@ public class SecureTicketService {
     public BigDecimal getDailySales() {
         BigDecimal dailyRevenue = ticketRepository.getDailyRevenue();
         return dailyRevenue != null ? dailyRevenue : BigDecimal.ZERO;
+    }
+
+    /**
+     * ✅ Nouvelle méthode pour récupérer les ventes par type d'offre
+     */
+    public List<Object[]> countSalesGroupedByOffer() {
+        return ticketRepository.countSalesGroupedByOffer();
     }
 
     // -------------------- Récupération tickets --------------------

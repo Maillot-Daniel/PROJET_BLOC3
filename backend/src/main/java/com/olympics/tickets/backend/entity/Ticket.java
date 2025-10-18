@@ -5,6 +5,8 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 @Entity
 @Table(name = "ticket")
@@ -22,7 +24,7 @@ public class Ticket {
     @Column(name = "ticket_number", nullable = false, unique = true, length = 50)
     private String ticketNumber;
 
-    @Column(name = "qr_code_url", length = 1024)
+    @Column(name = "qr_code_url", length = 2048)
     private String qrCodeUrl;
 
     @Column(name = "event_id", nullable = false)
@@ -58,6 +60,7 @@ public class Ticket {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    // --- Clés de sécurité (avant et après achat) ---
     @Column(name = "primary_key", length = 512)
     private String primaryKey;
 
@@ -73,6 +76,7 @@ public class Ticket {
     @Column(name = "used_at")
     private LocalDateTime usedAt;
 
+    // --- Relations ---
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id", insertable = false, updatable = false)
     private Event event;
@@ -83,11 +87,19 @@ public class Ticket {
 
     // ---------------- Méthodes utilitaires ----------------
 
+    /**
+     * Génère une URL sécurisée ou DataURL QR contenant la clef concaténée
+     * entre primaryKey et secondaryKey.
+     */
     public String generateSecureQrCodeUrl() {
-        if (this.primaryKey != null && this.signature != null) {
-            String qrData = this.primaryKey + "|" + this.signature;
-            this.qrCodeUrl = "https://yourdomain.com/api/tickets/validate?data=" +
-                    java.net.URLEncoder.encode(qrData, java.nio.charset.StandardCharsets.UTF_8);
+        if (this.primaryKey != null && this.secondaryKey != null) {
+            String finalKey = this.primaryKey + this.secondaryKey; // concaténation simple
+            try {
+                String encoded = URLEncoder.encode(finalKey, StandardCharsets.UTF_8);
+                this.qrCodeUrl = "https://yourdomain.com/api/tickets/validate?data=" + encoded;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
         return this.qrCodeUrl;
     }
@@ -137,15 +149,17 @@ public class Ticket {
         this.usedAt = usedAt;
     }
 
-    // ---------------- Constructeurs utilitaires ----------------
+    // ---------------- Constructeur utilitaire principal ----------------
 
+    /**
+     * Crée un Ticket sécurisé à partir des deux clefs et d'informations d'achat.
+     */
     public static Ticket createSecureTicket(Long eventId, Long userId, Long offerTypeId,
                                             Integer quantity, BigDecimal price,
                                             String primaryKey, String secondaryKey) {
         String ticketNumber = "TCK-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        return Ticket.builder()
+        Ticket ticket = Ticket.builder()
                 .ticketNumber(ticketNumber)
-                .qrCodeUrl("")
                 .eventId(eventId)
                 .userId(userId)
                 .offerTypeId(offerTypeId)
@@ -159,5 +173,10 @@ public class Ticket {
                 .validated(false)
                 .used(false)
                 .build();
+
+        // Génération immédiate de l’URL QR (concaténation des clefs)
+        ticket.generateSecureQrCodeUrl();
+
+        return ticket;
     }
 }

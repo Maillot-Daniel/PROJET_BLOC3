@@ -3,10 +3,12 @@ package com.olympics.tickets.backend.controller;
 import com.olympics.tickets.backend.dto.DailySalesResponse;
 import com.olympics.tickets.backend.dto.SecureTicketResponse;
 import com.olympics.tickets.backend.dto.TicketValidationResponse;
+import com.olympics.tickets.backend.dto.OfferSalesDTO;
 import com.olympics.tickets.backend.entity.Ticket;
 import com.olympics.tickets.backend.service.SecureTicketService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -28,7 +30,7 @@ public class SecureTicketController {
         Ticket ticket = secureTicketService.validateTicket(validationData);
 
         TicketValidationResponse response = new TicketValidationResponse(
-                true,                           // succès de la validation
+                true,
                 ticket.getTicketNumber(),
                 ticket.getPrimaryKey(),
                 ticket.getSecondaryKey()
@@ -101,6 +103,22 @@ public class SecureTicketController {
                 ticket.getPurchaseDate()
         )).collect(Collectors.toList());
 
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * ✅ Endpoint ADMIN : récupère les ventes par offre
+     */
+    @GetMapping("/admin/sales-by-offer")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<OfferSalesDTO>> getSalesByOffer() {
+        List<Object[]> rows = secureTicketService.countSalesGroupedByOffer();
+        List<OfferSalesDTO> response = rows.stream()
+                .map(r -> new OfferSalesDTO(
+                        ((Number) r[0]).longValue(),
+                        ((Number) r[1]).longValue()
+                ))
+                .collect(Collectors.toList());
         return ResponseEntity.ok(response);
     }
 }

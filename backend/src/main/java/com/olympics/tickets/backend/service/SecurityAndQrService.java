@@ -18,6 +18,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.UUID;
 
 @Service
 @Slf4j
@@ -155,6 +156,45 @@ public class SecurityAndQrService {
             }
         } catch (IOException e) {
             log.warn("Erreur lors du nettoyage des QR codes", e);
+        }
+    }
+
+    // ==========================================================
+    // === Ajout pour la génération secondaryKey + QR Data URL ===
+    // ==========================================================
+
+    public static class SecondaryKeyAndQr {
+        public final String secondaryKey;
+        public final String qrDataUrl;
+
+        public SecondaryKeyAndQr(String secondaryKey, String qrDataUrl) {
+            this.secondaryKey = secondaryKey;
+            this.qrDataUrl = qrDataUrl;
+        }
+    }
+
+    /**
+     * Génère une secondaryKey et un QR code (en base64 Data URL) à partir d'une primaryKey.
+     */
+    public SecondaryKeyAndQr generateSecondaryKeyAndQr(String primaryKey) {
+        try {
+            // 1) Générer secondaryKey
+            String secondaryKey = UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
+
+            // 2) Concaténation pour obtenir la clef finale
+            String finalKey = primaryKey + secondaryKey;
+
+            // 3) Générer QR code en mémoire
+            byte[] png = generateQrCodeBytes(finalKey);
+            String base64 = Base64.getEncoder().encodeToString(png);
+            String dataUrl = "data:image/png;base64," + base64;
+
+            log.info("Secondary key générée pour clé primaire {} : {}", primaryKey, secondaryKey);
+            return new SecondaryKeyAndQr(secondaryKey, dataUrl);
+
+        } catch (Exception e) {
+            log.error("Erreur lors de la génération de la secondaryKey + QR", e);
+            throw new RuntimeException("Erreur génération secondaryKey/QR", e);
         }
     }
 }

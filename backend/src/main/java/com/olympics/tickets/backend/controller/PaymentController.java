@@ -14,9 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.annotation.PostConstruct;
 import java.math.BigDecimal;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -29,7 +27,6 @@ public class PaymentController {
 
     private final CartService cartService;
 
-    // Valeurs par défaut si non définies
     @Value("${frontend.success-url:http://localhost:3000/success}")
     private String defaultSuccessUrl;
 
@@ -47,6 +44,9 @@ public class PaymentController {
         if (cart == null || cart.getItems() == null || cart.getItems().isEmpty()) {
             return ResponseEntity.badRequest().body("Panier vide ou introuvable");
         }
+
+        // Génération d'une clef primaire unique pour cette commande
+        String primaryKey = UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
 
         List<SessionCreateParams.LineItem> lineItems = cart.getItems().stream().map(item -> {
             long unitAmountCents = item.getUnitPrice().multiply(new BigDecimal(100)).longValue();
@@ -66,21 +66,25 @@ public class PaymentController {
                                             SessionCreateParams.LineItem.PriceData.ProductData.builder()
                                                     .setName(productName)
                                                     .putMetadata("eventId", String.valueOf(item.getEvent().getId()))
-                                                    .putMetadata("offerType",
-                                                            item.getOfferType() != null ?
-                                                                    item.getOfferType().getName() : "Standard")
+                                                    .putMetadata("offerTypeId", String.valueOf(item.getOfferType().getId()))
                                                     .build()
                                     ).build()
                     ).build();
         }).collect(Collectors.toList());
 
+        // Ajout des metadata Stripe (utiles pour le webhook)
         SessionCreateParams.Builder builder = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.PAYMENT)
                 .addAllLineItem(lineItems)
                 .setSuccessUrl(req.getSuccessUrl() != null ? req.getSuccessUrl() : defaultSuccessUrl)
                 .setCancelUrl(req.getCancelUrl() != null ? req.getCancelUrl() : defaultCancelUrl)
                 .setCustomerEmail(cart.getUser().getEmail())
-                .putMetadata("cartId", String.valueOf(cart.getId()));
+                .putMetadata("cartId", String.valueOf(cart.getId()))
+                .putMetadata("userId", String.valueOf(cart.getUser().getId()))
+                .putMetadata("primaryKey", primaryKey)
+                .putMetadata("quantity", String.valueOf(
+                        cart.getItems().stream().mapToInt(CartItem::getQuantity).sum()
+                ));
 
         Session session = Session.create(builder.build());
 
@@ -96,7 +100,6 @@ public class PaymentController {
         private String successUrl;
         private String cancelUrl;
 
-        // getters/setters
         public Long getCartId() { return cartId; }
         public void setCartId(Long cartId) { this.cartId = cartId; }
         public String getSuccessUrl() { return successUrl; }

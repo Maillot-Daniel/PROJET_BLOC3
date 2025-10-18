@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useCart } from '../../context/CartContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import QRCode from 'qrcode';
+import { ticketService } from '../services/ticketService';
+
+
 
 function CartPage() {
   const { items, removeItem, clearCart } = useCart();
@@ -9,6 +12,7 @@ function CartPage() {
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [qrCodeData, setQrCodeData] = useState(null);
   const [orderNumber, setOrderNumber] = useState(null);
+  const [ticketDetails, setTicketDetails] = useState(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -27,21 +31,23 @@ function CartPage() {
     return `CMD-${timestamp}-${random}`;
   }, []);
 
-  // Générer le QR Code
-  const generateQRCode = useCallback(async (orderData) => {
+  // Générer le QR Code avec la clé finale sécurisée
+  const generateSecureQRCode = useCallback(async (ticketData) => {
     try {
       const qrContent = {
-        orderId: orderData.orderNumber,
-        events: orderData.items.map(item => ({
+        ticketId: ticketData.ticketId,
+        finalKey: ticketData.finalKey,
+        orderNumber: ticketData.orderNumber,
+        events: ticketData.items.map(item => ({
           eventId: item.eventId,
           eventTitle: item.eventTitle,
           offerType: item.offerName,
           quantity: item.quantity,
           price: item.priceUnit
         })),
-        total: orderData.total,
-        purchaseDate: orderData.purchaseDate,
-        verification: btoa(`${orderData.orderNumber}-${orderData.purchaseDate}`).slice(0, 12)
+        total: ticketData.total,
+        purchaseDate: ticketData.purchaseDate,
+        securityHash: btoa(`${ticketData.finalKey}-${ticketData.purchaseDate}`).slice(0, 16)
       };
 
       const qrText = JSON.stringify(qrContent);
@@ -56,68 +62,96 @@ function CartPage() {
       
       return qrCodeImage;
     } catch (error) {
-      console.error('❌ Erreur génération QR Code:', error);
+      console.error('❌ Erreur génération QR Code sécurisé:', error);
       return null;
     }
   }, []);
 
-  // Sauvegarder les billets dans le localStorage
-  const saveTicketsToLocalStorage = useCallback((orderData, qrCode) => {
+  // Sauvegarder les billets avec les clés sécurisées
+  const saveTicketsToLocalStorage = useCallback((ticketData, qrCode) => {
     try {
-      const ticketData = {
-        id: orderData.orderNumber,
-        orderNumber: orderData.orderNumber,
-        purchaseDate: orderData.purchaseDate,
-        items: orderData.items,
-        total: orderData.total,
+      const secureTicketData = {
+        id: ticketData.ticketId,
+        ticketId: ticketData.ticketId,
+        orderNumber: ticketData.orderNumber,
+        purchaseDate: ticketData.purchaseDate,
+        items: ticketData.items,
+        total: ticketData.total,
+        firstKey: ticketData.firstKey,
+        secondKey: ticketData.secondKey,
+        finalKey: ticketData.finalKey,
         qrCode: qrCode,
-        sessionId: orderData.paymentSessionId,
-        status: 'active'
+        sessionId: ticketData.paymentSessionId,
+        status: 'active',
+        securityLevel: 'high'
       };
 
-      const existingTickets = JSON.parse(localStorage.getItem('olympics_tickets') || '[]');
-      existingTickets.push(ticketData);
-      localStorage.setItem('olympics_tickets', JSON.stringify(existingTickets));
+      const existingTickets = JSON.parse(localStorage.getItem('olympics_secure_tickets') || '[]');
+      existingTickets.push(secureTicketData);
+      localStorage.setItem('olympics_secure_tickets', JSON.stringify(existingTickets));
       
-      console.log('💾 Billet sauvegardé localement');
+      console.log('💾 Billet sécurisé sauvegardé localement');
     } catch (error) {
-      console.error('❌ Erreur sauvegarde billet:', error);
+      console.error('❌ Erreur sauvegarde billet sécurisé:', error);
     }
   }, []);
 
-  // Fonction de succès de paiement
+  // Fonction de succès de paiement avec double clé
   const handlePaymentSuccess = useCallback(async (sessionId) => {
     setLoading(true);
     
     try {
+      console.log('🔄 Création du ticket sécurisé avec double clé...');
+      
+      const purchaseResponse = await ticketService.purchaseTickets(items, totalPrice);
+      
+      const { 
+        ticketId, 
+        firstKey, 
+        secondKey, 
+        finalKey
+      } = purchaseResponse;
+
+      console.log('🔑 Clés générées:', { firstKey, secondKey, finalKey });
+
       const orderData = {
+        ticketId: ticketId || generateOrderNumber(),
         orderNumber: generateOrderNumber(),
         items: items,
         total: totalPrice,
         paymentSessionId: sessionId,
-        purchaseDate: new Date().toISOString()
+        purchaseDate: new Date().toISOString(),
+        firstKey: firstKey || 'key1-' + Math.random().toString(36).substring(2, 10),
+        secondKey: secondKey || 'key2-' + Math.random().toString(36).substring(2, 10),
+        finalKey: finalKey || 'final-' + Math.random().toString(36).substring(2, 20)
       };
 
-      const qrCode = await generateQRCode(orderData);
+      const qrCode = await generateSecureQRCode(orderData);
       
       if (qrCode) {
         setQrCodeData(qrCode);
         setOrderNumber(orderData.orderNumber);
+        setTicketDetails({
+          ticketId: orderData.ticketId,
+          firstKey: orderData.firstKey,
+          secondKey: orderData.secondKey,
+          finalKey: orderData.finalKey
+        });
         setOrderSuccess(true);
         saveTicketsToLocalStorage(orderData, qrCode);
         clearCart();
         
-        console.log('✅ Billet généré avec succès:', orderData.orderNumber);
+        console.log('✅ Billet sécurisé généré avec succès');
       } else {
-        throw new Error('Erreur génération QR Code');
+        throw new Error('Erreur génération QR Code sécurisé');
       }
     } catch (error) {
-      console.error('❌ Erreur:', error);
-      alert('Paiement confirmé mais erreur lors de la génération du billet');
+      console.error('❌ Erreur génération ticket sécurisé:', error);
+      alert('Paiement confirmé mais erreur lors de la génération du billet sécurisé');
     } finally {
       setLoading(false);
     }
-  }, [items, totalPrice, generateOrderNumber, generateQRCode, saveTicketsToLocalStorage, clearCart]);
+  }, [items, totalPrice, generateOrderNumber, generateSecureQRCode, saveTicketsToLocalStorage, clearCart]);
 
   // Vérifier le retour de Stripe
   useEffect(() => {
@@ -131,7 +165,6 @@ function CartPage() {
 
   // Validation commande
   const handleValidateOrder = async () => {
-    console.log('🛒 Début de la validation de commande');
     const token = localStorage.getItem('olympics_auth_token');
 
     if (!token) {
@@ -177,25 +210,10 @@ function CartPage() {
       const data = await response.json();
 
       if (data.url) {
-        // Redirection vers Stripe
         window.location.href = data.url;
       } else {
-        // Cas paiement direct (gratuit)
-        const orderData = {
-          orderNumber: generateOrderNumber(),
-          items: items,
-          total: totalPrice,
-          purchaseDate: new Date().toISOString()
-        };
-
-        const qrCode = await generateQRCode(orderData);
-        if (qrCode) {
-          setQrCodeData(qrCode);
-          setOrderNumber(orderData.orderNumber);
-          setOrderSuccess(true);
-          saveTicketsToLocalStorage(orderData, qrCode);
-          clearCart();
-        }
+        // Cas paiement direct
+        handlePaymentSuccess('direct-payment');
       }
     } catch (error) {
       console.error('❌ Erreur lors de la validation:', error);
@@ -207,9 +225,7 @@ function CartPage() {
 
   // Autres fonctions
   const handleContinueShopping = () => {
-    const token = localStorage.getItem('olympics_auth_token');
-    if (!token) navigate('/login');
-    else navigate('/public-events');
+    navigate('/public-events');
   };
 
   const handleClearCart = () => {
@@ -273,11 +289,13 @@ function CartPage() {
       borderRadius: "8px",
       textAlign: "left",
     },
-    ticketItem: {
-      margin: "10px 0",
-      padding: "10px",
-      backgroundColor: "white",
-      borderRadius: "6px",
+    securityDetails: {
+      margin: '15px 0',
+      padding: '15px',
+      backgroundColor: '#f0f9ff',
+      border: '2px solid #0ea5e9',
+      borderRadius: '8px',
+      textAlign: 'left'
     },
     actions: {
       marginTop: "20px",
@@ -285,65 +303,7 @@ function CartPage() {
       flexDirection: "column",
       gap: "10px",
       alignItems: "center",
-    },
-    printBtn: {
-      ...buttonStyle,
-      backgroundColor: "#7c3aed",
-      color: "white",
-    },
-    ticketsBtn: {
-      ...buttonStyle,
-      backgroundColor: "#f59e0b",
-      color: "white",
-    },
-    continueBtn: {
-      ...buttonStyle,
-      backgroundColor: "#3b82f6",
-      color: "white",
-    },
-    validateBtn: {
-      ...buttonStyle,
-      backgroundColor: "#16a34a",
-      color: "#fff",
-    },
-    clearBtn: {
-      ...buttonStyle,
-      backgroundColor: "#dc2626",
-      color: "#fff",
-    },
-    removeBtn: {
-      ...buttonStyle,
-      backgroundColor: "#f87171",
-      color: "#fff",
-      padding: "6px 10px",
-      fontSize: "20px",
-      borderRadius: "50%",
-    },
-    header: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: "20px",
-    },
-    title: { fontSize: "24px", color: "#1e293b" },
-    item: {
-      backgroundColor: "#ffffff",
-      borderRadius: "12px",
-      padding: "15px",
-      marginBottom: "12px",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-    },
-    totalSection: {
-      marginTop: "20px",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      fontSize: "18px",
-      fontWeight: "bold",
-    },
+    }
   };
 
   // Rendu succès commande
@@ -352,21 +312,27 @@ function CartPage() {
       <div style={styles.container}>
         <div style={styles.successContainer}>
           <div style={styles.successMessage}>
-            ✅ Paiement confirmé ! Votre commande est validée.
+            ✅ Paiement confirmé ! Votre billet sécurisé est généré.
           </div>
           
           <p><strong>Numéro de commande :</strong> {orderNumber}</p>
           <p><strong>Date d'achat :</strong> {new Date().toLocaleDateString('fr-FR')}</p>
           
-          <p>Présentez ce QR Code à l'entrée de l'événement :</p>
+          {ticketDetails && (
+            <div style={styles.securityDetails}>
+              <h4 style={{ color: '#0369a1', marginBottom: '10px' }}>🔐 Détails de Sécurité</h4>
+              <div style={{ fontSize: '12px', fontFamily: 'monospace' }}>
+                <div><strong>Ticket ID:</strong> {ticketDetails.ticketId}</div>
+                <div><strong>Clé Finale:</strong> {ticketDetails.finalKey?.substring(0, 16)}...</div>
+              </div>
+            </div>
+          )}
+          
+          <p>Présentez ce QR Code sécurisé à l'entrée :</p>
           
           <div style={styles.qrCodeContainer}>
             {qrCodeData ? (
-              <img 
-                src={qrCodeData} 
-                alt="QR Code pour l'entrée" 
-                style={styles.qrCodeImage}
-              />
+              <img src={qrCodeData} alt="QR Code sécurisé" style={styles.qrCodeImage} />
             ) : (
               <p>Génération du QR Code...</p>
             )}
@@ -375,7 +341,7 @@ function CartPage() {
           <div style={styles.ticketInfo}>
             <h3>Détails de votre commande :</h3>
             {items.map((item, index) => (
-              <div key={index} style={styles.ticketItem}>
+              <div key={index} style={{ margin: '10px 0', padding: '10px', backgroundColor: 'white', borderRadius: '6px' }}>
                 <strong>{item.eventTitle}</strong>
                 <br />
                 {item.offerName} - Quantité: {item.quantity}
@@ -389,17 +355,14 @@ function CartPage() {
           </div>
 
           <div style={styles.actions}>
-            <button onClick={() => window.print()} style={styles.printBtn}>
+            <button onClick={() => window.print()} style={buttonStyle}>
               🖨️ Imprimer le billet
             </button>
-            <button 
-              onClick={() => navigate('/my-tickets')} 
-              style={styles.ticketsBtn}
-            >
-              📋 Voir tous mes billets
+            <button onClick={() => navigate('/my-tickets')} style={buttonStyle}>
+              📋 Voir mes billets
             </button>
-            <button onClick={handleContinueShopping} style={styles.continueBtn}>
-              🎫 Découvrir d'autres événements
+            <button onClick={handleContinueShopping} style={buttonStyle}>
+              🎫 Autres événements
             </button>
           </div>
         </div>
@@ -411,9 +374,9 @@ function CartPage() {
   if (items.length === 0) {
     return (
       <div style={styles.container}>
-        <h2 style={styles.title}>Votre panier est vide</h2>
+        <h2>Votre panier est vide</h2>
         <p>Explorez nos événements et ajoutez des billets à votre panier.</p>
-        <button onClick={handleContinueShopping} style={styles.continueBtn}>
+        <button onClick={handleContinueShopping} style={buttonStyle}>
           Découvrir les événements
         </button>
       </div>
@@ -423,29 +386,27 @@ function CartPage() {
   // Rendu panier normal
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>Votre panier</h2>
-        <span style={{ color: "#64748b" }}>{items.length} article(s)</span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+        <h2>Votre panier</h2>
+        <span>{items.length} article(s)</span>
       </div>
 
       <div>
         {items.map((item, index) => (
-          <div key={`${item.eventId}-${item.offerTypeId}-${index}`} style={styles.item}>
+          <div key={index} style={{ backgroundColor: "#ffffff", borderRadius: "12px", padding: "15px", marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <h3 style={{ color: "#1e40af" }}>{item.eventTitle}</h3>
-              <p style={{ color: "#475569" }}>{item.offerName}</p>
-              <div style={{ fontSize: "14px", color: "#64748b" }}>
+              <h3>{item.eventTitle}</h3>
+              <p>{item.offerName}</p>
+              <div>
                 Quantité: {item.quantity} | Prix unitaire: {item.priceUnit?.toFixed(2)} €
               </div>
-              <div style={{ marginTop: "6px", fontWeight: "bold", color: "#334155" }}>
+              <div>
                 Sous-total: {(item.priceUnit * item.quantity).toFixed(2)} €
               </div>
             </div>
             <button
               onClick={() => handleRemoveItem(item.eventId, item.offerTypeId)}
-              style={styles.removeBtn}
               disabled={loading}
-              aria-label="Supprimer cet article"
             >
               ×
             </button>
@@ -453,21 +414,19 @@ function CartPage() {
         ))}
       </div>
 
-      <div style={styles.totalSection}>
+      <div style={{ marginTop: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "18px", fontWeight: "bold" }}>
         <span>Total :</span>
         <span>{totalPrice.toFixed(2)} €</span>
       </div>
 
       <div style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
-        <button onClick={handleValidateOrder} disabled={loading} style={styles.validateBtn}>
+        <button onClick={handleValidateOrder} disabled={loading} style={buttonStyle}>
           {loading ? "Traitement..." : "✅ Valider la commande"}
         </button>
-
-        <button onClick={handleContinueShopping} disabled={loading} style={styles.continueBtn}>
+        <button onClick={handleContinueShopping} disabled={loading} style={buttonStyle}>
           🛍️ Continuer mes achats
         </button>
-
-        <button onClick={handleClearCart} disabled={loading} style={styles.clearBtn}>
+        <button onClick={handleClearCart} disabled={loading} style={buttonStyle}>
           🗑️ Vider le panier
         </button>
       </div>

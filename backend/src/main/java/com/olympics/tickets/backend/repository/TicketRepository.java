@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.math.BigDecimal; // ✅ AJOUTER CET IMPORT
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -48,6 +48,13 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     // RECHERCHES PAR TYPE D'OFFRE
     @Query("SELECT t FROM Ticket t WHERE t.offerTypeId = :offerTypeId")
     List<Ticket> findByOfferTypeId(@Param("offerTypeId") Long offerTypeId);
+
+    // **NOUVELLE MÉTHODE : ventes par offre**
+    @Query("SELECT t.offerTypeId, COUNT(t) " +
+            "FROM Ticket t " +
+            "WHERE t.used = true " +
+            "GROUP BY t.offerTypeId")
+    List<Object[]> countSalesGroupedByOffer();
 
     // TICKETS EXPIRÉS
     @Query("SELECT t FROM Ticket t WHERE t.purchaseDate < :expiryDate AND t.used = false")
