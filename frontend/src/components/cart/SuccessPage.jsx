@@ -11,18 +11,18 @@ function SuccessPage() {
   const [status, setStatus] = useState("");
   const [emailSent, setEmailSent] = useState(false);
   
-  // ✅ CORRECTION : constante simple au lieu de useState inutilisé
+  // ✅ constante simple au lieu de useState inutilisé
   const customerEmail = "test@example.com";
   
   const navigate = useNavigate();
 
-  // ✅ ENVOYER LE BILLET PAR EMAIL - CORRIGÉ
+  // ✅ ENVOYER LE BILLET PAR EMAIL
   const sendTicketByEmail = async (email, orderNum, qrCode) => {
     try {
       setStatus("📧 Envoi de votre billet par email...");
       
-      // ✅ CORRECTION : Utilisation de la variable d'environnement
-      const API_URL = import.meta.env.VITE_API_URL || 'https://projet-bloc3.onrender.com';
+      // ✅ URL directe pour éviter les problèmes de variables d'environnement
+      const API_URL = 'https://projet-bloc3.onrender.com';
       console.log('🔗 URL API utilisée:', `${API_URL}/api/email/send-ticket`);
       
       const response = await fetch(`${API_URL}/api/email/send-ticket`, {
@@ -92,7 +92,16 @@ function SuccessPage() {
           color: { dark: '#1e40af', light: '#ffffff' }
         });
 
-        // Sauvegarde
+        // ✅ Format de date correct pour l'email
+        const purchaseDate = new Date().toLocaleDateString('fr-FR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        // Sauvegarde dans localStorage
         const existingTickets = JSON.parse(localStorage.getItem('olympics_tickets') || '[]');
         if (!existingTickets.some(ticket => ticket.sessionId === finalSessionId)) {
           const ticketData = {
@@ -102,7 +111,9 @@ function SuccessPage() {
             qrCode: qrCodeImage,
             finalKey: finalKey,
             status: 'active',
-            customer: { email: customerEmail }
+            customer: { email: customerEmail },
+            purchaseDate: purchaseDate, 
+            total: "0.00" 
           };
           localStorage.setItem('olympics_tickets', JSON.stringify([...existingTickets, ticketData]));
         }
