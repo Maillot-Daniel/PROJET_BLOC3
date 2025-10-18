@@ -10,15 +10,22 @@ function SuccessPage() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
   const [emailSent, setEmailSent] = useState(false);
-  const [customerEmail, setCustomerEmail] = useState("test@example.com");
+  
+  // ✅ CORRECTION : constante simple au lieu de useState inutilisé
+  const customerEmail = "test@example.com";
+  
   const navigate = useNavigate();
 
-  // ✅ ENVOYER LE BILLET PAR EMAIL
+  // ✅ ENVOYER LE BILLET PAR EMAIL - CORRIGÉ
   const sendTicketByEmail = async (email, orderNum, qrCode) => {
     try {
       setStatus("📧 Envoi de votre billet par email...");
       
-      const response = await fetch('http://localhost:8080/api/email/send-ticket', {
+      // ✅ CORRECTION : Utilisation de la variable d'environnement
+      const API_URL = import.meta.env.VITE_API_URL || 'https://projet-bloc3.onrender.com';
+      console.log('🔗 URL API utilisée:', `${API_URL}/api/email/send-ticket`);
+      
+      const response = await fetch(`${API_URL}/api/email/send-ticket`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -29,6 +36,10 @@ function SuccessPage() {
           qrCodeData: qrCode
         })
       });
+
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
 
       const result = await response.json();
       
@@ -114,7 +125,60 @@ function SuccessPage() {
     generateTicket();
   }, [sessionId, customerEmail]);
 
-  // ... (le reste du code d'affichage) ...
+  // ✅ TÉLÉCHARGER LE QR CODE
+  const downloadQRCode = () => {
+    if (qrCodeData) {
+      const link = document.createElement('a');
+      link.href = qrCodeData;
+      link.download = `billet-olympiques-${orderNumber}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  // ✅ RETOUR À L'ACCUEIL
+  const goToHome = () => {
+    navigate("/");
+  };
+
+  // ✅ VERS MES BILLETS
+  const goToMyTickets = () => {
+    navigate("/my-tickets");
+  };
+
+  if (loading) {
+    return (
+      <div style={{ 
+        padding: "50px 20px", 
+        textAlign: "center",
+        minHeight: "60vh",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center"
+      }}>
+        <div style={{ fontSize: "80px", marginBottom: "20px" }}>⏳</div>
+        <h2 style={{ color: "#1e40af", marginBottom: "20px" }}>Préparation de votre billet...</h2>
+        <p style={{ fontSize: "18px", color: "#6b7280" }}>{status}</p>
+        <div style={{ 
+          width: "200px", 
+          height: "4px", 
+          backgroundColor: "#e5e7eb", 
+          borderRadius: "2px",
+          marginTop: "20px",
+          overflow: "hidden"
+        }}>
+          <div style={{
+            width: "100%",
+            height: "100%",
+            backgroundColor: "#3b82f6",
+            animation: "loading 2s ease-in-out infinite"
+          }}></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: "30px 20px", maxWidth: "800px", margin: "0 auto", textAlign: "center" }}>
@@ -158,8 +222,143 @@ function SuccessPage() {
         )}
       </div>
 
-      {/* ... (le reste identique) ... */}
+      {/* QR CODE */}
+      {qrCodeData && (
+        <div style={{ 
+          backgroundColor: "white", 
+          padding: "30px", 
+          borderRadius: "15px", 
+          boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+          marginBottom: "30px",
+          border: "2px solid #e5e7eb"
+        }}>
+          <h2 style={{ color: "#1f2937", marginBottom: "20px" }}>Votre Billet Numérique</h2>
+          
+          <div style={{ 
+            display: "inline-block", 
+            padding: "20px", 
+            backgroundColor: "white", 
+            borderRadius: "10px",
+            border: "2px dashed #d1d5db"
+          }}>
+            <img 
+              src={qrCodeData} 
+              alt="QR Code du billet" 
+              style={{ 
+                width: "250px", 
+                height: "250px",
+                display: "block",
+                margin: "0 auto"
+              }}
+            />
+          </div>
+          
+          <p style={{ 
+            color: "#6b7280", 
+            fontSize: "14px", 
+            marginTop: "15px",
+            fontStyle: "italic"
+          }}>
+            Ce QR code est votre billet d'entrée. Gardez-le précieusement.
+          </p>
+        </div>
+      )}
 
+      {/* BOUTONS D'ACTION */}
+      <div style={{ 
+        display: "flex", 
+        gap: "15px", 
+        justifyContent: "center",
+        flexWrap: "wrap",
+        marginBottom: "30px"
+      }}>
+        {qrCodeData && (
+          <button
+            onClick={downloadQRCode}
+            style={{
+              padding: "12px 24px",
+              backgroundColor: "#1e40af",
+              color: "white",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer",
+              fontSize: "16px",
+              fontWeight: "bold",
+              transition: "background-color 0.2s"
+            }}
+            onMouseOver={(e) => e.target.style.backgroundColor = "#1e3a8a"}
+            onMouseOut={(e) => e.target.style.backgroundColor = "#1e40af"}
+          >
+            📥 Télécharger le QR Code
+          </button>
+        )}
+        
+        <button
+          onClick={goToMyTickets}
+          style={{
+            padding: "12px 24px",
+            backgroundColor: "#059669",
+            color: "white",
+            border: "none",
+            borderRadius: "8px",
+            cursor: "pointer",
+            fontSize: "16px",
+            fontWeight: "bold",
+            transition: "background-color 0.2s"
+          }}
+          onMouseOver={(e) => e.target.style.backgroundColor = "#047857"}
+          onMouseOut={(e) => e.target.style.backgroundColor = "#059669"}
+        >
+          🎫 Voir Mes Billets
+        </button>
+        
+        <button
+          onClick={goToHome}
+          style={{
+            padding: "12px 24px",
+            backgroundColor: "#6b7280",
+            color: "white",
+            border: "none",
+            borderRadius: "8px",
+            cursor: "pointer",
+            fontSize: "16px",
+            fontWeight: "bold",
+            transition: "background-color 0.2s"
+          }}
+          onMouseOver={(e) => e.target.style.backgroundColor = "#4b5563"}
+          onMouseOut={(e) => e.target.style.backgroundColor = "#6b7280"}
+        >
+          🏠 Retour à l'Accueil
+        </button>
+      </div>
+
+      {/* INFORMATIONS DE SÉCURITÉ */}
+      <div style={{ 
+        backgroundColor: "#fef3c7",
+        padding: "20px",
+        borderRadius: "10px",
+        border: "1px solid #f59e0b",
+        textAlign: "left"
+      }}>
+        <h3 style={{ color: "#92400e", marginBottom: "10px" }}>🛡️ Informations importantes</h3>
+        <ul style={{ color: "#92400e", margin: 0, paddingLeft: "20px" }}>
+          <li>Conservez ce QR code en lieu sûr</li>
+          <li>Présentez-le à l'entrée de l'événement</li>
+          <li>Ne le partagez avec personne</li>
+          <li>Une copie a été envoyée par email</li>
+        </ul>
+      </div>
+
+      {/* Style pour l'animation de loading */}
+      <style>
+        {`
+          @keyframes loading {
+            0% { transform: translateX(-100%); }
+            50% { transform: translateX(0%); }
+            100% { transform: translateX(100%); }
+          }
+        `}
+      </style>
     </div>
   );
 }
