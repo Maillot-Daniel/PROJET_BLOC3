@@ -13,58 +13,79 @@ function SuccessPage() {
   const [status, setStatus] = useState("");
   const [emailSent, setEmailSent] = useState(false);
 
-  // Récupération utilisateur depuis localStorage
+  // 🔹 Remplace ici par ton adresse Mailtrap
+  const MAILTRAP_EMAIL = "ton_mailtrap_id@inbox.mailtrap.io";
+
+  // ✅ Récupération utilisateur depuis localStorage
   const getCurrentUser = () => {
     try {
-      const userData = JSON.parse(localStorage.getItem("user_data") || localStorage.getItem("user") || "null");
-      if (userData && userData.email) return userData;
-      return { email: "test@mailtrap.io", name: "Test User" }; // Mailtrap sandbox
-    } catch (error) {
-      return { email: "test@mailtrap.io", name: "Test User" };
+      const userData = JSON.parse(
+        localStorage.getItem("user_data") || localStorage.getItem("user") || "null"
+      );
+      return userData && userData.email ? userData : { email: MAILTRAP_EMAIL, name: "Test User" };
+    } catch {
+      return { email: MAILTRAP_EMAIL, name: "Test User" };
     }
   };
 
   const currentUser = getCurrentUser();
-  const customerEmail = currentUser?.email;
+  const customerEmail = currentUser?.email || MAILTRAP_EMAIL;
 
-  // Sauvegarde billet
+  // ✅ Sauvegarde ticket
   const saveTicketToStorage = (ticketData) => {
-    const tickets = [ticketData];
-    localStorage.setItem("oly_tickets", JSON.stringify(tickets));
-    localStorage.setItem("last_user_email", customerEmail);
-    console.log("💾 Billet sauvegardé:", ticketData);
+    try {
+      const tickets = [ticketData]; // stocke juste ce billet
+      localStorage.setItem("oly_tickets", JSON.stringify(tickets));
+      localStorage.setItem("last_user_email", customerEmail);
+    } catch (error) {
+      console.error("Erreur sauvegarde billet:", error);
+    }
   };
 
-  // Génération QR Code
-  const generateQRCodeForTicket = async (orderData) => {
-    const qrContent = {
-      orderId: orderData.orderNumber,
-      purchaseDate: new Date().toISOString(),
-      type: "olympics_ticket_2024",
-      customer: customerEmail,
-    };
-    const qrCodeImage = await QRCode.toDataURL(JSON.stringify(qrContent), { width: 300, margin: 2 });
-    return qrCodeImage;
+  // ✅ Génération QR code
+  const generateQRCodeForTicket = async (orderNumber) => {
+    try {
+      const qrContent = {
+        orderId: orderNumber,
+        timestamp: Date.now(),
+        customer: customerEmail,
+      };
+      const qrCodeImage = await QRCode.toDataURL(JSON.stringify(qrContent), { width: 300 });
+      return qrCodeImage;
+    } catch (error) {
+      console.error("Erreur génération QR Code:", error);
+      return null;
+    }
   };
 
-  // Télécharger PDF
+  // ✅ Télécharger en PDF
   const downloadPDF = async () => {
-    const element = document.getElementById("ticket-pdf");
-    const canvas = await html2canvas(element);
+    const ticketElement = document.getElementById("ticket-pdf");
+    if (!ticketElement) return;
+
+    const canvas = await html2canvas(ticketElement);
     const imgData = canvas.toDataURL("image/png");
     const pdf = new jsPDF();
     const imgProps = pdf.getImageProperties(imgData);
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
     pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`${orderNumber}.pdf`);
+    pdf.save(`ticket-${orderNumber}.pdf`);
   };
 
   useEffect(() => {
     const generateTicket = async () => {
-      setStatus("🎫 Création de votre billet...");
-      const newOrderNumber = "OLY-" + Date.now();
-      const qrResult = await generateQRCodeForTicket({ orderNumber: newOrderNumber });
+      setStatus("Création de votre billet...");
+
+      const newOrderNumber =
+        "OLY-" + Date.now() + "-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+      setOrderNumber(newOrderNumber);
+
+      const qrResult = await generateQRCodeForTicket(newOrderNumber);
+      setQrCodeData(qrResult);
+
+      const totalAmount = "50.00"; // ⚡ À remplacer par montant réel
+      const purchaseDateISO = new Date().toISOString();
 
       const ticketData = {
         id: newOrderNumber,
@@ -73,38 +94,55 @@ function SuccessPage() {
         qrCode: qrResult,
         status: "active",
         customer: { email: customerEmail, name: currentUser?.name || "Client" },
-        purchaseDate: new Date().toLocaleString("fr-FR"),
-        total: "50.00",
-        items: [{ eventTitle: "Jeux Olympiques Paris 2024", offerName: "Billet Standard", quantity: 1, priceUnit: "50.00" }],
+        purchaseDate: purchaseDateISO,
+        total: totalAmount,
+        items: [{ eventTitle: "Jeux Olympiques Paris 2024", offerName: "Billet Standard", quantity: 1, priceUnit: totalAmount }],
       };
 
       saveTicketToStorage(ticketData);
-      setQrCodeData(qrResult);
-      setOrderNumber(newOrderNumber);
-      setStatus("✅ Billet créé !");
-      setLoading(false);
 
-      // Envoi email vers Mailtrap
+      // ✅ Envoi email
       try {
-        const API_URL = "https://projet-bloc3.onrender.com/api/email/send-ticket";
-        const response = await fetch(API_URL, {
+        const API_URL = "https://projet-bloc3.onrender.com";
+        const response = await fetch(`${API_URL}/api/email/send-ticket`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ toEmail: customerEmail, orderNumber: newOrderNumber, qrCodeData: qrResult, total: "50.00" }),
+          body: JSON.stringify({
+            toEmail: customerEmail,
+            orderNumber: newOrderNumber,
+            qrCodeData: qrResult,
+            total: totalAmount,
+            purchaseDate: purchaseDateISO,
+          }),
         });
+
+        const data = await response.json();
+        console.log("📩 Réponse serveur email:", data);
+
         if (response.ok) setEmailSent(true);
-        else console.error("Erreur serveur email");
-      } catch (err) {
-        console.error("Erreur envoi email:", err);
+      } catch (error) {
+        console.error("❌ Erreur envoi email:", error);
       }
+
+      setLoading(false);
+      setStatus("Billet créé avec succès !");
     };
+
     generateTicket();
-  }, [customerEmail, currentUser, sessionId]);
+  }, []);
+
+  const formatDate = (isoString) => {
+    if (!isoString) return "Date non disponible";
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return "Date invalide";
+    return date.toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  };
 
   if (loading)
     return (
-      <div style={{ padding: 50, textAlign: "center" }}>
+      <div style={{ textAlign: "center", padding: 50 }}>
         <h2>{status}</h2>
+        <p>⏳ Veuillez patienter...</p>
       </div>
     );
 
@@ -112,14 +150,22 @@ function SuccessPage() {
     <div style={{ textAlign: "center", padding: 30 }}>
       <h1>🎉 Paiement réussi !</h1>
       {emailSent && <p>📧 Billet envoyé à {customerEmail}</p>}
-      <div id="ticket-pdf" style={{ border: "1px solid #ddd", padding: 20, display: "inline-block" }}>
-        <h3>Commande: {orderNumber}</h3>
-        <p>Date d'achat: {new Date().toLocaleString("fr-FR")}</p>
-        <p>Total: 50.00 €</p>
-        <img src={qrCodeData} alt="QR Code billet" style={{ width: 250, height: 250 }} />
-      </div>
+      {orderNumber && <p>N° de commande: {orderNumber}</p>}
+
+      {qrCodeData && (
+        <div id="ticket-pdf" style={{ border: "2px solid #000", padding: 20, display: "inline-block" }}>
+          <h2>Votre Billet Numérique</h2>
+          <img src={qrCodeData} alt="QR Code" width={250} />
+          <p>Présentez ce QR code à l'entrée</p>
+          <p>Date d'achat: {formatDate(new Date().toISOString())}</p>
+          <p>Total: 50.00 €</p>
+        </div>
+      )}
+
       <div style={{ marginTop: 20 }}>
-        <button onClick={downloadPDF}>📄 Télécharger PDF</button>
+        <button onClick={downloadPDF} style={{ padding: 10, margin: 5 }}>
+          🖨️ Télécharger PDF
+        </button>
       </div>
     </div>
   );
