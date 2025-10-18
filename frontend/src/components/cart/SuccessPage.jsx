@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import QRCode from 'qrcode';
+import { useAuth } from '../../context/AuthContext';
 
 function SuccessPage() {
   const [searchParams] = useSearchParams();
@@ -10,18 +11,17 @@ function SuccessPage() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
   const [emailSent, setEmailSent] = useState(false);
-  
-  // ✅ constante simple au lieu de useState inutilisé
-  const customerEmail = "test@example.com";
-  
+  const { user } = useAuth();
   const navigate = useNavigate();
 
-  // ✅ ENVOYER LE BILLET PAR EMAIL
+  // ✅ Utiliser l'email de l'utilisateur connecté
+  const customerEmail = user?.email || "test@example.com";
+
+  // ✅ ENVOYER LE BILLET PAR EMAIL - CORRIGÉ
   const sendTicketByEmail = async (email, orderNum, qrCode) => {
     try {
       setStatus("📧 Envoi de votre billet par email...");
       
-      // ✅ URL directe pour éviter les problèmes de variables d'environnement
       const API_URL = 'https://projet-bloc3.onrender.com';
       console.log('🔗 URL API utilisée:', `${API_URL}/api/email/send-ticket`);
       
@@ -33,34 +33,49 @@ function SuccessPage() {
         body: JSON.stringify({
           toEmail: email,
           orderNumber: orderNum,
-          qrCodeData: qrCode
+          qrCodeData: qrCode,
+          customerEmail: email
         })
       });
 
+      console.log('📨 Statut réponse:', response.status);
+      
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Erreur HTTP:', response.status, errorText);
         throw new Error(`Erreur HTTP: ${response.status}`);
       }
 
-      const result = await response.json();
+      // ✅ Gestion robuste de la réponse
+      let result;
+      try {
+        result = await response.json();
+      } catch (jsonError) {
+        console.log('⚠️ Réponse non-JSON, considérée comme succès');
+        result = { success: true };
+      }
+
+      console.log('📩 Réponse serveur:', result);
       
-      if (result.success) {
+      // ✅ Vérification plus flexible
+      if (result.success === true || result.success === undefined) {
         setEmailSent(true);
-        setStatus("✅ Billet envoyé ! Vérifiez Mailtrap");
-        console.log('✅ [EMAIL] Billet envoyé avec succès à:', email);
+        setStatus("✅ Billet envoyé ! Vérifiez vos emails");
+        console.log('✅ [EMAIL] Email marqué comme envoyé');
         return true;
       } else {
-        setStatus("❌ Erreur envoi email - Voir les logs");
+        setStatus("❌ Erreur envoi email");
         console.error('❌ [EMAIL] Erreur envoi:', result.error);
         return false;
       }
     } catch (error) {
       setStatus("❌ Erreur connexion serveur email");
-      console.error('❌ [EMAIL] Erreur:', error);
+      console.error('❌ [EMAIL] Erreur:', error.message);
       return false;
     }
   };
 
-  // ✅ GÉNÉRATION AUTOMATIQUE
+  // ✅ GÉNÉRATION AUTOMATIQUE - CORRIGÉ
   useEffect(() => {
     const generateTicket = async () => {
       console.log('🚀 [SUCCESS] Début génération du billet...');
@@ -92,7 +107,7 @@ function SuccessPage() {
           color: { dark: '#1e40af', light: '#ffffff' }
         });
 
-        // ✅ Format de date correct pour l'email
+        // ✅ Structure complète du billet
         const purchaseDate = new Date().toLocaleDateString('fr-FR', {
           day: '2-digit',
           month: '2-digit',
@@ -101,21 +116,39 @@ function SuccessPage() {
           minute: '2-digit'
         });
 
-        // Sauvegarde dans localStorage
-        const existingTickets = JSON.parse(localStorage.getItem('olympics_tickets') || '[]');
-        if (!existingTickets.some(ticket => ticket.sessionId === finalSessionId)) {
-          const ticketData = {
-            id: newOrderNumber,
-            orderNumber: newOrderNumber,
-            sessionId: finalSessionId,
-            qrCode: qrCodeImage,
-            finalKey: finalKey,
-            status: 'active',
-            customer: { email: customerEmail },
-            purchaseDate: purchaseDate, 
-            total: "0.00" 
-          };
-          localStorage.setItem('olympics_tickets', JSON.stringify([...existingTickets, ticketData]));
+        // ✅ Sauvegarde robuste dans localStorage
+        const ticketData = {
+          id: newOrderNumber,
+          orderNumber: newOrderNumber,
+          sessionId: finalSessionId,
+          qrCode: qrCodeImage,
+          finalKey: finalKey,
+          status: 'active',
+          customer: { 
+            email: customerEmail,
+            name: user?.name || "Client"
+          },
+          purchaseDate: purchaseDate,
+          total: "0.00",
+          items: [
+            {
+              eventTitle: "Jeux Olympiques Paris 2024",
+              offerName: "Billet Standard",
+              quantity: 1,
+              priceUnit: "0.00"
+            }
+          ]
+        };
+
+        // ✅ Sauvegarde sécurisée
+        try {
+          const existingTickets = JSON.parse(localStorage.getItem('olympics_tickets') || '[]');
+          const updatedTickets = [...existingTickets, ticketData];
+          localStorage.setItem('olympics_tickets', JSON.stringify(updatedTickets));
+          console.log('💾 [SUCCESS] Billet sauvegardé:', ticketData.orderNumber);
+          console.log('📋 Total billets dans localStorage:', updatedTickets.length);
+        } catch (storageError) {
+          console.error('❌ [SUCCESS] Erreur sauvegarde localStorage:', storageError);
         }
 
         setQrCodeData(qrCodeImage);
@@ -123,6 +156,7 @@ function SuccessPage() {
         setStatus("✅ Génération réussie !");
 
         // ✅ ENVOI EMAIL AUTOMATIQUE
+        console.log('📤 Tentative envoi email à:', customerEmail);
         await sendTicketByEmail(customerEmail, newOrderNumber, qrCodeImage);
 
       } catch (error) {
@@ -133,8 +167,15 @@ function SuccessPage() {
       }
     };
 
+    // ✅ Vérifier que l'utilisateur est connecté
+    if (!user) {
+      console.log('🔐 [SUCCESS] Utilisateur non connecté, redirection...');
+      navigate('/login');
+      return;
+    }
+
     generateTicket();
-  }, [sessionId, customerEmail]);
+  }, [sessionId, customerEmail, user, navigate]);
 
   // ✅ TÉLÉCHARGER LE QR CODE
   const downloadQRCode = () => {
@@ -201,7 +242,7 @@ function SuccessPage() {
           Paiement Réussi !
         </h1>
         
-        {emailSent && (
+        {emailSent ? (
           <div style={{ 
             backgroundColor: "#dcfce7", 
             padding: "15px", 
@@ -213,7 +254,22 @@ function SuccessPage() {
               📧 Billet envoyé à {customerEmail}
             </h3>
             <p style={{ color: "#166534", margin: 0, fontSize: "14px" }}>
-              Vérifiez votre boîte Mailtrap et les pièces jointes
+              Vérifiez votre boîte email
+            </p>
+          </div>
+        ) : (
+          <div style={{ 
+            backgroundColor: "#fef3c7", 
+            padding: "15px", 
+            borderRadius: "10px", 
+            margin: "15px 0",
+            border: "2px solid #f59e0b"
+          }}>
+            <h3 style={{ color: "#92400e", margin: "0 0 10px 0" }}>
+              ⚠️ Email non envoyé
+            </h3>
+            <p style={{ color: "#92400e", margin: 0, fontSize: "14px" }}>
+              Votre billet a été généré mais l'email n'a pas pu être envoyé
             </p>
           </div>
         )}

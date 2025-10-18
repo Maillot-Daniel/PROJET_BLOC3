@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useCart } from '../../context/CartContext';
 import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
+import './CartPage.css';
 
 function CartPage() {
   const { items, removeItem, clearCart } = useCart();
@@ -123,7 +124,7 @@ function CartPage() {
       const cartBody = { 
         items: validatedItems, 
         totalPrice,
-        returnUrl: `${window.location.origin}/cart?success=true` // Important pour Stripe
+        returnUrl: `${window.location.origin}/cart?success=true`
       };
 
       console.log('📦 [VALIDATION] Données envoyées:', cartBody);
@@ -150,10 +151,9 @@ function CartPage() {
 
       if (data.url) {
         console.log('🔗 [VALIDATION] Redirection vers Stripe:', data.url);
-        window.location.href = data.url; // redirection Stripe
+        window.location.href = data.url;
       } else {
         console.log('💰 [VALIDATION] Paiement direct - Génération QR Code');
-        // Paiement direct - Générer QR Code
         const orderData = {
           orderNumber: 'CMD-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
           items: items,
@@ -212,147 +212,53 @@ function CartPage() {
     }
   };
 
-  // --- Styles inline ---
-  const buttonStyle = {
-    padding: "10px 18px",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontWeight: "bold",
-    fontSize: "15px",
-    transition: "all 0.3s ease",
-  };
-
-  const styles = {
-    container: {
-      padding: "30px",
-      maxWidth: "800px",
-      margin: "0 auto",
-      backgroundColor: "#f9fafb",
-      borderRadius: "16px",
-      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-    },
-    successContainer: {
-      textAlign: "center",
-      padding: "40px 20px",
-    },
-    successMessage: {
-      color: "#16a34a",
-      fontSize: "24px",
-      fontWeight: "bold",
-      marginBottom: "20px",
-    },
-    qrCodeContainer: {
-      margin: "20px 0",
-      padding: "20px",
-      backgroundColor: "white",
-      borderRadius: "12px",
-      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-      display: "inline-block",
-    },
-    qrCodeImage: {
-      width: "300px",
-      height: "300px",
-      borderRadius: "8px",
-    },
-    header: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: "20px",
-    },
-    title: { fontSize: "24px", color: "#1e293b" },
-    item: {
-      backgroundColor: "#ffffff",
-      borderRadius: "12px",
-      padding: "15px",
-      marginBottom: "12px",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-    },
-    totalSection: {
-      marginTop: "20px",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      fontSize: "18px",
-      fontWeight: "bold",
-    },
-    validateBtn: {
-      ...buttonStyle,
-      backgroundColor: "#16a34a",
-      color: "#fff",
-    },
-    continueBtn: {
-      ...buttonStyle,
-      backgroundColor: "#3b82f6",
-      color: "#fff",
-    },
-    clearBtn: {
-      ...buttonStyle,
-      backgroundColor: "#dc2626",
-      color: "#fff",
-    },
-    removeBtn: {
-      ...buttonStyle,
-      backgroundColor: "#f87171",
-      color: "#fff",
-      padding: "6px 10px",
-      fontSize: "20px",
-      borderRadius: "50%",
-    },
-    testBtn: {
-      ...buttonStyle,
-      backgroundColor: "#f59e0b",
-      color: "#fff",
-    },
-  };
-
   // ✅ RENDU SUCCÈS AVEC QR CODE
   if (orderSuccess) {
     console.log('🎉 [RENDU] Affichage écran succès - orderNumber:', orderNumber, 'qrCodeData:', !!qrCodeData);
     
     return (
-      <div style={styles.container}>
-        <div style={styles.successContainer}>
-          <div style={styles.successMessage}>
-            ✅ Paiement confirmé ! Votre billet est prêt.
-          </div>
-          
-          <p><strong>Numéro de commande :</strong> {orderNumber}</p>
-          <p><strong>Date d'achat :</strong> {new Date().toLocaleDateString('fr-FR')}</p>
-          
-          <p>Présentez ce QR Code à l'entrée :</p>
-          
-          <div style={styles.qrCodeContainer}>
-            {qrCodeData ? (
-              <div>
-                <img 
-                  src={qrCodeData} 
-                  alt="QR Code billet" 
-                  style={styles.qrCodeImage}
-                />
-                <p style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
-                  📱 Scannez ce QR Code à l'entrée
-                </p>
-              </div>
-            ) : (
-              <p>Génération du QR Code...</p>
-            )}
-          </div>
+      <div className="cart-page">
+        <div className="success-modal">
+          <div className="purchase-content">
+            <div className="success-message">
+              ✅ Paiement confirmé ! Votre billet est prêt.
+            </div>
+            
+            <div className="order-info">
+              <p><strong>Numéro de commande :</strong> {orderNumber}</p>
+              <p><strong>Date d'achat :</strong> {new Date().toLocaleDateString('fr-FR')}</p>
+            </div>
+            
+            <p>Présentez ce QR Code à l'entrée :</p>
+            
+            <div className="qr-code-container">
+              {qrCodeData ? (
+                <div>
+                  <img 
+                    src={qrCodeData} 
+                    alt="QR Code billet" 
+                    className="qr-code-image"
+                  />
+                  <p className="qr-code-caption">
+                    📱 Scannez ce QR Code à l'entrée
+                  </p>
+                </div>
+              ) : (
+                <p>Génération du QR Code...</p>
+              )}
+            </div>
 
-          <div style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "10px", alignItems: "center" }}>
-            <button onClick={() => window.print()} style={styles.testBtn}>
-              🖨️ Imprimer le billet
-            </button>
-            <button onClick={() => navigate('/my-tickets')} style={styles.continueBtn}>
-              📋 Voir mes billets
-            </button>
-            <button onClick={handleContinueShopping} style={styles.continueBtn}>
-              🎫 Autres événements
-            </button>
+            <div className="purchase-actions">
+              <button onClick={() => window.print()} className="add-to-cart-btn">
+                🖨️ Imprimer le billet
+              </button>
+              <button onClick={() => navigate('/my-tickets')} className="add-to-cart-btn">
+                📋 Voir mes billets
+              </button>
+              <button onClick={handleContinueShopping} className="add-to-cart-btn">
+                🎫 Autres événements
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -364,17 +270,17 @@ function CartPage() {
     console.log('🛒 [RENDU] Panier vide');
     
     return (
-      <div style={styles.container}>
-        <h2 style={styles.title}>Votre panier est vide</h2>
+      <div className="cart-page">
+        <h2>Votre panier est vide</h2>
         <p>Explorez nos événements et ajoutez des billets à votre panier.</p>
-        <button onClick={handleContinueShopping} style={styles.continueBtn}>
+        <button onClick={handleContinueShopping} className="buy-btn">
           Découvrir les événements
         </button>
         
         {/* Section test même avec panier vide */}
-        <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#e8f4fd', borderRadius: '8px' }}>
-          <p style={{ marginBottom: '10px' }}>🧪 <strong>Mode debug :</strong></p>
-          <button onClick={handleTestQRCode} style={styles.testBtn}>
+        <div className="debug-section">
+          <p>🧪 <strong>Mode debug :</strong></p>
+          <button onClick={handleTestQRCode} className="test-btn">
             Tester génération QR Code
           </button>
         </div>
@@ -385,28 +291,29 @@ function CartPage() {
   console.log('🛒 [RENDU] Panier normal -', items.length, 'articles');
   
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>Votre panier</h2>
-        <span style={{ color: "#64748b" }}>{items.length} article(s)</span>
+    <div className="cart-page">
+      <div className="cart-header">
+        <h2>Votre panier</h2>
+        <span className="cart-count">{items.length} article(s)</span>
       </div>
 
-      <div>
+      <div className="cart-items">
         {items.map((item, index) => (
-          <div key={`${item.eventId}-${item.offerTypeId}-${index}`} style={styles.item}>
-            <div>
-              <h3 style={{ color: "#1e40af" }}>{item.eventTitle}</h3>
-              <p style={{ color: "#475569" }}>{item.offerName}</p>
-              <div style={{ fontSize: "14px", color: "#64748b" }}>
-                Quantité: {item.quantity} | Prix unitaire: {item.priceUnit?.toFixed(2)} €
+          <div key={`${item.eventId}-${item.offerTypeId}-${index}`} className="cart-item">
+            <div className="item-details">
+              <h3>{item.eventTitle}</h3>
+              <p className="item-offer">{item.offerName}</p>
+              <div className="item-info">
+                <span className="event-price">Prix unitaire: {item.priceUnit?.toFixed(2)} €</span>
+                <span className="event-tickets">Quantité: {item.quantity}</span>
               </div>
-              <div style={{ marginTop: "6px", fontWeight: "bold", color: "#334155" }}>
+              <div className="total-price">
                 Sous-total: {(item.priceUnit * item.quantity).toFixed(2)} €
               </div>
             </div>
             <button
               onClick={() => handleRemoveItem(item.eventId, item.offerTypeId)}
-              style={styles.removeBtn}
+              className="remove-btn"
               disabled={loading}
               aria-label="Supprimer cet article"
             >
@@ -416,26 +323,25 @@ function CartPage() {
         ))}
       </div>
 
-      <div style={styles.totalSection}>
+      <div className="total-section">
         <span>Total :</span>
-        <span>{totalPrice.toFixed(2)} €</span>
+        <span className="event-price">{totalPrice.toFixed(2)} €</span>
       </div>
 
-      <div style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
-        <button onClick={handleValidateOrder} disabled={loading} style={styles.validateBtn}>
+      <div className="purchase-actions">
+        <button onClick={handleValidateOrder} disabled={loading} className="add-to-cart-btn">
           {loading ? "Traitement..." : "✅ Valider la commande"}
         </button>
 
-        {/* ✅ BOUTON TEST QR CODE */}
-        <button onClick={handleTestQRCode} disabled={loading} style={styles.testBtn}>
+        <button onClick={handleTestQRCode} disabled={loading} className="test-btn">
           🧪 Tester QR Code (Debug)
         </button>
 
-        <button onClick={handleContinueShopping} disabled={loading} style={styles.continueBtn}>
+        <button onClick={handleContinueShopping} disabled={loading} className="buy-btn">
           🛍️ Continuer mes achats
         </button>
 
-        <button onClick={handleClearCart} disabled={loading} style={styles.clearBtn}>
+        <button onClick={handleClearCart} disabled={loading} className="cancel-button">
           🗑️ Vider le panier
         </button>
       </div>
