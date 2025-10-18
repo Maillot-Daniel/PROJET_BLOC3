@@ -13,11 +13,12 @@ const ticketService = {
     
     try {
       // ✅ Essayer d'appeler le backend réel
+      const token = localStorage.getItem('olympics_auth_token');
       const response = await fetch(`${API_URL}/api/tickets/purchase`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('olympics_auth_token')}`
+          ...(token && { 'Authorization': `Bearer ${token.replace('Bearer ', '')}` })
         },
         body: JSON.stringify({
           cartItems,
@@ -31,10 +32,12 @@ const ticketService = {
         console.log('✅ Backend response:', data);
         return data;
       } else {
-        throw new Error('Backend non disponible');
+        const errorText = await response.text();
+        console.error('❌ Backend error:', response.status, errorText);
+        throw new Error(`Erreur serveur (${response.status}): ${errorText}`);
       }
     } catch (error) {
-      console.warn('⚠️ Backend non disponible, mode simulation activé');
+      console.warn('⚠️ Backend non disponible, mode simulation activé:', error.message);
       // Fallback simulation
       return {
         ticketId: 'TKT-' + Date.now(),
@@ -131,13 +134,13 @@ function CartPage() {
       }
     } catch (error) {
       console.error('❌ Erreur:', error);
-      alert('Erreur génération billet');
+      alert('Erreur génération billet: ' + error.message);
     } finally {
       setLoading(false);
     }
   }, [items, totalPrice, generateOrderNumber, generateSecureQRCode, clearCart]);
 
-  // ✅ CORRECTION : Vérifier le retour Stripe
+  // Vérifier le retour Stripe
   useEffect(() => {
     console.log('🔍 Vérification paramètres URL:', Object.fromEntries([...searchParams]));
     
@@ -150,69 +153,117 @@ function CartPage() {
     }
   }, [searchParams, handlePaymentSuccess]);
 
-  // ✅ AJOUT : Fonction pour supprimer un article
+  // Fonction pour supprimer un article
   const handleRemoveItem = (eventId, offerTypeId) => {
     if (window.confirm("Voulez-vous retirer cet article du panier ?")) {
       removeItem(eventId, offerTypeId);
     }
   };
 
-  // ✅ AJOUT : Fonction pour vider le panier
+  // Fonction pour vider le panier
   const handleClearCart = () => {
     if (window.confirm("Voulez-vous vraiment vider tout le panier ?")) {
       clearCart();
     }
   };
 
-  // ✅ AJOUT : Continuer les achats
+  // Continuer les achats
   const handleContinueShopping = () => {
     navigate('/public-events');
   };
 
-  // ✅ TEST MANUEL
+  // TEST MANUEL
   const handleTestQRCode = async () => {
     console.log('🧪 Test manuel QR Code');
     await handlePaymentSuccess('test-' + Date.now());
   };
 
+  // ✅ CORRIGÉ : Validation commande avec meilleure gestion d'erreurs
   const handleValidateOrder = async () => {
     const token = localStorage.getItem('olympics_auth_token');
     if (!token) {
+      alert('Veuillez vous connecter pour valider votre commande');
       navigate('/login');
       return;
     }
 
     if (items.length === 0) {
-      alert("Panier vide !");
+      alert("Votre panier est vide !");
       return;
     }
 
     setLoading(true);
     try {
+      console.log('🛒 Envoi de la commande au backend...');
+      
+      // Préparer les données pour le backend
+      const cartData = {
+        items: items.map(item => ({
+          eventId: item.eventId,
+          eventTitle: item.eventTitle,
+          offerTypeId: item.offerTypeId,
+          offerName: item.offerName,
+          quantity: item.quantity,
+          priceUnit: item.priceUnit
+        })),
+        totalPrice: totalPrice,
+        returnUrl: `${window.location.origin}/cart?success=true`
+      };
+
+      console.log('📦 Données envoyées:', cartData);
+
       const response = await fetch(`${API_URL}/api/cart/validate`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token.replace('Bearer ', '')}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ 
-          items, 
-          totalPrice,
-          returnUrl: `${window.location.origin}/cart?success=true`
-        }),
+        body: JSON.stringify(cartData),
       });
 
-      if (!response.ok) throw new Error('Erreur serveur');
+      console.log('📡 Réponse serveur:', response.status, response.statusText);
+
+      if (!response.ok) {
+        let errorMessage = `Erreur serveur (${response.status})`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          const errorText = await response.text();
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+
       const data = await response.json();
+      console.log('✅ Réponse du backend:', data);
 
       if (data.url) {
+        // Redirection vers Stripe
+        console.log('🔗 Redirection vers Stripe:', data.url);
         window.location.href = data.url;
       } else {
+        // Paiement direct (gratuit)
+        console.log('💰 Paiement direct - génération billet');
         await handlePaymentSuccess('direct-payment');
       }
     } catch (error) {
-      console.error('❌ Erreur:', error);
-      alert('Erreur de commande');
+      console.error('❌ Erreur lors de la validation:', error);
+      
+      // Messages d'erreur plus spécifiques
+      let errorMessage = "Une erreur est survenue lors de la validation de votre commande.";
+      
+      if (error.message.includes('Failed to fetch')) {
+        errorMessage = "Impossible de contacter le serveur. Vérifiez votre connexion internet.";
+      } else if (error.message.includes('401') || error.message.includes('403')) {
+        errorMessage = "Session expirée. Veuillez vous reconnecter.";
+        localStorage.removeItem('olympics_auth_token');
+        navigate('/login');
+      } else {
+        errorMessage = error.message || errorMessage;
+      }
+      
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
