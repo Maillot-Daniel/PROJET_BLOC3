@@ -35,15 +35,13 @@ public class SecurityConfig {
                           JWTAuthFilter jwtAuthFilter) {
         this.ourUserDetailsService = ourUserDetailsService;
         this.jwtAuthFilter = jwtAuthFilter;
-
-        // ✅ LOG SIMPLE
-        System.out.println("🛡️ Configuration SecurityConfig chargée");
+        System.out.println("🛡️ SecurityConfig chargée - Endpoints email/payment autorisés");
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // ✅ DÉSACTIVER COMPLÈTEMENT CSRF
+                // ✅ DÉSACTIVER CSRF
                 .csrf(AbstractHttpConfigurer::disable)
 
                 // ✅ DÉSACTIVER frameOptions
@@ -53,6 +51,12 @@ public class SecurityConfig {
 
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
+                        // 🎯 CRITIQUE : ENDPOINTS EMAIL ET PAYMENT AUTORISÉS
+                        .requestMatchers("/api/email/**").permitAll()
+                        .requestMatchers("/api/pay/**").permitAll()
+                        .requestMatchers("/api/mailtrap/**").permitAll()
+                        .requestMatchers("/api/payments/**").permitAll()
+
                         // 🚨 CRITIQUE : TOUT AUTORISER SUR /public/**
                         .requestMatchers("/public/**").permitAll()
 
@@ -106,8 +110,13 @@ public class SecurityConfig {
                         // Routes admin
                         .requestMatchers("/admin/**").hasRole("ADMIN")
 
+                        // ✅ CORRECTION : AUTORISER SUCCESS SANS AUTH
+                        .requestMatchers("/success").permitAll()
+                        .requestMatchers("/api/success/**").permitAll()
+
                         // Routes authentifiées
-                        .requestMatchers("/api/cart/**", "/api/pay/**", "/api/tickets/**").authenticated()
+                        .requestMatchers("/api/cart/**").authenticated()
+                        .requestMatchers("/api/tickets/**").authenticated()
                         .requestMatchers("/adminuser/**").authenticated()
 
                         // Toutes les autres routes

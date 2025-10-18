@@ -79,8 +79,8 @@ function App() {
                 <Route path="/cart" element={<RequireUser><CartPage /></RequireUser>} />
                 <Route path="/my-tickets" element={<RequireUser><MyTickets /></RequireUser>} />
                 
-                {/* ✅ AJOUTEZ CETTE ROUTE POUR LE SUCCÈS DE PAIEMENT */}
-                <Route path="/success" element={<RequireUser><SuccessPage /></RequireUser>} />
+                {/* ROUTE POUR LE SUCCÈS DE PAIEMENT */}
+                <Route path="/success" element={<SuccessPage />} />
 
                 {/* Static pages */}
                 <Route path="/cgu" element={<CguPages />} />

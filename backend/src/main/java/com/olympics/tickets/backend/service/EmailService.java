@@ -1,42 +1,115 @@
 package com.olympics.tickets.backend.service;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
+import java.util.Base64;
 import java.util.List;
-import com.olympics.tickets.backend.entity.Ticket;
 
 @Service
 public class EmailService {
 
-    // Méthode 1
-    public void sendEmail(String to, String subject, String text) {
-        logEmail("BASIC", to, subject, "No attachment");
+    private final JavaMailSender mailSender;
+
+    @Value("${spring.mail.username}")
+    private String fromEmail;
+
+    public EmailService(JavaMailSender mailSender) {
+        this.mailSender = mailSender;
+        System.out.println("✅ EmailService initialisé");
     }
 
-    // Méthode 2 - Pour TicketService
-    public void sendEmailWithAttachment(String to, String subject, String text,
-                                        byte[] attachment, String filename) {
-        logEmail("ATTACHMENT", to, subject, "File: " + filename + " (" + attachment.length + " bytes)");
+    // ✅ MÉTHODE POUR PaymentService
+    public void sendTicketsEmail(String customerEmail, List<Object> tickets) {
+        System.out.println("📧 Envoi de " + tickets.size() + " billets à: " + customerEmail);
+        // Pour l'instant, on simule l'envoi
+        sendTicket(customerEmail, "BATCH-" + System.currentTimeMillis(), null);
     }
 
-    // Méthode 3 - Pour PaymentService
-    public void sendTicketsEmail(String customerEmail, List<Ticket> tickets) {
-        System.out.println("✉️ [TICKETS EMAIL] To: " + customerEmail +
-                " | Tickets: " + tickets.size());
+    // ✅ MÉTHODE POUR ENVOYER UN BILLET (utilisée par SuccessPage)
+    public boolean sendTicket(String toEmail, String orderNumber, String qrCodeBase64) {
+        try {
+            System.out.println("📧 Envoi billet à: " + toEmail);
+
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("🎫 Votre billet Jeux Olympiques #" + orderNumber);
+
+            String htmlContent = """
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: #1e40af; color: white; padding: 30px; text-align: center;">
+                        <h1>🎉 Votre billet Olympiques !</h1>
+                    </div>
+                    
+                    <div style="padding: 20px;">
+                        <h2>Bonjour,</h2>
+                        <p>Votre commande <strong>%s</strong> a été confirmée.</p>
+                        
+                        <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                            <h3>📋 Détails</h3>
+                            <p><strong>Événement:</strong> Jeux Olympiques Paris 2024</p>
+                            <p><strong>Date:</strong> 26 Juillet - 11 Août 2024</p>
+                            <p><strong>Lieu:</strong> Paris, France</p>
+                            <p><strong>Statut:</strong> <span style="color: green;">✅ Confirmé</span></p>
+                        </div>
+                        
+                        <p>Votre QR Code est en pièce jointe.</p>
+                    </div>
+                </div>
+                """.formatted(orderNumber);
+
+            helper.setText(htmlContent, true);
+
+            // Ajouter QR Code
+            if (qrCodeBase64 != null && qrCodeBase64.startsWith("data:image")) {
+                try {
+                    String base64Data = qrCodeBase64.split(",")[1];
+                    byte[] qrCodeBytes = Base64.getDecoder().decode(base64Data);
+                    helper.addAttachment("billet-" + orderNumber + ".png",
+                            new ByteArrayResource(qrCodeBytes), "image/png");
+                } catch (Exception e) {
+                    System.out.println("⚠️ QR Code non joint: " + e.getMessage());
+                }
+            }
+
+            mailSender.send(message);
+            System.out.println("✅ Email envoyé avec succès");
+            return true;
+
+        } catch (Exception e) {
+            System.err.println("❌ Erreur envoi email: " + e.getMessage());
+            return false;
+        }
     }
 
-    // Méthode 4
-    public void sendTicketConfirmation(String to, String customerName,
-                                       String eventName, String ticketDetails) {
-        String subject = "Confirmation - " + eventName;
-        String text = "Bonjour " + customerName + ", billet confirmé pour " + eventName;
-        sendEmail(to, subject, text);
+    // ✅ MÉTHODE quickTest() POUR EmailController
+    public String quickTest() {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message);
+            helper.setFrom(fromEmail);
+            helper.setTo("test@mailtrap.io");
+            helper.setSubject("🧪 Test Mailtrap - Olympiques");
+            helper.setText("Configuration réussie ! Vous pouvez envoyer des billets.");
+
+            mailSender.send(message);
+            return "✅ Test réussi ! Vérifiez Mailtrap.";
+        } catch (Exception e) {
+            return "❌ Test échoué: " + e.getMessage();
+        }
     }
 
-    private void logEmail(String type, String to, String subject, String details) {
-        System.out.println("✉️ [" + type + " EMAIL]");
-        System.out.println("   To: " + to);
-        System.out.println("   Subject: " + subject);
-        System.out.println("   Details: " + details);
-        System.out.println("   ────────────────────────");
+    // ✅ MÉTHODE sendOlympicsTicket() POUR EmailController
+    public boolean sendOlympicsTicket(String customerEmail, String orderNumber, String qrCodeBase64) {
+        // C'est un alias de sendTicket pour garder la compatibilité
+        return sendTicket(customerEmail, orderNumber, qrCodeBase64);
     }
 }

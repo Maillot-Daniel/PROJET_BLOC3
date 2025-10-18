@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/pay")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:3000")
 public class PaymentController {
 
     @Value("${stripe.secret.key}")
@@ -45,7 +46,12 @@ public class PaymentController {
             return ResponseEntity.badRequest().body("Panier vide ou introuvable");
         }
 
-        // Génération d'une clef primaire unique pour cette commande
+        // ✅ CALCUL DU TOTAL MANUEL (si getTotalPrice() n'existe pas)
+        BigDecimal total = BigDecimal.ZERO;
+        for (CartItem item : cart.getItems()) {
+            total = total.add(item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
+        }
+
         String primaryKey = UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
 
         List<SessionCreateParams.LineItem> lineItems = cart.getItems().stream().map(item -> {
@@ -65,34 +71,38 @@ public class PaymentController {
                                     .setProductData(
                                             SessionCreateParams.LineItem.PriceData.ProductData.builder()
                                                     .setName(productName)
-                                                    .putMetadata("eventId", String.valueOf(item.getEvent().getId()))
-                                                    .putMetadata("offerTypeId", String.valueOf(item.getOfferType().getId()))
                                                     .build()
                                     ).build()
                     ).build();
         }).collect(Collectors.toList());
 
-        // Ajout des metadata Stripe (utiles pour le webhook)
+        String finalSuccessUrl = buildSuccessUrl(req.getSuccessUrl() != null ? req.getSuccessUrl() : defaultSuccessUrl);
+
         SessionCreateParams.Builder builder = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.PAYMENT)
                 .addAllLineItem(lineItems)
-                .setSuccessUrl(req.getSuccessUrl() != null ? req.getSuccessUrl() : defaultSuccessUrl)
+                .setSuccessUrl(finalSuccessUrl)
                 .setCancelUrl(req.getCancelUrl() != null ? req.getCancelUrl() : defaultCancelUrl)
                 .setCustomerEmail(cart.getUser().getEmail())
                 .putMetadata("cartId", String.valueOf(cart.getId()))
                 .putMetadata("userId", String.valueOf(cart.getUser().getId()))
                 .putMetadata("primaryKey", primaryKey)
-                .putMetadata("quantity", String.valueOf(
-                        cart.getItems().stream().mapToInt(CartItem::getQuantity).sum()
-                ));
+                .putMetadata("total_amount", total.toString()) // ✅ UTILISER LE TOTAL CALCULÉ
+                .putMetadata("quantity", String.valueOf(cart.getItems().stream().mapToInt(CartItem::getQuantity).sum()));
 
         Session session = Session.create(builder.build());
 
         Map<String, Object> resp = new HashMap<>();
         resp.put("sessionId", session.getId());
         resp.put("url", session.getUrl());
+        resp.put("primaryKey", primaryKey);
 
         return ResponseEntity.ok(resp);
+    }
+
+    private String buildSuccessUrl(String baseUrl) {
+        String url = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        return url + "?session_id={CHECKOUT_SESSION_ID}";
     }
 
     public static class CreateCheckoutRequest {
