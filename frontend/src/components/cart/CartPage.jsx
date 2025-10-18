@@ -1,53 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useCart } from '../../context/CartContext';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
-
-// ✅ URL dynamique selon l'environnement
-const API_URL = process.env.REACT_APP_API_URL || "https://projet-bloc3.onrender.com";
-
-// Service temporaire
-const ticketService = {
-  async purchaseTickets(cartItems, totalAmount) {
-    console.log('🛒 Génération de clés sécurisées...');
-    
-    try {
-      // ✅ Essayer d'appeler le backend réel
-      const token = localStorage.getItem('olympics_auth_token');
-      const response = await fetch(`${API_URL}/api/tickets/purchase`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token.replace('Bearer ', '')}` })
-        },
-        body: JSON.stringify({
-          cartItems,
-          totalAmount,
-          purchaseDate: new Date().toISOString()
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ Backend response:', data);
-        return data;
-      } else {
-        const errorText = await response.text();
-        console.error('❌ Backend error:', response.status, errorText);
-        throw new Error(`Erreur serveur (${response.status}): ${errorText}`);
-      }
-    } catch (error) {
-      console.warn('⚠️ Backend non disponible, mode simulation activé:', error.message);
-      // Fallback simulation
-      return {
-        ticketId: 'TKT-' + Date.now(),
-        firstKey: 'key1-' + Math.random().toString(36).substring(2, 15),
-        secondKey: 'key2-' + Math.random().toString(36).substring(2, 15),
-        finalKey: 'final-' + Math.random().toString(36).substring(2, 20),
-      };
-    }
-  }
-};
 
 function CartPage() {
   const { items, removeItem, clearCart } = useCart();
@@ -55,162 +9,124 @@ function CartPage() {
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [qrCodeData, setQrCodeData] = useState(null);
   const [orderNumber, setOrderNumber] = useState(null);
-  const [ticketDetails, setTicketDetails] = useState(null);
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+
+  const API_URL = "https://projet-bloc3.onrender.com";
 
   // Calcul du total
-  const totalPrice = items.reduce((acc, item) => acc + (item.priceUnit || 0) * (item.quantity || 0), 0);
+  const totalPrice = items.reduce(
+    (acc, item) => acc + (item.priceUnit || 0) * (item.quantity || 0),
+    0
+  );
 
-  const generateOrderNumber = useCallback(() => {
-    return `CMD-${Date.now()}-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
-  }, []);
+  console.log('🔍 [RENDU] CartPage - items:', items, 'orderSuccess:', orderSuccess, 'qrCodeData:', !!qrCodeData);
 
-  const generateSecureQRCode = useCallback(async (ticketData) => {
+  // ✅ FONCTION POUR GÉNÉRER QR CODE AVEC LOGS
+  const generateQRCodeForTicket = async (orderData) => {
+    console.log('🎫 [QRCODE] Début génération QR Code', orderData);
+    
     try {
-      console.log('🎫 Génération QR Code...');
-      
+      // Générer deux clés simples
+      const firstKey = 'key1-' + Math.random().toString(36).substring(2, 10);
+      const secondKey = 'key2-' + Math.random().toString(36).substring(2, 10);
+      const finalKey = firstKey + secondKey; // Concaténation
+
+      console.log('🔑 [QRCODE] Clés générées:', { firstKey, secondKey, finalKey });
+
       const qrContent = {
-        ticketId: ticketData.ticketId,
-        finalKey: ticketData.finalKey,
-        orderNumber: ticketData.orderNumber,
-        events: ticketData.items,
-        total: ticketData.total,
-        purchaseDate: ticketData.purchaseDate
+        orderId: orderData.orderNumber,
+        finalKey: finalKey,
+        events: orderData.items,
+        total: orderData.total,
+        purchaseDate: orderData.purchaseDate
       };
+
+      console.log('📝 [QRCODE] Contenu pour QR:', qrContent);
 
       const qrCodeImage = await QRCode.toDataURL(JSON.stringify(qrContent), {
         width: 300,
         margin: 2
       });
       
-      return qrCodeImage;
+      console.log('✅ [QRCODE] QR Code généré avec succès');
+      return { qrCodeImage, finalKey };
     } catch (error) {
-      console.error('❌ Erreur QR Code:', error);
+      console.error('❌ [QRCODE] Erreur génération QR:', error);
       return null;
     }
-  }, []);
+  };
 
-  const handlePaymentSuccess = useCallback(async (sessionId) => {
-    setLoading(true);
-    console.log('🚀 Génération billet pour session:', sessionId);
+  // ✅ FONCTION SUCCÈS AVEC QR CODE
+  const handleOrderSuccess = async (orderData) => {
+    console.log('🚀 [SUCCES] Début handleOrderSuccess', orderData);
     
-    try {
-      const purchaseResponse = await ticketService.purchaseTickets(items, totalPrice);
-      const { ticketId, firstKey, secondKey, finalKey } = purchaseResponse;
-
-      const orderData = {
-        ticketId,
-        orderNumber: generateOrderNumber(),
-        items,
-        total: totalPrice,
-        paymentSessionId: sessionId,
-        purchaseDate: new Date().toISOString(),
-        firstKey,
-        secondKey,
-        finalKey
-      };
-
-      const qrCode = await generateSecureQRCode(orderData);
+    const qrResult = await generateQRCodeForTicket(orderData);
+    
+    if (qrResult) {
+      console.log('💾 [SUCCES] QR généré, sauvegarde...');
       
-      if (qrCode) {
-        setQrCodeData(qrCode);
-        setOrderNumber(orderData.orderNumber);
-        setTicketDetails({ ticketId, finalKey });
-        setOrderSuccess(true);
-        
-        // Sauvegarde locale
-        const secureTicketData = {
-          ...orderData,
-          qrCode,
-          status: 'active'
-        };
-        const existingTickets = JSON.parse(localStorage.getItem('olympics_secure_tickets') || '[]');
-        existingTickets.push(secureTicketData);
-        localStorage.setItem('olympics_secure_tickets', JSON.stringify(existingTickets));
-        
-        clearCart();
-        console.log('✅ Billet généré avec succès');
-      }
-    } catch (error) {
-      console.error('❌ Erreur:', error);
-      alert('Erreur génération billet: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [items, totalPrice, generateOrderNumber, generateSecureQRCode, clearCart]);
-
-  // Vérifier le retour Stripe
-  useEffect(() => {
-    console.log('🔍 Vérification paramètres URL:', Object.fromEntries([...searchParams]));
-    
-    const success = searchParams.get('success');
-    const session_id = searchParams.get('session_id');
-
-    if (success === 'true' && session_id) {
-      console.log('✅ Paiement Stripe confirmé, génération billet...');
-      handlePaymentSuccess(session_id);
-    }
-  }, [searchParams, handlePaymentSuccess]);
-
-  // Fonction pour supprimer un article
-  const handleRemoveItem = (eventId, offerTypeId) => {
-    if (window.confirm("Voulez-vous retirer cet article du panier ?")) {
-      removeItem(eventId, offerTypeId);
-    }
-  };
-
-  // Fonction pour vider le panier
-  const handleClearCart = () => {
-    if (window.confirm("Voulez-vous vraiment vider tout le panier ?")) {
+      setQrCodeData(qrResult.qrCodeImage);
+      setOrderNumber(orderData.orderNumber);
+      setOrderSuccess(true);
+      
+      // Sauvegarder le billet
+      const ticketData = {
+        ...orderData,
+        qrCode: qrResult.qrCodeImage,
+        finalKey: qrResult.finalKey,
+        status: 'active'
+      };
+      
+      const existingTickets = JSON.parse(localStorage.getItem('olympics_tickets') || '[]');
+      existingTickets.push(ticketData);
+      localStorage.setItem('olympics_tickets', JSON.stringify(existingTickets));
+      
+      console.log('💾 [SUCCES] Billet sauvegardé dans localStorage');
       clearCart();
+    } else {
+      console.error('❌ [SUCCES] Échec génération QR Code');
     }
   };
 
-  // Continuer les achats
-  const handleContinueShopping = () => {
-    navigate('/public-events');
-  };
-
-  // TEST MANUEL
-  const handleTestQRCode = async () => {
-    console.log('🧪 Test manuel QR Code');
-    await handlePaymentSuccess('test-' + Date.now());
-  };
-
-  // ✅ CORRIGÉ : Validation commande avec meilleure gestion d'erreurs
+  // --- Validation commande ---
   const handleValidateOrder = async () => {
+    console.log('🛒 [VALIDATION] Début handleValidateOrder');
     const token = localStorage.getItem('olympics_auth_token');
+
     if (!token) {
+      console.log('🔐 [VALIDATION] Pas de token, redirection login');
       alert('Veuillez vous connecter pour valider votre commande');
       navigate('/login');
       return;
     }
 
     if (items.length === 0) {
+      console.log('🛒 [VALIDATION] Panier vide');
       alert("Votre panier est vide !");
       return;
     }
 
     setLoading(true);
+    console.log('⏳ [VALIDATION] Loading activé');
+
     try {
-      console.log('🛒 Envoi de la commande au backend...');
-      
-      // Préparer les données pour le backend
-      const cartData = {
-        items: items.map(item => ({
-          eventId: item.eventId,
-          eventTitle: item.eventTitle,
-          offerTypeId: item.offerTypeId,
-          offerName: item.offerName,
-          quantity: item.quantity,
-          priceUnit: item.priceUnit
-        })),
-        totalPrice: totalPrice,
-        returnUrl: `${window.location.origin}/cart?success=true`
+      const validatedItems = items.map(item => ({
+        eventId: item.eventId,
+        eventTitle: item.eventTitle || 'Titre non disponible',
+        offerTypeId: item.offerTypeId,
+        offerTypeName: item.offerName || 'Offre non disponible',
+        quantity: item.quantity || 1,
+        unitPrice: item.priceUnit || 0,
+        totalPrice: (item.priceUnit || 0) * (item.quantity || 1)
+      }));
+
+      const cartBody = { 
+        items: validatedItems, 
+        totalPrice,
+        returnUrl: `${window.location.origin}/cart?success=true` // Important pour Stripe
       };
 
-      console.log('📦 Données envoyées:', cartData);
+      console.log('📦 [VALIDATION] Données envoyées:', cartBody);
 
       const response = await fetch(`${API_URL}/api/cart/validate`, {
         method: "POST",
@@ -218,112 +134,224 @@ function CartPage() {
           "Authorization": `Bearer ${token.replace('Bearer ', '')}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(cartData),
+        body: JSON.stringify(cartBody),
       });
 
-      console.log('📡 Réponse serveur:', response.status, response.statusText);
+      console.log('📡 [VALIDATION] Réponse serveur:', response.status, response.statusText);
 
       if (!response.ok) {
-        let errorMessage = `Erreur serveur (${response.status})`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
-        } catch (e) {
-          const errorText = await response.text();
-          errorMessage = errorText || errorMessage;
-        }
-        throw new Error(errorMessage);
+        const errorText = await response.text();
+        console.error('❌ [VALIDATION] Erreur serveur:', response.status, errorText);
+        throw new Error(`Erreur serveur (${response.status})`);
       }
 
       const data = await response.json();
-      console.log('✅ Réponse du backend:', data);
+      console.log('✅ [VALIDATION] Réponse backend:', data);
 
       if (data.url) {
-        // Redirection vers Stripe
-        console.log('🔗 Redirection vers Stripe:', data.url);
-        window.location.href = data.url;
+        console.log('🔗 [VALIDATION] Redirection vers Stripe:', data.url);
+        window.location.href = data.url; // redirection Stripe
       } else {
-        // Paiement direct (gratuit)
-        console.log('💰 Paiement direct - génération billet');
-        await handlePaymentSuccess('direct-payment');
+        console.log('💰 [VALIDATION] Paiement direct - Génération QR Code');
+        // Paiement direct - Générer QR Code
+        const orderData = {
+          orderNumber: 'CMD-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
+          items: items,
+          total: totalPrice,
+          purchaseDate: new Date().toISOString()
+        };
+        
+        await handleOrderSuccess(orderData);
       }
     } catch (error) {
-      console.error('❌ Erreur lors de la validation:', error);
-      
-      // Messages d'erreur plus spécifiques
-      let errorMessage = "Une erreur est survenue lors de la validation de votre commande.";
-      
-      if (error.message.includes('Failed to fetch')) {
-        errorMessage = "Impossible de contacter le serveur. Vérifiez votre connexion internet.";
-      } else if (error.message.includes('401') || error.message.includes('403')) {
-        errorMessage = "Session expirée. Veuillez vous reconnecter.";
-        localStorage.removeItem('olympics_auth_token');
-        navigate('/login');
-      } else {
-        errorMessage = error.message || errorMessage;
-      }
-      
-      alert(errorMessage);
+      console.error('❌ [VALIDATION] Erreur lors de la validation:', error);
+      alert(error.message || "Une erreur est survenue.");
     } finally {
       setLoading(false);
+      console.log('⏳ [VALIDATION] Loading désactivé');
     }
   };
 
-  // Rendu succès
+  // --- Autres actions panier ---
+  const handleContinueShopping = () => {
+    console.log('🛍️ [ACTION] Continuer les achats');
+    navigate('/public-events');
+  };
+
+  const handleClearCart = () => {
+    console.log('🗑️ [ACTION] Vider le panier');
+    if (window.confirm("Voulez-vous vraiment vider tout le panier ?")) clearCart();
+  };
+
+  const handleRemoveItem = (eventId, offerTypeId) => {
+    console.log('❌ [ACTION] Supprimer article:', eventId, offerTypeId);
+    if (window.confirm("Voulez-vous retirer cet article du panier ?")) {
+      removeItem(eventId, offerTypeId);
+    }
+  };
+
+  // ✅ TEST MANUEL DU QR CODE
+  const handleTestQRCode = async () => {
+    console.log('🧪 [TEST] Début test QR Code manuel');
+    setLoading(true);
+    
+    try {
+      const orderData = {
+        orderNumber: 'TEST-' + Date.now(),
+        items: items,
+        total: totalPrice,
+        purchaseDate: new Date().toISOString()
+      };
+      console.log('🧪 [TEST] Données de test:', orderData);
+      await handleOrderSuccess(orderData);
+    } catch (error) {
+      console.error('❌ [TEST] Erreur test QR:', error);
+    } finally {
+      setLoading(false);
+      console.log('🧪 [TEST] Test terminé');
+    }
+  };
+
+  // --- Styles inline ---
+  const buttonStyle = {
+    padding: "10px 18px",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontWeight: "bold",
+    fontSize: "15px",
+    transition: "all 0.3s ease",
+  };
+
+  const styles = {
+    container: {
+      padding: "30px",
+      maxWidth: "800px",
+      margin: "0 auto",
+      backgroundColor: "#f9fafb",
+      borderRadius: "16px",
+      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+    },
+    successContainer: {
+      textAlign: "center",
+      padding: "40px 20px",
+    },
+    successMessage: {
+      color: "#16a34a",
+      fontSize: "24px",
+      fontWeight: "bold",
+      marginBottom: "20px",
+    },
+    qrCodeContainer: {
+      margin: "20px 0",
+      padding: "20px",
+      backgroundColor: "white",
+      borderRadius: "12px",
+      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+      display: "inline-block",
+    },
+    qrCodeImage: {
+      width: "300px",
+      height: "300px",
+      borderRadius: "8px",
+    },
+    header: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "20px",
+    },
+    title: { fontSize: "24px", color: "#1e293b" },
+    item: {
+      backgroundColor: "#ffffff",
+      borderRadius: "12px",
+      padding: "15px",
+      marginBottom: "12px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+    },
+    totalSection: {
+      marginTop: "20px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      fontSize: "18px",
+      fontWeight: "bold",
+    },
+    validateBtn: {
+      ...buttonStyle,
+      backgroundColor: "#16a34a",
+      color: "#fff",
+    },
+    continueBtn: {
+      ...buttonStyle,
+      backgroundColor: "#3b82f6",
+      color: "#fff",
+    },
+    clearBtn: {
+      ...buttonStyle,
+      backgroundColor: "#dc2626",
+      color: "#fff",
+    },
+    removeBtn: {
+      ...buttonStyle,
+      backgroundColor: "#f87171",
+      color: "#fff",
+      padding: "6px 10px",
+      fontSize: "20px",
+      borderRadius: "50%",
+    },
+    testBtn: {
+      ...buttonStyle,
+      backgroundColor: "#f59e0b",
+      color: "#fff",
+    },
+  };
+
+  // ✅ RENDU SUCCÈS AVEC QR CODE
   if (orderSuccess) {
+    console.log('🎉 [RENDU] Affichage écran succès - orderNumber:', orderNumber, 'qrCodeData:', !!qrCodeData);
+    
     return (
-      <div style={{ padding: "30px", maxWidth: "800px", margin: "0 auto", backgroundColor: "#f9fafb", borderRadius: "16px" }}>
-        <div style={{ textAlign: "center", padding: "40px 20px" }}>
-          <h2 style={{ color: "#16a34a" }}>✅ Paiement Confirmé !</h2>
-          <p><strong>Commande:</strong> {orderNumber}</p>
+      <div style={styles.container}>
+        <div style={styles.successContainer}>
+          <div style={styles.successMessage}>
+            ✅ Paiement confirmé ! Votre billet est prêt.
+          </div>
           
-          {ticketDetails && (
-            <div style={{ margin: '15px 0', padding: '15px', backgroundColor: '#f0f9ff', borderRadius: '8px' }}>
-              <h4>🔐 Billet Sécurisé</h4>
-              <p><small>ID: {ticketDetails.ticketId}</small></p>
-              <p><small>Clé: {ticketDetails.finalKey?.substring(0, 20)}...</small></p>
-            </div>
-          )}
+          <p><strong>Numéro de commande :</strong> {orderNumber}</p>
+          <p><strong>Date d'achat :</strong> {new Date().toLocaleDateString('fr-FR')}</p>
           
-          <div style={{ margin: "20px 0", padding: "20px", backgroundColor: "white", borderRadius: "12px", display: "inline-block" }}>
+          <p>Présentez ce QR Code à l'entrée :</p>
+          
+          <div style={styles.qrCodeContainer}>
             {qrCodeData ? (
               <div>
-                <img src={qrCodeData} alt="QR Code" style={{ width: "300px", height: "300px", borderRadius: "8px" }} />
+                <img 
+                  src={qrCodeData} 
+                  alt="QR Code billet" 
+                  style={styles.qrCodeImage}
+                />
                 <p style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
                   📱 Scannez ce QR Code à l'entrée
                 </p>
               </div>
             ) : (
-              <p>Génération QR Code...</p>
+              <p>Génération du QR Code...</p>
             )}
           </div>
 
-          {/* Détails de la commande */}
-          <div style={{ margin: "20px 0", padding: "15px", backgroundColor: "#f1f5f9", borderRadius: "8px", textAlign: "left" }}>
-            <h3>Détails de la commande :</h3>
-            {items.map((item, index) => (
-              <div key={index} style={{ margin: '10px 0', padding: '10px', backgroundColor: 'white', borderRadius: '6px' }}>
-                <strong>{item.eventTitle}</strong>
-                <br />
-                {item.offerName} - Quantité: {item.quantity}
-                <br />
-                Prix: {(item.priceUnit * item.quantity).toFixed(2)} €
-              </div>
-            ))}
-            <div style={{ marginTop: '10px', fontWeight: 'bold' }}>
-              Total: {totalPrice.toFixed(2)} €
-            </div>
-          </div>
-          
-          <div style={{ marginTop: "20px" }}>
-            <button onClick={() => window.print()} style={{ margin: "5px", padding: "10px", backgroundColor: "#7c3aed", color: "white", border: "none", borderRadius: "8px" }}>
-              🖨️ Imprimer
+          <div style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "10px", alignItems: "center" }}>
+            <button onClick={() => window.print()} style={styles.testBtn}>
+              🖨️ Imprimer le billet
             </button>
-            <button onClick={() => navigate('/my-tickets')} style={{ margin: "5px", padding: "10px", backgroundColor: "#3b82f6", color: "white", border: "none", borderRadius: "8px" }}>
-              📋 Mes Billets
+            <button onClick={() => navigate('/my-tickets')} style={styles.continueBtn}>
+              📋 Voir mes billets
             </button>
-            <button onClick={handleContinueShopping} style={{ margin: "5px", padding: "10px", backgroundColor: "#10b981", color: "white", border: "none", borderRadius: "8px" }}>
-              🎫 Autres Événements
+            <button onClick={handleContinueShopping} style={styles.continueBtn}>
+              🎫 Autres événements
             </button>
           </div>
         </div>
@@ -331,38 +359,41 @@ function CartPage() {
     );
   }
 
-  // Rendu panier vide
+  // --- Rendu panier normal ---
   if (items.length === 0) {
+    console.log('🛒 [RENDU] Panier vide');
+    
     return (
-      <div style={{ padding: "30px", maxWidth: "800px", margin: "0 auto", backgroundColor: "#f9fafb", borderRadius: "16px", textAlign: "center" }}>
-        <h2>Votre panier est vide</h2>
+      <div style={styles.container}>
+        <h2 style={styles.title}>Votre panier est vide</h2>
         <p>Explorez nos événements et ajoutez des billets à votre panier.</p>
-        <button onClick={handleContinueShopping} style={{ padding: "10px 18px", backgroundColor: "#3b82f6", color: "white", border: "none", borderRadius: "8px", margin: "10px" }}>
+        <button onClick={handleContinueShopping} style={styles.continueBtn}>
           Découvrir les événements
         </button>
         
-        {/* Bouton de test */}
+        {/* Section test même avec panier vide */}
         <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#e8f4fd', borderRadius: '8px' }}>
-          <p style={{ marginBottom: '10px' }}>🧪 <strong>Mode test :</strong></p>
-          <button onClick={handleTestQRCode} style={{ padding: "8px 15px", backgroundColor: "#10b981", color: "white", border: "none", borderRadius: "6px" }}>
-            Tester la génération QR Code
+          <p style={{ marginBottom: '10px' }}>🧪 <strong>Mode debug :</strong></p>
+          <button onClick={handleTestQRCode} style={styles.testBtn}>
+            Tester génération QR Code
           </button>
         </div>
       </div>
     );
   }
 
-  // Rendu panier normal
+  console.log('🛒 [RENDU] Panier normal -', items.length, 'articles');
+  
   return (
-    <div style={{ padding: "30px", maxWidth: "800px", margin: "0 auto", backgroundColor: "#f9fafb", borderRadius: "16px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-        <h2>Votre panier</h2>
+    <div style={styles.container}>
+      <div style={styles.header}>
+        <h2 style={styles.title}>Votre panier</h2>
         <span style={{ color: "#64748b" }}>{items.length} article(s)</span>
       </div>
 
       <div>
         {items.map((item, index) => (
-          <div key={index} style={{ backgroundColor: "#ffffff", borderRadius: "12px", padding: "15px", marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+          <div key={`${item.eventId}-${item.offerTypeId}-${index}`} style={styles.item}>
             <div>
               <h3 style={{ color: "#1e40af" }}>{item.eventTitle}</h3>
               <p style={{ color: "#475569" }}>{item.offerName}</p>
@@ -375,8 +406,9 @@ function CartPage() {
             </div>
             <button
               onClick={() => handleRemoveItem(item.eventId, item.offerTypeId)}
+              style={styles.removeBtn}
               disabled={loading}
-              style={{ padding: "6px 10px", backgroundColor: "#f87171", color: "#fff", border: "none", borderRadius: "50%", fontSize: "20px", cursor: "pointer" }}
+              aria-label="Supprimer cet article"
             >
               ×
             </button>
@@ -384,25 +416,26 @@ function CartPage() {
         ))}
       </div>
 
-      <div style={{ marginTop: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "18px", fontWeight: "bold" }}>
+      <div style={styles.totalSection}>
         <span>Total :</span>
         <span>{totalPrice.toFixed(2)} €</span>
       </div>
 
       <div style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
-        <button onClick={handleValidateOrder} disabled={loading} style={{ padding: "10px 18px", backgroundColor: "#16a34a", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer" }}>
+        <button onClick={handleValidateOrder} disabled={loading} style={styles.validateBtn}>
           {loading ? "Traitement..." : "✅ Valider la commande"}
         </button>
-        
-        <button onClick={handleTestQRCode} disabled={loading} style={{ padding: "8px 15px", backgroundColor: "#10b981", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}>
-          🧪 Tester QR Code
+
+        {/* ✅ BOUTON TEST QR CODE */}
+        <button onClick={handleTestQRCode} disabled={loading} style={styles.testBtn}>
+          🧪 Tester QR Code (Debug)
         </button>
 
-        <button onClick={handleContinueShopping} disabled={loading} style={{ padding: "10px 18px", backgroundColor: "#3b82f6", color: "white", border: "none", borderRadius: "8px", cursor: "pointer" }}>
+        <button onClick={handleContinueShopping} disabled={loading} style={styles.continueBtn}>
           🛍️ Continuer mes achats
         </button>
 
-        <button onClick={handleClearCart} disabled={loading} style={{ padding: "10px 18px", backgroundColor: "#dc2626", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer" }}>
+        <button onClick={handleClearCart} disabled={loading} style={styles.clearBtn}>
           🗑️ Vider le panier
         </button>
       </div>

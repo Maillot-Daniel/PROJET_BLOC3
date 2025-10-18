@@ -1,88 +1,140 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import QRCode from 'qrcode';
 
 function SuccessPage() {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("session_id");
-  const [email, setEmail] = useState("");
+  const [qrCodeData, setQrCodeData] = useState(null);
+  const [orderNumber, setOrderNumber] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const API_URL = "https://projet-bloc3.onrender.com";
+  console.log('🎉 [SUCCESS] Page chargée - sessionId:', sessionId);
 
+  // ✅ GÉNÉRATION AUTOMATIQUE DU QR CODE
   useEffect(() => {
-    if (!sessionId) {
-      alert("Session Stripe manquante.");
-      navigate("/public-events");
-    }
-  }, [sessionId, navigate]);
+    const generateTicket = async () => {
+      console.log('🚀 [SUCCESS] Génération du billet...');
+      
+      if (!sessionId) {
+        console.error('❌ [SUCCESS] Session ID manquant');
+        setStatus("❌ Session de paiement invalide");
+        setLoading(false);
+        return;
+      }
 
-  const handleSendTicket = async () => {
-    if (!email) {
-      alert("Veuillez entrer une adresse email valide.");
-      return;
-    }
+      try {
+        setStatus("Création de votre billet sécurisé...");
+        
+        // Générer les clés
+        const firstKey = 'key1-' + Math.random().toString(36).substring(2, 15);
+        const secondKey = 'key2-' + Math.random().toString(36).substring(2, 15);
+        const finalKey = firstKey + secondKey;
 
-    setLoading(true);
-    setStatus("Envoi du billet...");
+        const orderNumber = 'CMD-' + Date.now();
+        
+        const qrContent = {
+          orderId: orderNumber,
+          finalKey: finalKey,
+          sessionId: sessionId,
+          purchaseDate: new Date().toISOString(),
+          type: 'olympics_ticket_2024'
+        };
 
-    try {
-      const response = await fetch(
-        `${API_URL}/api/send-ticket?sessionId=${sessionId}&email=${encodeURIComponent(email)}`,
-        {
-          method: "POST",
-        }
-      );
+        console.log('📝 [SUCCESS] Contenu QR:', qrContent);
 
-      if (!response.ok) throw new Error("Erreur lors de l'envoi du billet.");
-      const result = await response.text();
-      setStatus(result);
-    } catch (error) {
-      console.error(error);
-      setStatus("❌ Échec de l'envoi du billet.");
-    } finally {
-      setLoading(false);
-    }
-  };
+        const qrCodeImage = await QRCode.toDataURL(JSON.stringify(qrContent), {
+          width: 300,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+          }
+        });
+
+        // Sauvegarder
+        const ticketData = {
+          id: orderNumber,
+          orderNumber: orderNumber,
+          sessionId: sessionId,
+          purchaseDate: new Date().toISOString(),
+          qrCode: qrCodeImage,
+          finalKey: finalKey,
+          status: 'active'
+        };
+
+        const existingTickets = JSON.parse(localStorage.getItem('olympics_tickets') || '[]');
+        existingTickets.push(ticketData);
+        localStorage.setItem('olympics_tickets', JSON.stringify(existingTickets));
+
+        setQrCodeData(qrCodeImage);
+        setOrderNumber(orderNumber);
+        setStatus("✅ Votre billet est prêt !");
+        
+        console.log('✅ [SUCCESS] Billet généré et sauvegardé');
+
+      } catch (error) {
+        console.error('❌ [SUCCESS] Erreur:', error);
+        setStatus("❌ Erreur lors de la génération du billet");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    generateTicket();
+  }, [sessionId]);
+
+  if (loading) {
+    return (
+      <div style={{ padding: "40px", textAlign: "center" }}>
+        <h2>⏳ Traitement en cours...</h2>
+        <p>{status}</p>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: "30px", maxWidth: "600px", margin: "0 auto", textAlign: "center" }}>
-      <h2>🎉 Paiement réussi !</h2>
-      <p>Votre paiement a été validé. Entrez votre email pour recevoir vos billets :</p>
+    <div style={{ padding: "30px", maxWidth: "800px", margin: "0 auto", textAlign: "center" }}>
+      <h2 style={{ color: "#16a34a" }}>🎉 Paiement Réussi !</h2>
+      
+      <p>Votre paiement a été confirmé. Voici votre billet :</p>
 
-      <input
-        type="email"
-        placeholder="Votre email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        style={{
-          width: "100%",
-          padding: "10px",
-          borderRadius: "6px",
-          border: "1px solid #ccc",
-          marginBottom: "10px",
-        }}
-      />
+      {orderNumber && (
+        <p><strong>N° Commande:</strong> {orderNumber}</p>
+      )}
 
-      <button
-        onClick={handleSendTicket}
-        disabled={loading}
-        style={{
-          padding: "10px 20px",
-          border: "none",
-          borderRadius: "6px",
-          backgroundColor: "#16a34a",
-          color: "#fff",
-          fontWeight: "bold",
-          cursor: "pointer",
-        }}
-      >
-        {loading ? "Envoi en cours..." : "Envoyer le billet"}
-      </button>
+      <div style={{ margin: "20px 0", padding: "20px", backgroundColor: "white", borderRadius: "12px", display: "inline-block" }}>
+        {qrCodeData ? (
+          <div>
+            <img src={qrCodeData} alt="QR Code billet" style={{ width: "300px", height: "300px", borderRadius: "8px" }} />
+            <p style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
+              📱 Présentez ce QR Code à l'entrée
+            </p>
+          </div>
+        ) : (
+          <p>❌ Impossible de générer le QR Code</p>
+        )}
+      </div>
+
+      <div style={{ marginTop: "20px" }}>
+        <button 
+          onClick={() => window.print()} 
+          style={{ padding: "10px 20px", margin: "5px", backgroundColor: "#7c3aed", color: "white", border: "none", borderRadius: "8px" }}
+        >
+          🖨️ Imprimer
+        </button>
+        <button 
+          onClick={() => navigate('/my-tickets')} 
+          style={{ padding: "10px 20px", margin: "5px", backgroundColor: "#3b82f6", color: "white", border: "none", borderRadius: "8px" }}
+        >
+          📋 Mes billets
+        </button>
+      </div>
 
       {status && (
-        <p style={{ marginTop: "15px", color: status.startsWith("❌") ? "red" : "green" }}>
+        <p style={{ marginTop: "15px", color: status.startsWith("❌") ? "#dc2626" : "#16a34a" }}>
           {status}
         </p>
       )}
