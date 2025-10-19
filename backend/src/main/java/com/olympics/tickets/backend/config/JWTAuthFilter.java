@@ -26,6 +26,16 @@ public class JWTAuthFilter extends OncePerRequestFilter {
     @Autowired
     private OurUserDetailsService ourUserDetailsService;
 
+    // Liste des routes publiques qui ne nécessitent pas JWT
+    private static final String[] PUBLIC_PATHS = {
+            "/public/",
+            "/api/email/",
+            "/api/pay/",
+            "/webhook",
+            "/stripe",
+            "/public/stripe-webhook"
+    };
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
@@ -33,23 +43,18 @@ public class JWTAuthFilter extends OncePerRequestFilter {
         final String path = request.getRequestURI();
         final String method = request.getMethod();
 
-        // ✅ LOG SIMPLE avec System.out pour éviter l'erreur
         System.out.println("🔍 JWTAuthFilter - " + method + " " + path);
 
-        // ✅ CRITIQUE : IGNORER ABSOLUMENT TOUS LES WEBHOOKS
-        if (path.startsWith("/public/") ||
-                path.contains("/webhook") ||
-                path.contains("/stripe") ||
-                path.equals("/public/stripe-webhook")) {
-
-            System.out.println("✅ JWTAuthFilter IGNORÉ - Webhook détecté: " + path);
-            filterChain.doFilter(request, response);
-            return;
+        // Vérifier si la route est publique
+        for (String p : PUBLIC_PATHS) {
+            if (path.startsWith(p) || path.contains(p)) {
+                System.out.println("✅ JWTAuthFilter IGNORÉ - Route publique: " + path);
+                filterChain.doFilter(request, response);
+                return;
+            }
         }
 
-        System.out.println("➡️ JWTAuthFilter CONTINUE - Route normale: " + path);
-
-        // Ensuite seulement, vérifier l'authentification pour les autres routes
+        // Routes protégées : vérifier JWT
         final String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
