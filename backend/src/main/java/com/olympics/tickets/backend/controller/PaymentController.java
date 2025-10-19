@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/pay")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "*") // ✅ Changez pour autoriser tous les origines
 public class PaymentController {
 
     @Value("${stripe.secret.key}")
@@ -37,16 +37,19 @@ public class PaymentController {
     @PostConstruct
     public void init() {
         Stripe.apiKey = stripeKey;
+        System.out.println("✅ [STRIPE] PaymentController initialisé");
     }
 
     @PostMapping("/create-checkout-session")
     public ResponseEntity<?> createCheckout(@RequestBody CreateCheckoutRequest req) throws StripeException {
+        System.out.println("🛒 [API] Création session checkout pour cartId: " + req.getCartId());
+
         Cart cart = cartService.getCartById(req.getCartId());
         if (cart == null || cart.getItems() == null || cart.getItems().isEmpty()) {
             return ResponseEntity.badRequest().body("Panier vide ou introuvable");
         }
 
-        // ✅ CALCUL DU TOTAL MANUEL (si getTotalPrice() n'existe pas)
+        // ✅ CALCUL DU TOTAL MANUEL
         BigDecimal total = BigDecimal.ZERO;
         for (CartItem item : cart.getItems()) {
             total = total.add(item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
@@ -87,10 +90,12 @@ public class PaymentController {
                 .putMetadata("cartId", String.valueOf(cart.getId()))
                 .putMetadata("userId", String.valueOf(cart.getUser().getId()))
                 .putMetadata("primaryKey", primaryKey)
-                .putMetadata("total_amount", total.toString()) // ✅ UTILISER LE TOTAL CALCULÉ
+                .putMetadata("total_amount", total.toString())
                 .putMetadata("quantity", String.valueOf(cart.getItems().stream().mapToInt(CartItem::getQuantity).sum()));
 
         Session session = Session.create(builder.build());
+
+        System.out.println("✅ [API] Session créée: " + session.getId());
 
         Map<String, Object> resp = new HashMap<>();
         resp.put("sessionId", session.getId());
@@ -98,6 +103,56 @@ public class PaymentController {
         resp.put("primaryKey", primaryKey);
 
         return ResponseEntity.ok(resp);
+    }
+
+    // ✅ AJOUTEZ CETTE MÉTHODE MANQUANTE
+    @GetMapping("/session/{sessionId}")
+    public ResponseEntity<?> getSessionDetails(@PathVariable String sessionId) {
+        try {
+            System.out.println("🔍 [API] Récupération session Stripe: " + sessionId);
+
+            Session session = Session.retrieve(sessionId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("id", session.getId());
+            response.put("status", session.getStatus());
+            response.put("customer_email", session.getCustomerEmail());
+            response.put("amount_total", session.getAmountTotal());
+            response.put("currency", session.getCurrency());
+            response.put("payment_status", session.getPaymentStatus());
+            response.put("metadata", session.getMetadata());
+
+            System.out.println("✅ [API] Session trouvée - Statut: " + session.getStatus());
+
+            return ResponseEntity.ok(response);
+
+        } catch (StripeException e) {
+            System.err.println("❌ [API] Erreur Stripe: " + e.getMessage());
+
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Session non trouvée");
+            error.put("message", e.getMessage());
+
+            return ResponseEntity.status(404).body(error);
+        } catch (Exception e) {
+            System.err.println("❌ [API] Erreur inattendue: " + e.getMessage());
+
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Erreur serveur");
+            error.put("message", e.getMessage());
+
+            return ResponseEntity.status(500).body(error);
+        }
+    }
+
+    // ✅ AJOUTEZ CETTE MÉTHODE DE SANTÉ
+    @GetMapping("/health")
+    public ResponseEntity<?> healthCheck() {
+        Map<String, String> response = new HashMap<>();
+        response.put("status", "OK");
+        response.put("service", "Paiement API");
+        response.put("timestamp", new Date().toString());
+        return ResponseEntity.ok(response);
     }
 
     private String buildSuccessUrl(String baseUrl) {
