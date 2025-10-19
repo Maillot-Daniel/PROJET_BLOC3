@@ -2,7 +2,7 @@ package com.olympics.tickets.backend.controller;
 
 import com.olympics.tickets.backend.entity.Ticket;
 import com.olympics.tickets.backend.service.TicketService;
-import com.olympics.tickets.backend.service.TicketService.TicketStatistics;
+import com.olympics.tickets.backend.service.TicketStatistics; // ✅ IMPORT CORRECT
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,12 +18,8 @@ public class TicketController {
 
     // ---------------- Création / debug ----------------
 
-    /**
-     * Crée un ticket de debug (exemple pour test)
-     */
     @PostMapping("/debug")
     public ResponseEntity<Ticket> createDebugTicket(@RequestParam String sessionId) {
-        // Ici on simule une Session Stripe minimale pour debug
         com.stripe.model.checkout.Session session = new com.stripe.model.checkout.Session();
         session.setId(sessionId);
         Ticket ticket = ticketService.createDebugTicket(session);
@@ -60,7 +56,7 @@ public class TicketController {
         return ResponseEntity.ok(result);
     }
 
-    // ---------------- Statistiques ----------------
+    // ---------------- Statistiques (CORRIGÉ) ----------------
 
     @GetMapping("/stats")
     public ResponseEntity<TicketStatistics> getStatistics() {

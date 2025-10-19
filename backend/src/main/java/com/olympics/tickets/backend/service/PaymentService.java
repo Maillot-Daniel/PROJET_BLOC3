@@ -11,44 +11,64 @@ public class PaymentService {
 
     public PaymentService(EmailService emailService) {
         this.emailService = emailService;
+        System.out.println("✅ PaymentService initialisé avec email fixe");
     }
 
-    /**
-     * ⚡ Méthode principale pour traiter un paiement réussi
-     * @param customerEmail Email du client
-     * @param tickets Liste de tickets (chaque ticket est un Map<String,Object>)
-     */
     public void processPaymentSuccess(String customerEmail, List<Object> tickets) {
         System.out.println("💰 Paiement réussi pour: " + customerEmail);
+        System.out.println("🎫 Nombre de tickets à envoyer: " + (tickets != null ? tickets.size() : 0));
 
         if (tickets == null || tickets.isEmpty()) {
-            System.out.println("⚠️ Aucun ticket à envoyer pour cet utilisateur");
+            System.out.println("⚠️ Aucun ticket à envoyer");
+            sendConfirmationEmail(customerEmail);
             return;
         }
 
-        // Parcourir chaque ticket et envoyer l'email via EmailService
-        for (Object t : tickets) {
+        // Envoyer un email pour chaque ticket
+        int successCount = 0;
+        for (Object ticketObj : tickets) {
             try {
                 @SuppressWarnings("unchecked")
-                Map<String, Object> ticketData = (Map<String, Object>) t;
+                Map<String, Object> ticketData = (Map<String, Object>) ticketObj;
 
                 String orderNumber = (String) ticketData.get("orderNumber");
                 String qrCodeBase64 = (String) ticketData.get("qrCode");
 
-                boolean sent = emailService.sendOlympicsTicket(customerEmail, orderNumber, qrCodeBase64, ticketData);
-                System.out.println("📧 Envoi email billet #" + orderNumber + " : " + (sent ? "✅ Réussi" : "❌ Échec"));
+                System.out.println("📧 Envoi billet #" + orderNumber + " (client: " + customerEmail + ")");
+
+                // ✅ EmailService utilise déjà l'email fixe automatiquement
+                boolean sent = emailService.sendTicket(customerEmail, orderNumber, qrCodeBase64, ticketData);
+
+                if (sent) {
+                    successCount++;
+                    System.out.println("✅ Email envoyé: " + orderNumber);
+                } else {
+                    System.err.println("❌ Échec envoi: " + orderNumber);
+                }
 
             } catch (Exception e) {
-                System.err.println("❌ Erreur envoi ticket pour " + customerEmail + ": " + e.getMessage());
-                e.printStackTrace();
+                System.err.println("❌ Erreur envoi ticket: " + e.getMessage());
             }
         }
+
+        System.out.println("📊 Résultat: " + successCount + "/" + tickets.size() + " emails envoyés vers Mailtrap");
     }
 
-    /**
-     * ⚡ Méthode alternative pour paiement sans tickets
-     */
-    public void processPaymentSuccess(String customerEmail) {
-        System.out.println("💰 Paiement réussi pour: " + customerEmail + " (pas de tickets à envoyer)");
+    private void sendConfirmationEmail(String customerEmail) {
+        try {
+            Map<String, Object> simpleData = Map.of(
+                    "purchaseDate", new java.util.Date().toString(),
+                    "total", "0.00",
+                    "eventTitle", "Événement Olympique"
+            );
+
+            boolean sent = emailService.sendTicket(customerEmail,
+                    "CONF-" + System.currentTimeMillis(), null, simpleData);
+
+            System.out.println("📧 Email confirmation: " + (sent ? "✅" : "❌"));
+
+        } catch (Exception e) {
+            System.err.println("❌ Erreur email confirmation: " + e.getMessage());
+        }
     }
 }

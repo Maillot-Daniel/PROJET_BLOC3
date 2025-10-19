@@ -18,7 +18,7 @@ public class EmailController {
         System.out.println("✅ EmailController initialisé avec Mailtrap");
     }
 
-    // 🎫 ENDPOINT CORRIGÉ POUR FRONTEND
+    // 🎫 ENDPOINT CORRIGÉ - UTILISE L'EMAIL RÉEL DU CLIENT
     @PostMapping("/send-ticket")
     public ResponseEntity<?> sendTicket(@RequestBody Map<String, Object> request) {
         try {
@@ -32,11 +32,16 @@ public class EmailController {
             String total = (String) request.get("total");
             String purchaseDate = (String) request.get("purchaseDate");
 
-            // 🔹 FORCER l'email vers Mailtrap
-            String mailtrapEmail = "d0c004224e85f3@inbox.mailtrap.io";
+            // ✅ CORRECTION CRITIQUE : Utiliser l'email réel du client
+            if (toEmail == null || toEmail.isEmpty()) {
+                System.out.println("❌ Email client manquant");
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "message", "Email du client requis"
+                ));
+            }
 
-            System.out.println("   📧 Email original: " + toEmail);
-            System.out.println("   📧 Email forcé vers: " + mailtrapEmail);
+            System.out.println("   📧 Email client: " + toEmail);
             System.out.println("   📦 Commande: " + orderNumber);
 
             if (orderNumber == null) {
@@ -53,15 +58,14 @@ public class EmailController {
                     "orderNumber", orderNumber
             );
 
-            // Envoyer l'email via Mailtrap
-            boolean success = emailService.sendTicket(mailtrapEmail, orderNumber, qrCodeData, ticketData);
+            // ✅ ENVOI À L'EMAIL RÉEL DU CLIENT
+            boolean success = emailService.sendTicket(toEmail, orderNumber, qrCodeData, ticketData);
 
             return ResponseEntity.ok(Map.of(
                     "success", success,
-                    "message", success ? "Email envoyé avec succès à Mailtrap" : "Échec envoi email",
-                    "customerEmail", mailtrapEmail,
-                    "orderNumber", orderNumber,
-                    "sandboxUrl", "https://mailtrap.io/inboxes"
+                    "message", success ? "Email envoyé avec succès" : "Échec envoi email",
+                    "customerEmail", toEmail,
+                    "orderNumber", orderNumber
             ));
 
         } catch (Exception e) {
@@ -88,8 +92,7 @@ public class EmailController {
         return ResponseEntity.ok(Map.of(
                 "status", "OK",
                 "service", "Email Service - Mailtrap",
-                "timestamp", System.currentTimeMillis(),
-                "mailtrapUrl", "https://mailtrap.io/inboxes"
+                "timestamp", System.currentTimeMillis()
         ));
     }
 }

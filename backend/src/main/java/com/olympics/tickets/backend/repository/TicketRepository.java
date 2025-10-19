@@ -23,6 +23,10 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     Optional<Ticket> findByHashedKey(String hashedKey);
     Optional<Ticket> findByTicketNumber(String ticketNumber);
 
+    // ✅ AJOUT: MÉTHODES MANQUANTES POUR LES STATISTIQUES
+    long countByValidatedTrue();
+    long countByUsedTrue();
+
     // COMPTAGES
     Long countByUsedTrueAndUsedAtAfter(LocalDateTime date);
     Long countByUsedTrueAndUsedAtBetween(LocalDateTime start, LocalDateTime end);
