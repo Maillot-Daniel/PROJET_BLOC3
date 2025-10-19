@@ -22,6 +22,24 @@ function CartPage() {
 
   console.log('🔍 [RENDU] CartPage - items:', items, 'orderSuccess:', orderSuccess, 'qrCodeData:', !!qrCodeData);
 
+  // ✅ NOUVELLE FONCTION: Sauvegarder le panier avant paiement
+  const saveCartForOrder = () => {
+    const cartData = {
+      items: items.map(item => ({
+        eventId: item.eventId,
+        eventTitle: item.eventTitle,
+        offerTypeId: item.offerTypeId,
+        offerTypeName: item.offerName,
+        quantity: item.quantity,
+        priceUnit: item.priceUnit
+      })),
+      total: totalPrice,
+      timestamp: new Date().toISOString()
+    };
+    localStorage.setItem('olympics_pending_order', JSON.stringify(cartData));
+    console.log('💾 Panier sauvegardé pour commande:', cartData);
+  };
+
   // ✅ FONCTION POUR GÉNÉRER QR CODE AVEC LOGS
   const generateQRCodeForTicket = async (orderData) => {
     console.log('🎫 [QRCODE] Début génération QR Code', orderData);
@@ -109,6 +127,9 @@ function CartPage() {
 
     setLoading(true);
     console.log('⏳ [VALIDATION] Loading activé');
+
+    // ✅ SAUVEGARDE DU PANIER AVANT PAIEMENT
+    saveCartForOrder();
 
     try {
       const validatedItems = items.map(item => ({

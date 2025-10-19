@@ -1,6 +1,8 @@
 package com.olympics.tickets.backend.controller;
 
 import com.olympics.tickets.backend.dto.EventSalesDTO;
+import com.olympics.tickets.backend.entity.Order;
+import com.olympics.tickets.backend.service.OrderService;
 import com.olympics.tickets.backend.service.TicketService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -15,21 +17,16 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AdminAnalyticsController {
 
+    private final OrderService orderService;
     private final TicketService ticketService;
 
-    /**
-     * 📊 Ventes par événement (Admin seulement)
-     */
-    @GetMapping("/sales-by-event")
+    @GetMapping("/sales-by-offer")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<EventSalesDTO>> getSalesByEvent() {
-        List<EventSalesDTO> sales = ticketService.getSalesByEvent();
+    public ResponseEntity<List<EventSalesDTO>> getSalesByOffer() {
+        List<EventSalesDTO> sales = orderService.getSalesByOfferType();
         return ResponseEntity.ok(sales);
     }
 
-    /**
-     * 📈 Tableau de bord admin
-     */
     @GetMapping("/dashboard")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> getDashboardStats() {
@@ -37,13 +34,10 @@ public class AdminAnalyticsController {
         return ResponseEntity.ok(stats);
     }
 
-    /**
-     * 📋 Statistiques détaillées
-     */
-    @GetMapping("/statistics")
+    @GetMapping("/orders")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> getDetailedStatistics() {
-        List<Object[]> salesByOffer = ticketService.countSalesGroupedByOffer();
-        return ResponseEntity.ok(salesByOffer);
+    public ResponseEntity<List<Order>> getAllOrders() {
+        List<Order> orders = orderService.getRecentOrders(50);
+        return ResponseEntity.ok(orders);
     }
 }
