@@ -1,7 +1,8 @@
 .offers-page {
-  padding: 2rem;
+  padding: 3rem 2rem;
   font-family: 'Arial', sans-serif;
-  background-color: #f5f5f5;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  min-height: 100vh;
 }
 
 .offer-list {
@@ -9,26 +10,122 @@
   gap: 2rem;
   flex-wrap: wrap;
   justify-content: center;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .offer-card {
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-  padding: 1.5rem;
-  max-width: 300px;
+  border-radius: 16px;
+  box-shadow: 
+    0 8px 25px rgba(0,0,0,0.1),
+    0 4px 6px rgba(0,0,0,0.05);
+  padding: 2rem;
+  max-width: 320px;
   text-align: center;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.offer-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 
+    0 15px 35px rgba(0,0,0,0.15),
+    0 5px 15px rgba(0,0,0,0.1);
+}
+
+.offer-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #4a84f0, #3250c9);
+}
+
+.offer-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  display: block;
 }
 
 .offer-card h2 {
   color: #004080;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.offer-card p {
+  color: #666;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
 }
 
 .offer-card ul {
   list-style: none;
   padding: 0;
+  margin: 1.5rem 0;
 }
 
 .offer-card ul li {
-  margin: 0.5rem 0;
+  margin: 0.8rem 0;
+  padding: 0.5rem 0;
+  color: #555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.offer-card ul li:last-child {
+  border-bottom: none;
+}
+
+.offer-card ul li::before {
+  content: '✓';
+  color: #4a84f0;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.offer-button {
+  background: linear-gradient(135deg, #4a84f0, #3250c9);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.95rem;
+  margin-top: 1rem;
+  width: 100%;
+}
+
+.offer-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(74, 132, 240, 0.4);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .offers-page {
+    padding: 2rem 1rem;
+  }
+  
+  .offer-list {
+    gap: 1.5rem;
+  }
+  
+  .offer-card {
+    max-width: 100%;
+    padding: 1.5rem;
+  }
 }
