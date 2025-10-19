@@ -18,7 +18,7 @@ public class EmailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
 
-    // ✅ EMAIL FIXE POUR MAILTRAP - TOUS LES EMAILS VONT ICI
+    // ✅ EMAIL FIXE POUR MAILTRAP
     private final String FIXED_TEST_EMAIL = "d0c004224e85f3@inbox.mailtrap.io";
 
     public EmailService(JavaMailSender mailSender) {
@@ -26,154 +26,229 @@ public class EmailService {
         System.out.println("✅ EmailService initialisé - Email fixe: " + FIXED_TEST_EMAIL);
     }
 
-    // 🔥 MÉTHODE AJOUTÉE POUR LE TEST DE COMMANDE
-    public boolean sendEmail(String to, String subject, String htmlContent) {
+    // 🔥 MÉTHODE PRINCIPALE CORRIGÉE
+    public boolean sendTicket(String toEmail, String orderNumber, String qrCodeBase64, Map<String, Object> ticketData) {
+        System.out.println("🚀 ENVOI EMAIL - Début sendTicket");
+
         try {
-            System.out.println("📧 Envoi email - Début");
-            System.out.println("   À: " + to);
-            System.out.println("   Sujet: " + subject);
+            // ✅ FORCER L'EMAIL FIXE POUR TOUS LES ENVOIS
+            String destinationEmail = FIXED_TEST_EMAIL;
+            System.out.println("📧 Destination FORCÉE: " + destinationEmail);
+            System.out.println("📦 Commande: " + orderNumber);
+            System.out.println("💰 Données ticket: " + ticketData);
 
             MimeMessage message = mailSender.createMimeMessage();
+
+            // ✅ CORRECTION : Encodage UTF-8 explicite
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom(fromEmail);
-            helper.setTo(to);
-            helper.setSubject(subject);
+            helper.setFrom(fromEmail, "Billetterie Olympiques");
+            helper.setTo(destinationEmail);
+
+            // ✅ CORRECTION : Sujet simple
+            helper.setSubject("Billet Olympiques #" + orderNumber);
+
+            // ✅ CORRECTION : Template HTML simple
+            String total = ticketData != null ? (String) ticketData.get("total") : "0.00";
+            String purchaseDate = ticketData != null ? (String) ticketData.get("purchaseDate") : new java.util.Date().toString();
+            String eventTitle = ticketData != null ? (String) ticketData.get("eventTitle") : "Evenement Olympique";
+
+            String htmlContent = createSafeEmailTemplate(orderNumber, total, purchaseDate, eventTitle, toEmail);
             helper.setText(htmlContent, true);
 
+            // ✅ CORRECTION : QR Code optionnel
+            if (qrCodeBase64 != null && qrCodeBase64.startsWith("data:image")) {
+                try {
+                    String base64Data = qrCodeBase64.split(",")[1];
+                    byte[] qrCodeBytes = Base64.getDecoder().decode(base64Data);
+                    helper.addAttachment("qrcode-" + orderNumber + ".png",
+                            new ByteArrayResource(qrCodeBytes), "image/png");
+                    System.out.println("📎 QR Code joint");
+                } catch (Exception e) {
+                    System.out.println("⚠️ QR Code non joint: " + e.getMessage());
+                    // Continuer sans QR code
+                }
+            } else {
+                System.out.println("ℹ️ Pas de QR code fourni");
+            }
+
             mailSender.send(message);
-            System.out.println("✅ Email envoyé avec succès à: " + to);
+            System.out.println("✅ EMAIL ENVOYE avec succes à: " + destinationEmail);
             return true;
 
         } catch (Exception e) {
-            System.err.println("❌ Erreur envoi email: " + e.getMessage());
+            System.err.println("❌ ERREUR CRITIQUE sendTicket: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
     }
 
-    public boolean sendTicket(String toEmail, String orderNumber, String qrCodeBase64, Map<String, Object> ticketData) {
-        // ✅ FORCER L'ENVOI VERS L'EMAIL FIXE MAILTRAP
-        String destinationEmail = FIXED_TEST_EMAIL;
-
-        System.out.println("🚀 ENVOI EMAIL - Original: " + toEmail + " → Forcé vers: " + destinationEmail);
-
-        try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-            helper.setFrom(fromEmail);
-            helper.setTo(destinationEmail); // ✅ TOUJOURS MAILTRAP
-            helper.setSubject("🎫 Billet Olympiques #" + orderNumber + " - " + toEmail);
-
-            // Données du ticket
-            String purchaseDate = ticketData != null ? (String) ticketData.get("purchaseDate") : "Date inconnue";
-            String total = ticketData != null ? (String) ticketData.get("total") : "0.00";
-            String eventTitle = ticketData != null ? (String) ticketData.get("eventTitle") : "Événement Olympique";
-
-            String htmlContent = createEmailTemplate(orderNumber, purchaseDate, total, eventTitle, toEmail);
-            helper.setText(htmlContent, true);
-
-            // QR Code en pièce jointe
-            if (qrCodeBase64 != null && qrCodeBase64.startsWith("data:image")) {
-                try {
-                    String base64Data = qrCodeBase64.split(",")[1];
-                    byte[] qrCodeBytes = Base64.getDecoder().decode(base64Data);
-                    helper.addAttachment("billet-olympiques-" + orderNumber + ".png",
-                            new ByteArrayResource(qrCodeBytes), "image/png");
-                    System.out.println("📎 QR Code joint");
-                } catch (Exception e) {
-                    System.out.println("⚠️ QR Code non joint: " + e.getMessage());
-                }
-            }
-
-            mailSender.send(message);
-            System.out.println("✅ EMAIL ENVOYÉ vers Mailtrap - Client original: " + toEmail);
-            return true;
-
-        } catch (Exception e) {
-            System.err.println("❌ ERREUR ENVOI EMAIL: " + e.getMessage());
-            return false;
-        }
-    }
-
-    private String createEmailTemplate(String orderNumber, String purchaseDate, String total, String eventTitle, String originalEmail) {
+    // ✅ TEMPLATE SÉCURISÉ sans caractères problématiques
+    private String createSafeEmailTemplate(String orderNumber, String total, String purchaseDate, String eventTitle, String clientEmail) {
         return """
             <!DOCTYPE html>
             <html>
             <head>
                 <meta charset="UTF-8">
                 <style>
-                    body { font-family: Arial, sans-serif; background: #f8fafc; margin: 0; padding: 20px; }
-                    .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-                    .header { background: linear-gradient(135deg, #0055A4 0%, #EF4135 100%); color: white; padding: 30px; text-align: center; }
-                    .content { padding: 30px; }
-                    .ticket-info { background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6; }
-                    .footer { background: #f1f5f9; padding: 20px; text-align: center; color: #64748b; font-size: 14px; }
-                    .debug-info { background: #fff3cd; padding: 10px; border-radius: 6px; margin: 10px 0; font-size: 12px; color: #856404; }
+                    body { 
+                        font-family: Arial, sans-serif; 
+                        line-height: 1.6; 
+                        color: #333; 
+                        max-width: 600px; 
+                        margin: 0 auto; 
+                        padding: 20px;
+                    }
+                    .header { 
+                        background: #0055A4; 
+                        color: white; 
+                        padding: 20px; 
+                        text-align: center; 
+                        border-radius: 10px 10px 0 0;
+                    }
+                    .content { 
+                        padding: 20px; 
+                        background: #f8f9fa; 
+                        border-radius: 0 0 10px 10px;
+                    }
+                    .ticket-info { 
+                        background: white; 
+                        padding: 15px; 
+                        border-radius: 8px; 
+                        margin: 15px 0; 
+                        border-left: 4px solid #0055A4;
+                    }
+                    .footer { 
+                        text-align: center; 
+                        margin-top: 20px; 
+                        color: #666; 
+                        font-size: 14px;
+                    }
                 </style>
             </head>
             <body>
-                <div class="container">
-                    <div class="header">
-                        <h1 style="margin: 0; font-size: 28px;">🎉 Votre billet Olympiques !</h1>
-                        <h2 style="margin: 10px 0 0 0; font-weight: 300;">Commande #%s</h2>
+                <div class="header">
+                    <h1 style="margin: 0; font-size: 24px;">Votre billet Olympiques</h1>
+                    <p style="margin: 10px 0 0 0; font-size: 16px;">Commande #%s</p>
+                </div>
+                
+                <div class="content">
+                    <h2>Bonjour,</h2>
+                    <p>Votre commande a ete confirmee avec succes.</p>
+                    
+                    <div class="ticket-info">
+                        <h3 style="color: #0055A4; margin-top: 0;">Details de votre billet</h3>
+                        <p><strong>Evenement:</strong> %s</p>
+                        <p><strong>Date d'achat:</strong> %s</p>
+                        <p><strong>Total:</strong> %s EUR</p>
+                        <p><strong>Statut:</strong> <span style="color: #28a745; font-weight: bold;">Confirme</span></p>
                     </div>
                     
-                    <div class="content">
-                        <div class="debug-info">
-                            <strong>🧪 MODE TEST:</strong> Email original: %s
-                        </div>
-                        
-                        <h2>Bonjour,</h2>
-                        <p>Votre commande a été confirmée avec succès. Voici le récapitulatif :</p>
-                        
-                        <div class="ticket-info">
-                            <h3 style="color: #1e40af; margin-top: 0;">📋 Détails de votre billet</h3>
-                            <p><strong>🎯 Événement:</strong> %s</p>
-                            <p><strong>📅 Date d'achat:</strong> %s</p>
-                            <p><strong>💰 Total:</strong> %s €</p>
-                            <p><strong>✅ Statut:</strong> <span style="color: #10b981; font-weight: bold;">Confirmé</span></p>
-                        </div>
-                        
-                        <p><strong>📎 Votre QR Code est en pièce jointe.</strong> Présentez-le à l'entrée de l'événement.</p>
-                        <p>Conservez bien cet email, il fait office de billet.</p>
-                    </div>
+                    <p><strong>Votre QR Code est en piece jointe.</strong> Presentez-le a l'entree.</p>
+                    <p>Conservez bien cet email.</p>
                     
                     <div class="footer">
-                        <p>Cordialement,<br><strong>L'équipe des Jeux Olympiques Paris 2024</strong></p>
-                        <p>📧 billetterie@olympics2024.com</p>
+                        <p>Cordialement,<br><strong>L'equipe des Jeux Olympiques Paris 2024</strong></p>
+                        <p>Email: billetterie@olympics2024.com</p>
                     </div>
                 </div>
             </body>
             </html>
-            """.formatted(orderNumber, originalEmail, eventTitle, purchaseDate, total);
+            """.formatted(orderNumber, eventTitle, purchaseDate, total);
     }
 
+    // 🔧 MÉTHODE DE TEST SIMPLE
+    public boolean sendEmail(String to, String subject, String htmlContent) {
+        try {
+            System.out.println("📧 Envoi email simple - Début");
+            System.out.println("   A: " + to);
+            System.out.println("   Sujet: " + subject);
+
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail, "Billetterie Olympiques");
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+            System.out.println("✅ Email simple envoye avec succes");
+            return true;
+
+        } catch (Exception e) {
+            System.err.println("❌ Erreur envoi email simple: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // 🚨 MÉTHODE DE SECOURS
+    public boolean sendTicketEmergency(String toEmail, String orderNumber, Map<String, Object> ticketData) {
+        try {
+            System.out.println("🚨 MODE SECOURS - Simulation");
+            System.out.println("📧 A: " + toEmail);
+            System.out.println("📦 Commande: " + orderNumber);
+            System.out.println("💰 Total: " + ticketData.get("total"));
+
+            // Simuler un envoi réussi
+            Thread.sleep(1000);
+
+            System.out.println("✅ EMAIL SIMULE - Commande " + orderNumber + " traitee");
+            return true;
+
+        } catch (Exception e) {
+            System.err.println("❌ Erreur mode secours: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // 🧪 TEST DE CONFIGURATION
     public String quickTest() {
         try {
             MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message);
-            helper.setFrom(fromEmail);
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail, "Test Olympiques");
             helper.setTo(FIXED_TEST_EMAIL);
-            helper.setSubject("🧪 Test Mailtrap - Olympiques 2024");
+            helper.setSubject("Test Configuration Mailtrap");
             helper.setText("""
-                Ceci est un test de configuration Mailtrap.
-                
-                ✅ Si vous recevez cet email, la configuration est correcte!
-                
-                Configuration:
-                - Serveur: sandbox.smtp.mailtrap.io
-                - Port: 2525
-                - Email fixe: %s
-                - Timestamp: %s
-                """.formatted(FIXED_TEST_EMAIL, System.currentTimeMillis()));
+                <h2>Test de configuration Mailtrap</h2>
+                <p>Si vous recevez cet email, la configuration est correcte!</p>
+                <ul>
+                    <li><strong>Serveur:</strong> sandbox.smtp.mailtrap.io</li>
+                    <li><strong>Port:</strong> 2525</li>
+                    <li><strong>Email fixe:</strong> %s</li>
+                    <li><strong>Timestamp:</strong> %s</li>
+                </ul>
+                <p>Statut: ✅ OPERATIONNEL</p>
+                """.formatted(FIXED_TEST_EMAIL, System.currentTimeMillis()), true);
 
             mailSender.send(message);
-            return "✅ Test réussi ! Vérifiez Mailtrap: https://mailtrap.io/inboxes";
+            return "✅ Test SMTP reussi ! Verifiez Mailtrap.";
 
         } catch (Exception e) {
-            return "❌ Test échoué: " + e.getMessage();
+            return "❌ Test SMTP echoue: " + e.getMessage();
+        }
+    }
+
+    // 🎯 MÉTHODE ULTRA-SIMPLE POUR TESTS
+    public boolean sendTicketSimple(String toEmail, String orderNumber, String total) {
+        try {
+            System.out.println("🎯 MODE ULTRA-SIMPLE");
+            System.out.println("📧 Envoi à: " + FIXED_TEST_EMAIL);
+            System.out.println("📦 Commande: " + orderNumber);
+            System.out.println("💰 Total: " + total);
+
+            return sendEmail(
+                    FIXED_TEST_EMAIL,
+                    "Commande " + orderNumber,
+                    "<h1>Commande Confirmee</h1><p>Numero: " + orderNumber + "</p><p>Total: " + total + " EUR</p><p>Merci pour votre achat!</p>"
+            );
+
+        } catch (Exception e) {
+            System.err.println("❌ Erreur mode simple: " + e.getMessage());
+            return false;
         }
     }
 }

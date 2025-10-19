@@ -37,6 +37,10 @@ public class StripeService {
     public String createCheckoutSession(CartDTO cart, String customerEmail) throws StripeException {
         System.out.println("🛒 [STRIPE] Création session pour: " + customerEmail);
 
+        // ✅ GÉNÉRER UN NUMÉRO DE COMMANDE UNIQUE
+        String orderNumber = "OLY-" + System.currentTimeMillis() + "-" + new Random().nextInt(1000);
+        System.out.println("📦 [STRIPE] Numéro de commande généré: " + orderNumber);
+
         // Validation
         if (cart.getItems() == null || cart.getItems().isEmpty()) {
             throw new IllegalArgumentException("Le panier est vide");
@@ -59,6 +63,9 @@ public class StripeService {
                                     .setProductData(
                                             SessionCreateParams.LineItem.PriceData.ProductData.builder()
                                                     .setName(item.getEventTitle())
+                                                    // ✅ AJOUT DES MÉTADONNÉES SUR LE PRODUIT
+                                                    .putMetadata("event_id", String.valueOf(item.getEventId()))
+                                                    .putMetadata("category", item.getCategory() != null ? item.getCategory() : "general")
                                                     .build()
                                     )
                                     .build()
@@ -83,17 +90,26 @@ public class StripeService {
             paramsBuilder.addLineItem(lineItem);
         }
 
-        // Métadonnées
-        paramsBuilder.putMetadata("customer_email", customerEmail)
+        // ✅ MÉTADONNÉES CRITIQUES POUR L'EMAIL
+        paramsBuilder.putMetadata("order_number", orderNumber) // ✅ TRÈS IMPORTANT
+                .putMetadata("customer_email", customerEmail)
                 .putMetadata("total_amount", cart.getTotalPrice().toString())
                 .putMetadata("item_count", String.valueOf(cart.getItems().size()))
                 .putMetadata("timestamp", String.valueOf(System.currentTimeMillis()));
+
+        // ✅ AJOUT DES DÉTAILS DES ÉVÉNEMENTS
+        String eventTitles = cart.getItems().stream()
+                .map(CartItemDTO::getEventTitle)
+                .reduce((a, b) -> a + ", " + b)
+                .orElse("Événements Olympiques");
+        paramsBuilder.putMetadata("event_titles", eventTitles);
 
         SessionCreateParams params = paramsBuilder.build();
 
         try {
             Session session = Session.create(params);
             System.out.println("✅ [STRIPE] Session créée: " + session.getId());
+            System.out.println("📧 [STRIPE] Métadonnées: order_number=" + orderNumber + ", customer_email=" + customerEmail);
             return session.getUrl();
 
         } catch (StripeException e) {

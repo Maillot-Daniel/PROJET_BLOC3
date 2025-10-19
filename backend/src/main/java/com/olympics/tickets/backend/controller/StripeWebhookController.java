@@ -27,7 +27,7 @@ public class StripeWebhookController {
     public ResponseEntity<String> handleWebhook(
             @RequestBody String payload,
             @RequestHeader("Stripe-Signature") String sigHeader,
-            HttpServletRequest request) { // ✅ Ajout pour debug
+            HttpServletRequest request) {
 
         // ✅ LOGS DE DÉBUG CRITIQUES
         log.info("🎯 WEBHOOK STRIPE APPELE - Méthode: {}, URI: {}",
@@ -64,6 +64,10 @@ public class StripeWebhookController {
                 if (session != null) {
                     log.info("💰 Session payée détectée - ID: {}, Montant: {}, Email: {}",
                             session.getId(), session.getAmountTotal(), session.getCustomerEmail());
+
+                    // ✅ LOG DES MÉTADONNÉES CRITIQUES
+                    log.info("📋 Métadonnées session: {}", session.getMetadata());
+                    log.info("📦 Numéro de commande: {}", session.getMetadata().get("order_number"));
 
                     // ✅ TRAITEMENT DU PAIEMENT
                     ticketService.processSuccessfulPayment(session);
