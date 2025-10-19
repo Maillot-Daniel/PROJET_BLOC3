@@ -6,7 +6,6 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 
-import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import java.util.Base64;
 import java.util.Map;
@@ -25,6 +24,32 @@ public class EmailService {
     public EmailService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
         System.out.println("✅ EmailService initialisé - Email fixe: " + FIXED_TEST_EMAIL);
+    }
+
+    // 🔥 MÉTHODE AJOUTÉE POUR LE TEST DE COMMANDE
+    public boolean sendEmail(String to, String subject, String htmlContent) {
+        try {
+            System.out.println("📧 Envoi email - Début");
+            System.out.println("   À: " + to);
+            System.out.println("   Sujet: " + subject);
+
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+            System.out.println("✅ Email envoyé avec succès à: " + to);
+            return true;
+
+        } catch (Exception e) {
+            System.err.println("❌ Erreur envoi email: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
     }
 
     public boolean sendTicket(String toEmail, String orderNumber, String qrCodeBase64, Map<String, Object> ticketData) {

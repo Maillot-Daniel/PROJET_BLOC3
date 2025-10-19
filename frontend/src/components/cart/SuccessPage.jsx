@@ -74,7 +74,73 @@ function SuccessPage() {
       console.error("❌ Erreur récupération session Stripe:", erreur);
     }
     return null;
-  }, []);
+  }, [URL_API]);
+
+  // 🔥 CORRECTION POUR VERCEL + RENDER
+  const envoyerEmailConfirmation = useCallback(async (billetsGeneres, numeroCommande, total) => {
+    console.log("📧 PRÉPARATION ENVOI EMAIL DE CONFIRMATION:");
+    
+    if (!billetsGeneres || billetsGeneres.length === 0) {
+      console.log("❌ Aucun billet à envoyer par email");
+      return false;
+    }
+
+    try {
+      const emailClient = "d0c004224e85f3@inbox.mailtrap.io";
+      
+      console.log("📧 Détails envoi email:");
+      console.log("   - Destinataire:", emailClient);
+      console.log("   - Commande:", numeroCommande);
+      console.log("   - Nombre de billets:", billetsGeneres.length);
+      console.log("   - Total:", total);
+
+      const premierBillet = billetsGeneres[0];
+      const qrCodeData = premierBillet.qrCode;
+
+      const donneesEmail = {
+        toEmail: emailClient,
+        orderNumber: numeroCommande,
+        qrCodeData: qrCodeData,
+        total: total,
+        purchaseDate: new Date().toISOString()
+      };
+
+      console.log("🔄 Appel API envoi email...");
+      console.log("   URL:", `${URL_API}/api/email/send-ticket`);
+      console.log("   Données:", donneesEmail);
+
+      // ✅ URL COMPLÈTE VERS RENDER
+      const reponse = await fetch(`${URL_API}/api/email/send-ticket`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(donneesEmail)
+      });
+
+      console.log("📨 Statut réponse API email:", reponse.status);
+      
+      if (!reponse.ok) {
+        console.error("❌ Erreur HTTP:", reponse.status, reponse.statusText);
+        return false;
+      }
+      
+      const resultat = await reponse.json();
+      console.log("✅ Réponse complète API email:", resultat);
+      
+      if (resultat.success) {
+        console.log("🎉 Email de confirmation envoyé avec succès!");
+        return true;
+      } else {
+        console.error("❌ Erreur dans la réponse email:", resultat.message);
+        return false;
+      }
+      
+    } catch (erreur) {
+      console.error("❌ Erreur envoi email:", erreur);
+      return false;
+    }
+  }, [URL_API]); // ✅ AJOUTER URL_API AUX DÉPENDANCES
 
   const genererQRCodePourEvenement = useCallback(async (numeroCommande, evenement) => {
     console.log(`🎫 Génération QR Code pour: ${evenement.eventTitle || evenement.nom}`);
@@ -179,7 +245,7 @@ function SuccessPage() {
         eventTitle: "Cérémonie d'Ouverture", 
         eventDate: "26 Juillet 2024", 
         eventLocation: "Stade de France", 
-        offerType: "Standard", 
+        offerType: "Solo", 
         quantite: 2, 
         prix: 150.0 
       },
@@ -188,7 +254,7 @@ function SuccessPage() {
         eventTitle: "Finale Athlétisme 100m", 
         eventDate: "3 Août 2024", 
         eventLocation: "Stade de France", 
-        offerType: "VIP", 
+        offerType: "Duo", 
         quantite: 1, 
         prix: 300.0 
       },
@@ -253,6 +319,18 @@ function SuccessPage() {
       setBillets(billetsGeneres);
       sauvegarderBilletsStockage(billetsGeneres);
       
+      // 🔥 APPEL AJOUTÉ - Envoyer l'email de confirmation
+      console.log("📧 LANCEMENT ENVOI EMAIL...");
+      const emailEnvoye = await envoyerEmailConfirmation(billetsGeneres, numeroCommande, totalStripe);
+      
+      if (emailEnvoye) {
+        console.log("🎉 Email de confirmation envoyé avec succès!");
+        setStatut("Billets créés et email envoyé !");
+      } else {
+        console.log("⚠️ Email non envoyé, mais billets créés");
+        setStatut("Billets créés avec succès !");
+      }
+      
       // Nettoyage du panier seulement si on a utilisé le vrai panier
       if (panier.length > 0) {
         localStorage.removeItem("panier_olympiques");
@@ -260,7 +338,6 @@ function SuccessPage() {
       }
       
       setChargement(false);
-      setStatut("Billets créés avec succès !");
       console.log("✅ PROCESSUS TERMINÉ");
       
     } catch (erreur) {
@@ -275,7 +352,8 @@ function SuccessPage() {
     creerBilletsDepuisPanier,
     creerBilletsTest, 
     sauvegarderBilletsStockage, 
-    debugStockageLocal
+    debugStockageLocal,
+    envoyerEmailConfirmation
   ]);
 
   // ✅ Télécharger tous les billets en un seul PDF
@@ -315,7 +393,7 @@ function SuccessPage() {
         }
       }
       
-           pdf.save(`billets-${billets[0]?.numeroCommande || 'commande'}.pdf`);
+      pdf.save(`billets-${billets[0]?.numeroCommande || 'commande'}.pdf`);
       
       setStatut("PDF téléchargé !");
       console.log("✅ PDF contenant tous les billets téléchargé");
