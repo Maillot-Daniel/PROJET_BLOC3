@@ -63,9 +63,9 @@ public class StripeService {
                                     .setProductData(
                                             SessionCreateParams.LineItem.PriceData.ProductData.builder()
                                                     .setName(item.getEventTitle())
-                                                    // ✅ AJOUT DES MÉTADONNÉES SUR LE PRODUIT
+                                                    // Enlever getCategory() qui n'existe pas
                                                     .putMetadata("event_id", String.valueOf(item.getEventId()))
-                                                    .putMetadata("category", item.getCategory() != null ? item.getCategory() : "general")
+                                                    .putMetadata("category", "general")
                                                     .build()
                                     )
                                     .build()
@@ -91,7 +91,7 @@ public class StripeService {
         }
 
         // ✅ MÉTADONNÉES CRITIQUES POUR L'EMAIL
-        paramsBuilder.putMetadata("order_number", orderNumber) // ✅ TRÈS IMPORTANT
+        paramsBuilder.putMetadata("order_number", orderNumber)
                 .putMetadata("customer_email", customerEmail)
                 .putMetadata("total_amount", cart.getTotalPrice().toString())
                 .putMetadata("item_count", String.valueOf(cart.getItems().size()))

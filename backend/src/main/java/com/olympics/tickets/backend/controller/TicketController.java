@@ -2,7 +2,6 @@ package com.olympics.tickets.backend.controller;
 
 import com.olympics.tickets.backend.entity.Ticket;
 import com.olympics.tickets.backend.service.TicketService;
-import com.olympics.tickets.backend.service.TicketStatistics; // ✅ IMPORT CORRECT
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -59,8 +58,9 @@ public class TicketController {
     // ---------------- Statistiques (CORRIGÉ) ----------------
 
     @GetMapping("/stats")
-    public ResponseEntity<TicketStatistics> getStatistics() {
-        TicketStatistics stats = ticketService.getTicketStatistics();
+    public ResponseEntity<?> getStatistics() {
+        // ✅ CORRECTION : Utiliser la classe interne de TicketService
+        TicketService.TicketStatistics stats = ticketService.getTicketStatistics();
         return ResponseEntity.ok(stats);
     }
 
