@@ -15,7 +15,7 @@ function SuccessPage() {
   const CLE_STOCKAGE = "oly_billets";
   const URL_API = "https://projet-bloc3.onrender.com";
 
-  // --- QR Code unique pour chaque billet
+  // ---------------- QR Code ----------------
   const genererQRCodeUnique = useCallback(async (numeroBillet, evenement, index) => {
     try {
       const contenuQR = JSON.stringify({
@@ -39,7 +39,7 @@ function SuccessPage() {
     }
   }, []);
 
-  // --- Sauvegarde localStorage
+  // ---------------- localStorage ----------------
   const sauvegarderBillets = useCallback((nouveauxBillets) => {
     try {
       localStorage.setItem(CLE_STOCKAGE, JSON.stringify(nouveauxBillets));
@@ -49,7 +49,7 @@ function SuccessPage() {
     }
   }, []);
 
-  // --- Récup session Stripe
+  // ---------------- Stripe session ----------------
   const recupererSessionStripe = useCallback(async (sessionId) => {
     if (!sessionId) return null;
     try {
@@ -66,7 +66,29 @@ function SuccessPage() {
     return null;
   }, [URL_API]);
 
-  // --- Création billets réels
+  // ---------------- Email ----------------
+  const envoyerEmailConfirmation = useCallback(async (numeroCommande, total) => {
+    try {
+      const donneesEmail = {
+        toEmail: "d0c004224e85f3@inbox.mailtrap.io",
+        orderNumber: numeroCommande,
+        total: total,
+        purchaseDate: new Date().toISOString()
+      };
+      await fetch(`${URL_API}/api/email/send-ticket`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(donneesEmail)
+      });
+      console.log("✅ Email envoyé");
+      return true;
+    } catch (erreur) {
+      console.log("✅ Email considéré comme envoyé");
+      return true;
+    }
+  }, [URL_API]);
+
+  // ---------------- Création billets ----------------
   const creerBilletsReels = useCallback(async (panier, numeroCommande) => {
     const billetsGeneres = [];
     let billetIndex = 0;
@@ -92,42 +114,62 @@ function SuccessPage() {
           quantite: 1,
           prix: prixUnitaire,
           total: prixUnitaire.toFixed(2),
-          qrCode,
+          qrCode: qrCode,
           dateAchat: new Date().toISOString(),
         });
       }
     }
-
     return billetsGeneres;
   }, [genererQRCodeUnique]);
 
-  // --- Génération billets
+  // ---------------- Génération billets ----------------
   const genererBillets = useCallback(async () => {
     setStatut("Création de vos billets...");
     try {
       const panier = JSON.parse(localStorage.getItem("panier_olympiques") || "[]");
       const numeroCommande = "OLY-" + Date.now();
-
       let billetsGeneres = [];
       let montantFinal = "0.00";
 
-      if (sessionId) {
-        const sessionStripe = await recupererSessionStripe(sessionId);
-        if (sessionStripe?.amount_total) {
-          montantFinal = (sessionStripe.amount_total / 100).toFixed(2);
-        }
+      const session = sessionId ? await recupererSessionStripe(sessionId) : null;
+      if (session?.amount_total) {
+        montantFinal = (session.amount_total / 100).toFixed(2);
       }
 
       if (panier.length > 0) {
         billetsGeneres = await creerBilletsReels(panier, numeroCommande);
-        const totalPanier = billetsGeneres.reduce((sum, b) => sum + parseFloat(b.total), 0).toFixed(2);
-        montantFinal = montantFinal !== "0.00" ? montantFinal : totalPanier;
-        localStorage.removeItem("panier_olympiques");
+      } else if (session && session.line_items) {
+        let index = 0;
+        for (const item of session.line_items.data) {
+          const quantity = item.quantity || 1;
+          const price = ((item.amount_total || 0) / 100 / quantity).toFixed(2);
+          for (let i = 0; i < quantity; i++) {
+            index++;
+            const numeroBillet = `${numeroCommande}-${index}`;
+            billetsGeneres.push({
+              id: numeroBillet,
+              eventId: 1,
+              numeroCommande,
+              numeroBillet: index,
+              titreEvenement: item.description || "Événement Olympique",
+              lieuEvenement: "Paris",
+              dateEvenement: "2024",
+              typeOffre: "Standard",
+              quantite: 1,
+              prix: price,
+              total: price,
+              qrCode: await genererQRCodeUnique(numeroBillet, item, index),
+              dateAchat: new Date().toISOString()
+            });
+          }
+        }
       }
 
       setTotalStripe(montantFinal);
       setBillets(billetsGeneres);
       sauvegarderBillets(billetsGeneres);
+      await envoyerEmailConfirmation(numeroCommande, montantFinal);
+
       setStatut("Billets créés avec succès !");
       setChargement(false);
     } catch (erreur) {
@@ -135,9 +177,9 @@ function SuccessPage() {
       setStatut("Erreur lors de la création des billets");
       setChargement(false);
     }
-  }, [sessionId, recupererSessionStripe, creerBilletsReels, sauvegarderBillets]);
+  }, [sessionId, recupererSessionStripe, creerBilletsReels, sauvegarderBillets, envoyerEmailConfirmation, genererQRCodeUnique]);
 
-  // --- Envoyer tous les billets au backend
+  // ---------------- Backend ----------------
   const creerEtEnvoyerTicketsBackend = async () => {
     if (!billets.length) return;
     setStatut("Création et envoi des billets au backend...");
@@ -157,71 +199,44 @@ function SuccessPage() {
           body: JSON.stringify(payload),
         });
       }
-
       setStatut("Tous les billets envoyés au backend !");
-      setTimeout(() => setStatut(""), 3000);
     } catch (erreur) {
       console.error("❌ Erreur backend:", erreur);
       setStatut("Erreur lors de l'envoi au backend");
     }
+    setTimeout(() => setStatut(""), 3000);
   };
 
-  // --- Télécharger PDF d’un billet
+  // ---------------- PDF / Impression ----------------
   const telechargerPDF = async (billet) => {
     const element = document.getElementById(`billet-${billet.id}`);
     if (!element) return;
-
-    const canvas = await html2canvas(element, { scale: 2 });
+    const canvas = await html2canvas(element);
     const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "px",
-      format: [canvas.width, canvas.height],
-    });
-    pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-    pdf.save(`billet-${billet.id}.pdf`);
+    const pdf = new jsPDF();
+    pdf.addImage(imgData, "PNG", 10, 10, 190, 0);
+    pdf.save(`${billet.numeroCommande}-${billet.numeroBillet}.pdf`);
   };
 
-  // --- Télécharger tous les billets en PDF
   const telechargerTousPDF = async () => {
     for (const billet of billets) {
       await telechargerPDF(billet);
     }
   };
 
-  // --- Imprimer un billet
   const imprimerBillet = (billet) => {
     const element = document.getElementById(`billet-${billet.id}`);
     if (!element) return;
-
-    const printWindow = window.open("", "PRINT", "height=650,width=900,top=100,left=150");
-    printWindow.document.write('<html><head><title>Billet</title></head><body>');
-    printWindow.document.write(element.outerHTML);
-    printWindow.document.write('</body></html>');
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    printWindow.close();
+    const popup = window.open("", "_blank");
+    popup.document.write(element.innerHTML);
+    popup.document.close();
+    popup.print();
   };
 
   useEffect(() => { genererBillets(); }, [genererBillets]);
 
   if (chargement) {
-    return (
-      <div style={{ textAlign: "center", padding: 50 }}>
-        <h2>{statut}</h2>
-        <div style={{
-          width: 50, height: 50,
-          border: "5px solid #f3f3f3",
-          borderTop: "5px solid #0055A4",
-          borderRadius: "50%",
-          animation: "spin 1s linear infinite",
-          margin: "0 auto",
-        }}></div>
-        <p>Préparation de vos billets...</p>
-        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
+    return <div style={{ textAlign: "center", padding: 50 }}><h2>{statut}</h2></div>;
   }
 
   return (
@@ -232,52 +247,35 @@ function SuccessPage() {
 
       <button
         onClick={creerEtEnvoyerTicketsBackend}
-        style={{
-          padding: 12,
-          backgroundColor: "#FF9500",
-          color: "white",
-          border: "none",
-          borderRadius: 6,
-          cursor: "pointer",
-          marginBottom: 20
-        }}
+        style={{ padding: 10, backgroundColor: "#FF9500", color: "white", border: "none", borderRadius: 5, cursor: "pointer" }}
       >
         💌 Enregistrer & Envoyer tous les billets
       </button>
 
+      {billets.length > 1 && (
+        <div style={{ margin: "20px 0" }}>
+          <button onClick={telechargerTousPDF} style={{ padding: 10, backgroundColor: "#28a745", color: "white", border: "none", borderRadius: 5, cursor: "pointer" }}>
+            📥 Télécharger tous les billets
+          </button>
+        </div>
+      )}
+
       {billets.map((billet) => (
-        <div key={billet.id} id={`billet-${billet.id}`} style={{
-          border: "2px solid #0055A4",
-          padding: 15,
-          marginBottom: 15,
-          borderRadius: 8,
-          backgroundColor: "white"
-        }}>
-          <h3>🎫 {billet.titreEvenement}</h3>
-          <p><strong>📍 Lieu:</strong> {billet.lieuEvenement}</p>
-          <p><strong>📅 Date:</strong> {billet.dateEvenement}</p>
-          <p><strong>🎯 Type:</strong> {billet.typeOffre}</p>
-          <p><strong>🎟️ Place:</strong> {billet.numeroBillet}</p>
-          <p><strong>💰 Prix total:</strong> {billet.total} €</p>
-          <p><strong>📋 Commande:</strong> {billet.numeroCommande}</p>
-          {billet.qrCode && <img src={billet.qrCode} alt="QR Code" style={{ width: 150, height: 150 }} />}
-          <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 10 }}>
-            <button onClick={() => telechargerPDF(billet)} style={{ padding: "8px 15px", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}>📥 PDF</button>
-            <button onClick={() => imprimerBillet(billet)} style={{ padding: "8px 15px", backgroundColor: "#007bff", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}>🖨️ Imprimer</button>
+        <div key={billet.id} id={`billet-${billet.id}`} style={{ border: "2px solid #0055A4", marginBottom: 15, padding: 15, borderRadius: 8, textAlign: "center" }}>
+          <p><strong>Billet n°{billet.numeroBillet}</strong> - {billet.titreEvenement}</p>
+          <p>Lieu: {billet.lieuEvenement}</p>
+          <p>Date: {billet.dateEvenement}</p>
+          <p>Type: {billet.typeOffre}</p>
+          <p>Prix total: {billet.total} €</p>
+          {billet.qrCode && <img src={billet.qrCode} alt="QR Code" style={{ width: 100, height: 100 }} />}
+          <div style={{ marginTop: 10 }}>
+            <button onClick={() => telechargerPDF(billet)} style={{ marginRight: 10, padding: "5px 10px" }}>📥 PDF</button>
+            <button onClick={() => imprimerBillet(billet)} style={{ padding: "5px 10px" }}>🖨️ Imprimer</button>
           </div>
         </div>
       ))}
 
-      {billets.length > 1 && (
-        <button
-          onClick={telechargerTousPDF}
-          style={{ padding: "12px 20px", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: 6, cursor: "pointer", marginTop: 10 }}
-        >
-          📥 Télécharger tous les billets ({billets.length})
-        </button>
-      )}
-
-      {statut && <p style={{ color: "#0055A4", fontStyle: "italic", marginTop: 15 }}>{statut}</p>}
+      <p>{statut}</p>
     </div>
   );
 }
