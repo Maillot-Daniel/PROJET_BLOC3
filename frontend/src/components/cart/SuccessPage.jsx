@@ -1,110 +1,40 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+// Supprimé: import { useSearchParams } from "react-router-dom"; // Non utilisé
 import QRCode from "qrcode";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
 function SuccessPage() {
-  const [searchParams] = useSearchParams();
-  const sessionId = searchParams.get("session_id");
-  const [qrCodeData, setQrCodeData] = useState(null);
-  const [orderNumber, setOrderNumber] = useState(null);
+  // Supprimé: const [searchParams] = useSearchParams(); // Variable inutilisée
+  const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
   const [emailSent, setEmailSent] = useState(false);
-  const [totalAmount, setTotalAmount] = useState("0.00");
-  // Supprimé: const [ticketDetails, setTicketDetails] = useState(null);
 
   const STORAGE_KEY = "oly_tickets";
-
-  // 🔹 FORCER l'email Mailtrap pour tous les envois
   const MAILTRAP_EMAIL = "d0c004224e85f3@inbox.mailtrap.io";
 
-  // ✅ TOUJOURS utiliser Mailtrap comme destinataire
-  const getCurrentUser = useCallback(() => {
-    return { 
-      email: MAILTRAP_EMAIL, 
-      name: "Client Jeux Olympiques 2024" 
-    };
-  }, [MAILTRAP_EMAIL]);
-
-  const currentUser = getCurrentUser();
-  const customerEmail = MAILTRAP_EMAIL;
-
-  // ✅ Récupérer les détails de la session Stripe pour avoir le vrai montant
-  const fetchStripeSession = useCallback(async (sessionId) => {
-    if (!sessionId) return null;
-    
-    try {
-      const API_URL = "https://projet-bloc3.onrender.com";
-      const response = await fetch(`${API_URL}/api/payments/session/${sessionId}`);
-      
-      if (response.ok) {
-        const sessionData = await response.json();
-        console.log("💰 Données Stripe:", sessionData);
-        return sessionData;
-      }
-    } catch (error) {
-      console.error("Erreur récupération session Stripe:", error);
-    }
-    return null;
-  }, []);
-
-  // ✅ Récupérer le panier depuis localStorage pour avoir les détails
-  const getCartDetails = useCallback(() => {
-    try {
-      const cart = JSON.parse(localStorage.getItem("olympics_cart") || "[]");
-      console.log("🛒 Panier récupéré:", cart);
-      return cart;
-    } catch (error) {
-      console.error("Erreur lecture panier:", error);
-      return [];
-    }
-  }, []);
-
-  // ✅ Calculer le total réel depuis le panier
-  const calculateTotalFromCart = useCallback((cart) => {
-    if (!cart || cart.length === 0) return "50.00"; // Fallback
-    
-    const total = cart.reduce((sum, item) => {
-      const price = parseFloat(item.price) || 0;
-      const quantity = parseInt(item.quantity) || 1;
-      return sum + (price * quantity);
-    }, 0);
-    
-    return total.toFixed(2);
-  }, []);
-
-  // ✅ Correction de la sauvegarde - AJOUTE aux billets existants
-  const saveTicketToStorage = useCallback((ticketData) => {
-    try {
-      const existingTickets = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-      const updatedTickets = [...existingTickets, ticketData];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTickets));
-      localStorage.setItem("last_user_email", customerEmail);
-      console.log("💾 Billet sauvegardé:", ticketData.orderNumber);
-      console.log("📋 Total billets:", updatedTickets.length);
-    } catch (error) {
-      console.error("Erreur sauvegarde billet:", error);
-    }
-  }, [customerEmail]);
-
-  // ✅ Génération QR code
-  const generateQRCodeForTicket = useCallback(async (orderNumber, amount) => {
+  // ✅ Générer un QR code unique par événement
+  const generateQRCodeForEvent = useCallback(async (orderNumber, event, amount) => {
     try {
       const qrContent = {
         orderId: orderNumber,
-        timestamp: Date.now(),
-        customer: customerEmail,
-        event: "Jeux Olympiques Paris 2024",
+        eventId: event.eventId,
+        eventTitle: event.eventTitle,
+        eventDate: event.eventDate,
+        eventLocation: event.eventLocation,
+        offerType: event.offerType,
         amount: amount,
+        timestamp: Date.now(),
+        customer: MAILTRAP_EMAIL,
         currency: "EUR"
       };
+      
       const qrCodeImage = await QRCode.toDataURL(JSON.stringify(qrContent), { 
-        width: 300,
+        width: 200,
         margin: 2,
         color: {
-          dark: "#000000",
+          dark: "#0055A4",
           light: "#FFFFFF"
         }
       });
@@ -113,18 +43,133 @@ function SuccessPage() {
       console.error("Erreur génération QR Code:", error);
       return null;
     }
-  }, [customerEmail]);
+  }, [MAILTRAP_EMAIL]);
 
-  // ✅ Télécharger en PDF
-  const downloadPDF = async () => {
-    const ticketElement = document.getElementById("ticket-pdf");
-    if (!ticketElement) {
-      console.error("Élément ticket non trouvé");
-      return;
+  // ✅ Sauvegarde de tous les billets
+  const saveTicketsToStorage = useCallback((newTickets) => {
+    try {
+      const existingTickets = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      const updatedTickets = [...existingTickets, ...newTickets];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTickets));
+      console.log("💾 Billets sauvegardés:", newTickets.length);
+      console.log("📋 Total billets en stockage:", updatedTickets.length);
+    } catch (error) {
+      console.error("Erreur sauvegarde billets:", error);
     }
+  }, []);
+
+  // ✅ Envoi email avec tous les billets
+  const sendEmail = useCallback(async (orderNumber, tickets) => {
+    try {
+      const API_URL = "https://projet-bloc3.onrender.com";
+      
+      const emailData = {
+        toEmail: MAILTRAP_EMAIL,
+        orderNumber: orderNumber,
+        tickets: tickets,
+        totalAmount: tickets.reduce((sum, ticket) => sum + parseFloat(ticket.total), 0).toFixed(2)
+      };
+      
+      const response = await fetch(`${API_URL}/api/email/send-ticket`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(emailData)
+      });
+
+      const data = await response.json();
+      console.log("📩 Réponse serveur email:", data);
+
+      return response.ok && data.success;
+    } catch (error) {
+      console.error("❌ Erreur envoi email:", error);
+      return false;
+    }
+  }, []);
+
+  // ✅ Créer un billet par événement
+  const generateTickets = useCallback(async () => {
+    setStatus("Création de vos billets...");
 
     try {
-      setStatus("Génération du PDF...");
+      // Récupérer le panier
+      const cart = JSON.parse(localStorage.getItem("olympics_cart") || "[]");
+      console.log("🛒 Panier récupéré:", cart);
+
+      if (cart.length === 0) {
+        console.log("⚠️ Panier vide, création d'un billet par défaut");
+        // Fallback - un billet générique
+        cart.push({
+          eventId: 0,
+          eventTitle: "Jeux Olympiques Paris 2024",
+          eventDate: "2024-07-26",
+          eventLocation: "Multiple sites",
+          offerType: "Standard",
+          price: 50.00,
+          quantity: 1
+        });
+      }
+
+      const orderNumber = "OLY-" + Date.now() + "-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+      const purchaseDateISO = new Date().toISOString();
+      
+      const generatedTickets = [];
+
+      // Créer un billet pour chaque événement
+      for (const item of cart) {
+        const qrCode = await generateQRCodeForEvent(orderNumber, item, item.price);
+        
+        const ticket = {
+          id: `${orderNumber}-${item.eventId}`,
+          orderNumber: orderNumber,
+          eventId: item.eventId,
+          eventTitle: item.eventTitle,
+          eventDate: item.eventDate,
+          eventLocation: item.eventLocation,
+          offerType: item.offerType,
+          quantity: item.quantity,
+          price: item.price,
+          total: (item.price * item.quantity).toFixed(2),
+          qrCode: qrCode,
+          purchaseDate: purchaseDateISO,
+          status: "active"
+        };
+
+        generatedTickets.push(ticket);
+        console.log(`🎫 Billet créé pour: ${item.eventTitle}`);
+      }
+
+      setTickets(generatedTickets);
+      
+      // Sauvegarder tous les billets
+      saveTicketsToStorage(generatedTickets);
+
+      // Envoyer l'email avec tous les billets
+      const emailSuccess = await sendEmail(orderNumber, generatedTickets);
+      setEmailSent(emailSuccess);
+
+      // Vider le panier
+      localStorage.removeItem("olympics_cart");
+      
+      setLoading(false);
+      setStatus("Billets créés avec succès !");
+
+    } catch (error) {
+      console.error("❌ Erreur création billets:", error);
+      setStatus("Erreur lors de la création des billets");
+      setLoading(false);
+    }
+  }, [generateQRCodeForEvent, saveTicketsToStorage, sendEmail]);
+
+  // ✅ Télécharger un billet spécifique en PDF
+  const downloadTicketPDF = async (ticket) => {
+    const ticketElement = document.getElementById(`ticket-${ticket.id}`);
+    if (!ticketElement) return;
+
+    try {
+      setStatus(`Génération PDF pour ${ticket.eventTitle}...`);
       
       const canvas = await html2canvas(ticketElement, {
         scale: 2,
@@ -138,34 +183,13 @@ function SuccessPage() {
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       
       pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`billet-olympiques-${orderNumber}.pdf`);
+      pdf.save(`billet-${ticket.eventTitle}-${ticket.orderNumber}.pdf`);
       
       setStatus("PDF téléchargé !");
       setTimeout(() => setStatus(""), 2000);
     } catch (error) {
       console.error("Erreur génération PDF:", error);
       setStatus("Erreur lors du téléchargement");
-    }
-  };
-
-  // ✅ Partage du billet
-  const shareTicket = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Mon billet Olympiques - ${orderNumber}`,
-          text: `Voici mon billet pour les Jeux Olympiques Paris 2024! Montant: ${totalAmount}€`,
-          url: window.location.href,
-        });
-        console.log("Billet partagé avec succès");
-      } catch (error) {
-        console.log("Partage annulé:", error);
-      }
-    } else {
-      console.log("Web Share API non supportée");
-      // Fallback: copier le lien
-      navigator.clipboard.writeText(window.location.href);
-      alert("Lien copié dans le presse-papier !");
     }
   };
 
@@ -184,121 +208,8 @@ function SuccessPage() {
   };
 
   useEffect(() => {
-    const generateTicket = async () => {
-      setStatus("Création de votre billet...");
-
-      try {
-        // Récupérer les détails du paiement
-        const cart = getCartDetails();
-        const calculatedTotal = calculateTotalFromCart(cart);
-        
-        let stripeSession = null;
-        if (sessionId) {
-          stripeSession = await fetchStripeSession(sessionId);
-        }
-
-        // Utiliser le montant de Stripe ou du panier
-        const finalAmount = stripeSession?.amount_total 
-          ? (stripeSession.amount_total / 100).toFixed(2) 
-          : calculatedTotal;
-
-        setTotalAmount(finalAmount);
-        console.log("💰 Montant final:", finalAmount);
-
-        // Génération numéro de commande unique
-        const newOrderNumber = "OLY-" + Date.now() + "-" + Math.random().toString(36).substring(2, 8).toUpperCase();
-        setOrderNumber(newOrderNumber);
-
-        // Génération QR Code avec le vrai montant
-        const qrResult = await generateQRCodeForTicket(newOrderNumber, finalAmount);
-        setQrCodeData(qrResult);
-
-        const purchaseDateISO = new Date().toISOString();
-
-        // Détails des billets depuis le panier
-        const ticketItems = cart.length > 0 ? cart : [
-          { 
-            eventTitle: "Jeux Olympiques Paris 2024", 
-            offerName: "Billet Standard", 
-            quantity: 1, 
-            priceUnit: finalAmount,
-            category: "Sports",
-            venue: "Stade de France"
-          }
-        ];
-
-        // Données du billet
-        const ticketData = {
-          id: newOrderNumber,
-          orderNumber: newOrderNumber,
-          sessionId: sessionId || "direct-" + Date.now(),
-          qrCode: qrResult,
-          status: "active",
-          customer: { 
-            email: customerEmail, 
-            name: currentUser.name 
-          },
-          purchaseDate: purchaseDateISO,
-          total: finalAmount,
-          items: ticketItems,
-          stripeSession: stripeSession
-        };
-
-        // Supprimé: setTicketDetails(ticketData);
-
-        // Sauvegarde dans localStorage
-        saveTicketToStorage(ticketData);
-
-        // ✅ Envoi email VIA MAILTRAP
-        try {
-          const API_URL = "https://projet-bloc3.onrender.com";
-          console.log("📧 Envoi email à Mailtrap...");
-          
-          const response = await fetch(`${API_URL}/api/email/send-ticket`, {
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/json",
-              "Accept": "application/json"
-            },
-            body: JSON.stringify({
-              toEmail: customerEmail,
-              orderNumber: newOrderNumber,
-              qrCodeData: qrResult,
-              total: finalAmount,
-              purchaseDate: purchaseDateISO,
-            }),
-          });
-
-          const data = await response.json();
-          console.log("📩 Réponse serveur email:", data);
-
-          if (response.ok && data.success) {
-            setEmailSent(true);
-            console.log("✅ Email envoyé avec succès à Mailtrap");
-          } else {
-            console.warn("⚠️ Problème envoi email:", data.message);
-          }
-        } catch (error) {
-          console.error("❌ Erreur envoi email:", error);
-        }
-
-        // Vider le panier après paiement réussi
-        localStorage.removeItem("olympics_cart");
-        console.log("🛒 Panier vidé après paiement");
-
-        setLoading(false);
-        setStatus("Billet créé avec succès !");
-
-      } catch (error) {
-        console.error("❌ Erreur génération billet:", error);
-        setStatus("Erreur lors de la création du billet");
-        setLoading(false);
-      }
-    };
-
-    generateTicket();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]); // Les autres dépendances sont gérées via useCallback
+    generateTickets();
+  }, [generateTickets]);
 
   if (loading) {
     return (
@@ -315,14 +226,9 @@ function SuccessPage() {
             margin: "0 auto"
           }}></div>
         </div>
-        <p>⏳ Préparation de votre billet...</p>
+        <p>⏳ Préparation de vos billets...</p>
         <style>
-          {`
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-          `}
+          {`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}
         </style>
       </div>
     );
@@ -332,7 +238,9 @@ function SuccessPage() {
     <div style={{ textAlign: "center", padding: 30, maxWidth: 800, margin: "0 auto" }}>
       <div style={{ background: "linear-gradient(135deg, #0055A4 0%, #EF4135 100%)", color: "white", padding: 30, borderRadius: 15, marginBottom: 30 }}>
         <h1 style={{ margin: 0, fontSize: "2.5em" }}>🎉 Paiement Réussi !</h1>
-        <p style={{ fontSize: "1.2em", marginTop: 10, opacity: 0.9 }}>Votre billet pour les Jeux Olympiques Paris 2024</p>
+        <p style={{ fontSize: "1.2em", marginTop: 10, opacity: 0.9 }}>
+          Vous avez acheté {tickets.length} billet{tickets.length > 1 ? 's' : ''}
+        </p>
       </div>
 
       {emailSent && (
@@ -344,123 +252,112 @@ function SuccessPage() {
           marginBottom: 20,
           border: "1px solid #c3e6cb"
         }}>
-          <strong>📧 Email envoyé !</strong> Votre billet a été envoyé à {customerEmail}
+          <strong>📧 Email envoyé !</strong> Vos billets ont été envoyés à {MAILTRAP_EMAIL}
         </div>
       )}
 
-      {orderNumber && (
+      {tickets.length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <h3>Numéro de commande: <span style={{ color: "#0055A4" }}>{orderNumber}</span></h3>
+          <h3>Numéro de commande: <span style={{ color: "#0055A4" }}>{tickets[0].orderNumber}</span></h3>
         </div>
       )}
 
-      {qrCodeData && (
-        <div>
+      {/* Affichage de tous les billets */}
+      {tickets.map((ticket, index) => (
+        <div key={ticket.id} style={{ marginBottom: 30 }}>
           <div 
-            id="ticket-pdf" 
+            id={`ticket-${ticket.id}`}
             style={{ 
               border: "3px solid #0055A4", 
-              padding: 30, 
-              display: "inline-block",
+              padding: 25, 
               background: "white",
               borderRadius: 12,
               boxShadow: "0 8px 25px rgba(0,0,0,0.1)",
-              textAlign: "center",
-              marginBottom: 20
+              textAlign: "center"
             }}
           >
-            <div style={{ borderBottom: "2px solid #f0f0f0", paddingBottom: 20, marginBottom: 20 }}>
-              <h2 style={{ color: "#0055A4", margin: "0 0 10px 0" }}>🎫 Votre Billet Numérique</h2>
-              <p style={{ color: "#666", margin: 0 }}>Jeux Olympiques Paris 2024</p>
+            <div style={{ borderBottom: "2px solid #f0f0f0", paddingBottom: 15, marginBottom: 15 }}>
+              <h2 style={{ color: "#0055A4", margin: "0 0 5px 0", fontSize: "1.5em" }}>
+                🎫 {ticket.eventTitle}
+              </h2>
+              <p style={{ color: "#666", margin: "5px 0", fontSize: "0.9em" }}>
+                📍 {ticket.eventLocation} | 📅 {ticket.eventDate}
+              </p>
             </div>
             
-            <img 
-              src={qrCodeData} 
-              alt="QR Code" 
-              style={{ 
-                width: 250, 
-                height: 250,
-                border: "1px solid #ddd",
-                borderRadius: 8
-              }} 
-            />
+            {ticket.qrCode && (
+              <img 
+                src={ticket.qrCode} 
+                alt={`QR Code - ${ticket.eventTitle}`} 
+                style={{ 
+                  width: 180, 
+                  height: 180,
+                  border: "1px solid #ddd",
+                  borderRadius: 8,
+                  margin: "0 auto"
+                }} 
+              />
+            )}
             
             <div style={{ marginTop: 20 }}>
-              <p style={{ fontSize: "1.1em", margin: "10px 0" }}>
-                <strong>📅 Date d'achat:</strong> {formatDate(new Date().toISOString())}
+              <p style={{ margin: "8px 0", fontSize: "1em" }}>
+                <strong>🎯 Type:</strong> {ticket.offerType}
               </p>
-              <p style={{ fontSize: "1.1em", margin: "10px 0" }}>
-                <strong>💰 Total payé:</strong> <span style={{ color: "#EF4135", fontWeight: "bold" }}>{totalAmount} €</span>
+              <p style={{ margin: "8px 0", fontSize: "1em" }}>
+                <strong>📅 Date d'achat:</strong> {formatDate(ticket.purchaseDate)}
               </p>
-              <p style={{ fontSize: "1.1em", margin: "10px 0" }}>
-                <strong>📋 Commande:</strong> {orderNumber}
+              <p style={{ margin: "8px 0", fontSize: "1em" }}>
+                <strong>💰 Prix:</strong> <span style={{ color: "#EF4135", fontWeight: "bold" }}>{ticket.total} €</span>
+              </p>
+              <p style={{ margin: "8px 0", fontSize: "1em" }}>
+                <strong>📋 Commande:</strong> {ticket.orderNumber}
               </p>
             </div>
             
             <div style={{ 
               background: "#f8f9fa", 
-              padding: 15, 
-              borderRadius: 8, 
-              marginTop: 20,
+              padding: 12, 
+              borderRadius: 6, 
+              marginTop: 15,
               borderLeft: "4px solid #28a745"
             }}>
-              <p style={{ margin: 0, color: "#155724" }}>
-                <strong>✅ Présentez ce QR code à l'entrée</strong>
+              <p style={{ margin: 0, color: "#155724", fontSize: "0.9em" }}>
+                <strong>✅ Présentez ce QR code à l'entrée du {ticket.eventLocation}</strong>
               </p>
             </div>
           </div>
 
-          <div style={{ marginTop: 30 }}>
-            <button 
-              onClick={downloadPDF} 
-              style={{ 
-                padding: "12px 25px", 
-                margin: 5, 
-                backgroundColor: "#0055A4",
-                color: "white",
-                border: "none",
-                borderRadius: 8,
-                cursor: "pointer",
-                fontSize: "1em",
-                fontWeight: "bold"
-              }}
-            >
-              🖨️ Télécharger PDF
-            </button>
-            
-            <button 
-              onClick={shareTicket} 
-              style={{ 
-                padding: "12px 25px", 
-                margin: 5, 
-                backgroundColor: "#28a745",
-                color: "white",
-                border: "none",
-                borderRadius: 8,
-                cursor: "pointer",
-                fontSize: "1em",
-                fontWeight: "bold"
-              }}
-            >
-              📤 Partager
-            </button>
-          </div>
+          <button 
+            onClick={() => downloadTicketPDF(ticket)}
+            style={{ 
+              padding: "10px 20px", 
+              margin: "10px 5px", 
+              backgroundColor: "#0055A4",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer",
+              fontSize: "0.9em"
+            }}
+          >
+            🖨️ Télécharger ce billet
+          </button>
+        </div>
+      ))}
 
-          {status && (
-            <div style={{ marginTop: 15 }}>
-              <p style={{ color: "#0055A4", fontStyle: "italic" }}>{status}</p>
-            </div>
-          )}
+      {status && (
+        <div style={{ marginTop: 15 }}>
+          <p style={{ color: "#0055A4", fontStyle: "italic" }}>{status}</p>
         </div>
       )}
 
       <div style={{ marginTop: 40, padding: 20, background: "#f8f9fa", borderRadius: 8 }}>
-        <h3>📱 Prochaines étapes</h3>
+        <h3>📱 Informations importantes</h3>
         <ul style={{ textAlign: "left", maxWidth: 500, margin: "0 auto" }}>
-          <li>Conservez ce billet en sécurité</li>
-          <li>Le QR code sera scanné à l'entrée</li>
-          <li>Présentez une pièce d'identité avec le billet</li>
-          <li>Vérifiez vos emails pour le reçu</li>
+          <li>Chaque billet est valable uniquement pour l'événement indiqué</li>
+          <li>Présentez le QR code correspondant à chaque événement</li>
+          <li>Une pièce d'identité peut être demandée</li>
+          <li>Arrivez 1 heure avant le début de l'événement</li>
         </ul>
       </div>
     </div>
