@@ -107,6 +107,12 @@ function Navbar() {
                     <li className="nav-item admin-divider" aria-hidden="true">
                       <span className="admin-label">Administration</span>
                     </li>
+                    {/* DASHBOARD ADMIN */}
+                    <li className="nav-item">
+                      <Link to="/admin-dashboard" className="nav-link admin-link" onClick={closeMobileMenu}>
+                        📊 Dashboard
+                      </Link>
+                    </li>
                     <li className="nav-item">
                       <Link to="/admin/events" className="nav-link admin-link" onClick={closeMobileMenu}>
                         Gestion Événements
@@ -127,7 +133,6 @@ function Navbar() {
                         Gestion Offres
                       </Link>
                     </li>
-                    {/* NOUVEAU LIEN POUR LA VALIDATION DES TICKETS */}
                     <li className="nav-item">
                       <Link to="/admin/validate-tickets" className="nav-link admin-link" onClick={closeMobileMenu}>
                         🎫 Valider Tickets

@@ -30,12 +30,9 @@ import AboutPage from './components/AboutPage/AboutPage';
 import PrivacyPage from './components/PrivacyPage/PrivacyPage';
 import ContactPage from './components/ContactPage/ContactPage';
 
-
 import SuccessPage from './components/cart/SuccessPage';
 
-
 import AdminDashboard from './pages/AdminDashboard';
-import ProtectedAdminRoute from './components/ProtectedAdminRoute';
 
 import background from './assets/images/Jeux_2024.jpg';
 import './App.css';
@@ -77,17 +74,9 @@ function App() {
                 <Route path="/admin/create-event" element={<RequireAdmin><CreateEventForm /></RequireAdmin>} />
                 <Route path="/admin/offers-gestion" element={<RequireAdmin><OffersGestion /></RequireAdmin>} />
                 <Route path="/admin/validate-tickets" element={<RequireAdmin><TicketValidator /></RequireAdmin>} />
+                <Route path="/admin-dashboard" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
                 
-                {/* ✅ DASHBOARD */}
-                <Route 
-                  path="/admin-dashboard" 
-                  element={
-                    <ProtectedAdminRoute>
-                      <AdminDashboard />
-                    </ProtectedAdminRoute>
-                  } 
-                />
-
+                
                 {/* Authenticated users */}
                 <Route path="/public-events" element={<RequireUser><Events /></RequireUser>} />
                 <Route path="/cart" element={<RequireUser><CartPage /></RequireUser>} />
