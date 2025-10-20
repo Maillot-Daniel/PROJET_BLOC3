@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import QRCode from "qrcode";
-import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 function SuccessPage() {
   const [searchParams] = useSearchParams();
@@ -24,7 +24,7 @@ function SuccessPage() {
         type: evenement.offerType || evenement.type || "Standard",
         date: evenement.eventDate || evenement.date || "2024",
         lieu: evenement.eventLocation || evenement.lieu || "Paris",
-        prix: evenement.prix || evenement.price || 0,
+        prix: evenement.total || evenement.prix || 0,
         numero: index + 1,
         horodatage: Date.now()
       });
@@ -49,7 +49,7 @@ function SuccessPage() {
     }
   }, []);
 
-  // ---------------- Stripe session ----------------
+  // ---------------- Session Stripe ----------------
   const recupererSessionStripe = useCallback(async (sessionId) => {
     if (!sessionId) return null;
     try {
@@ -58,6 +58,7 @@ function SuccessPage() {
         const donneesSession = await reponse.json();
         const totalReel = donneesSession.amount_total ? (donneesSession.amount_total / 100).toFixed(2) : "0.00";
         setTotalStripe(totalReel);
+        console.log("💰 Montant Stripe:", totalReel + "€");
         return donneesSession;
       }
     } catch (erreur) {
@@ -66,42 +67,18 @@ function SuccessPage() {
     return null;
   }, [URL_API]);
 
-  // ---------------- Email ----------------
-  const envoyerEmailConfirmation = useCallback(async (numeroCommande, total) => {
-    try {
-      const donneesEmail = {
-        toEmail: "d0c004224e85f3@inbox.mailtrap.io",
-        orderNumber: numeroCommande,
-        total: total,
-        purchaseDate: new Date().toISOString()
-      };
-      await fetch(`${URL_API}/api/email/send-ticket`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(donneesEmail)
-      });
-      console.log("✅ Email envoyé");
-      return true;
-    } catch (erreur) {
-      console.log("✅ Email considéré comme envoyé");
-      return true;
-    }
-  }, [URL_API]);
-
-  // ---------------- Création billets ----------------
+  // ---------------- Création des billets ----------------
   const creerBilletsReels = useCallback(async (panier, numeroCommande) => {
     const billetsGeneres = [];
     let billetIndex = 0;
-
     for (const article of panier) {
       const quantite = article.quantite || article.quantity || 1;
       const prixUnitaire = article.prix || article.price || 0;
-
       for (let i = 0; i < quantite; i++) {
         billetIndex++;
         const numeroBillet = `${numeroCommande}-${billetIndex}`;
-        const qrCode = await genererQRCodeUnique(numeroBillet, article, billetIndex);
-
+        const totalBillet = prixUnitaire;
+        const qrCode = await genererQRCodeUnique(numeroBillet, {...article, total: totalBillet}, billetIndex);
         billetsGeneres.push({
           id: numeroBillet,
           eventId: article.eventId || 1,
@@ -112,8 +89,8 @@ function SuccessPage() {
           dateEvenement: article.eventDate || article.date || "2024",
           typeOffre: article.offerType || article.type || "Standard",
           quantite: 1,
-          prix: prixUnitaire,
-          total: prixUnitaire.toFixed(2),
+          prix: totalBillet,
+          total: totalBillet.toFixed(2),
           qrCode: qrCode,
           dateAchat: new Date().toISOString(),
         });
@@ -122,7 +99,7 @@ function SuccessPage() {
     return billetsGeneres;
   }, [genererQRCodeUnique]);
 
-  // ---------------- Génération billets ----------------
+  // ---------------- Générer billets ----------------
   const genererBillets = useCallback(async () => {
     setStatut("Création de vos billets...");
     try {
@@ -131,55 +108,33 @@ function SuccessPage() {
       let billetsGeneres = [];
       let montantFinal = "0.00";
 
-      const session = sessionId ? await recupererSessionStripe(sessionId) : null;
-      if (session?.amount_total) {
-        montantFinal = (session.amount_total / 100).toFixed(2);
+      if (sessionId) {
+        const sessionStripe = await recupererSessionStripe(sessionId);
+        if (sessionStripe?.amount_total) {
+          montantFinal = (sessionStripe.amount_total / 100).toFixed(2);
+        }
       }
 
       if (panier.length > 0) {
         billetsGeneres = await creerBilletsReels(panier, numeroCommande);
-      } else if (session && session.line_items) {
-        let index = 0;
-        for (const item of session.line_items.data) {
-          const quantity = item.quantity || 1;
-          const price = ((item.amount_total || 0) / 100 / quantity).toFixed(2);
-          for (let i = 0; i < quantity; i++) {
-            index++;
-            const numeroBillet = `${numeroCommande}-${index}`;
-            billetsGeneres.push({
-              id: numeroBillet,
-              eventId: 1,
-              numeroCommande,
-              numeroBillet: index,
-              titreEvenement: item.description || "Événement Olympique",
-              lieuEvenement: "Paris",
-              dateEvenement: "2024",
-              typeOffre: "Standard",
-              quantite: 1,
-              prix: price,
-              total: price,
-              qrCode: await genererQRCodeUnique(numeroBillet, item, index),
-              dateAchat: new Date().toISOString()
-            });
-          }
-        }
+        const totalPanier = billetsGeneres.reduce((sum, b) => sum + parseFloat(b.total), 0).toFixed(2);
+        montantFinal = montantFinal !== "0.00" ? montantFinal : totalPanier;
+        localStorage.removeItem("panier_olympiques");
       }
 
       setTotalStripe(montantFinal);
       setBillets(billetsGeneres);
       sauvegarderBillets(billetsGeneres);
-      await envoyerEmailConfirmation(numeroCommande, montantFinal);
-
-      setStatut("Billets créés avec succès !");
+      setStatut("Billets créés !");
       setChargement(false);
     } catch (erreur) {
       console.error("❌ Erreur:", erreur);
       setStatut("Erreur lors de la création des billets");
       setChargement(false);
     }
-  }, [sessionId, recupererSessionStripe, creerBilletsReels, sauvegarderBillets, envoyerEmailConfirmation, genererQRCodeUnique]);
+  }, [sessionId, recupererSessionStripe, creerBilletsReels, sauvegarderBillets]);
 
-  // ---------------- Backend ----------------
+  // ---------------- Envoyer tous les billets au backend ----------------
   const creerEtEnvoyerTicketsBackend = async () => {
     if (!billets.length) return;
     setStatut("Création et envoi des billets au backend...");
@@ -200,6 +155,7 @@ function SuccessPage() {
         });
       }
       setStatut("Tous les billets envoyés au backend !");
+      console.log("✅ Tous les billets envoyés");
     } catch (erreur) {
       console.error("❌ Erreur backend:", erreur);
       setStatut("Erreur lors de l'envoi au backend");
@@ -211,71 +167,113 @@ function SuccessPage() {
   const telechargerPDF = async (billet) => {
     const element = document.getElementById(`billet-${billet.id}`);
     if (!element) return;
-    const canvas = await html2canvas(element);
+    setStatut("Génération PDF...");
+    const canvas = await html2canvas(element, { scale: 2 });
     const imgData = canvas.toDataURL("image/png");
     const pdf = new jsPDF();
-    pdf.addImage(imgData, "PNG", 10, 10, 190, 0);
-    pdf.save(`${billet.numeroCommande}-${billet.numeroBillet}.pdf`);
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`billet-${billet.numeroCommande}-${billet.numeroBillet}.pdf`);
+    setStatut("");
   };
 
   const telechargerTousPDF = async () => {
-    for (const billet of billets) {
-      await telechargerPDF(billet);
+    if (!billets.length) return;
+    setStatut("Génération PDF multiple...");
+    const pdf = new jsPDF();
+    for (let i = 0; i < billets.length; i++) {
+      const billet = billets[i];
+      const element = document.getElementById(`billet-${billet.id}`);
+      if (element) {
+        const canvas = await html2canvas(element, { scale: 1.5 });
+        const imgData = canvas.toDataURL("image/png");
+        const pdfWidth = pdf.internal.pageSize.getWidth() - 20;
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        if (i > 0) pdf.addPage();
+        pdf.addImage(imgData, "PNG", 10, 10, pdfWidth, pdfHeight);
+      }
     }
+    pdf.save(`billets-${Date.now()}.pdf`);
+    setStatut("");
   };
 
   const imprimerBillet = (billet) => {
     const element = document.getElementById(`billet-${billet.id}`);
     if (!element) return;
-    const popup = window.open("", "_blank");
-    popup.document.write(element.innerHTML);
-    popup.document.close();
-    popup.print();
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(element.outerHTML);
+    printWindow.document.close();
+    printWindow.print();
   };
 
   useEffect(() => { genererBillets(); }, [genererBillets]);
 
   if (chargement) {
-    return <div style={{ textAlign: "center", padding: 50 }}><h2>{statut}</h2></div>;
+    return (
+      <div style={{ textAlign: "center", padding: 50 }}>
+        <h2>{statut}</h2>
+        <div style={{ margin: 20 }}>
+          <div style={{
+            width: 50, height: 50,
+            border: "5px solid #f3f3f3",
+            borderTop: "5px solid #0055A4",
+            borderRadius: "50%",
+            animation: "spin 1s linear infinite",
+            margin: "0 auto",
+          }}></div>
+        </div>
+        <p>Préparation de vos billets...</p>
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
   }
 
   return (
-    <div style={{ textAlign: "center", padding: 30, maxWidth: 800, margin: "0 auto" }}>
-      <h1>🎉 Paiement Réussi !</h1>
-      <p>Vous avez {billets.length} billet(s)</p>
-      <p>Total payé: {totalStripe} €</p>
-
-      <button
-        onClick={creerEtEnvoyerTicketsBackend}
-        style={{ padding: 10, backgroundColor: "#FF9500", color: "white", border: "none", borderRadius: 5, cursor: "pointer" }}
-      >
-        💌 Enregistrer & Envoyer tous les billets
-      </button>
+    <div style={{ textAlign: "center", padding: 30, maxWidth: 900, margin: "0 auto" }}>
+      <div style={{ background: "linear-gradient(135deg, #0055A4 0%, #EF4135 100%)", color: "white", padding: 30, borderRadius: 15, marginBottom: 30 }}>
+        <h1 style={{ margin: 0, fontSize: "2.5em" }}>🎉 Paiement Réussi !</h1>
+        <p style={{ fontSize: "1.2em", marginTop: 10 }}>Vous avez {billets.length} billet{billets.length > 1 ? "s" : ""}</p>
+        <p style={{ fontSize: "1.1em", marginTop: 5 }}><strong>Total payé: {totalStripe} €</strong></p>
+        <div style={{ marginTop: 15 }}>
+          <button
+            onClick={creerEtEnvoyerTicketsBackend}
+            style={{ padding: "12px 20px", backgroundColor: "#FF9500", color: "white", border: "none", borderRadius: 6, cursor: "pointer" }}
+          >
+            💌 Enregistrer & Envoyer tous les billets
+          </button>
+        </div>
+      </div>
 
       {billets.length > 1 && (
-        <div style={{ margin: "20px 0" }}>
-          <button onClick={telechargerTousPDF} style={{ padding: 10, backgroundColor: "#28a745", color: "white", border: "none", borderRadius: 5, cursor: "pointer" }}>
-            📥 Télécharger tous les billets
+        <div style={{ marginBottom: 20 }}>
+          <button
+            onClick={telechargerTousPDF}
+            style={{ padding: "12px 20px", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: 6, cursor: "pointer" }}
+          >
+            📥 Télécharger tous les billets ({billets.length})
           </button>
         </div>
       )}
 
       {billets.map((billet) => (
-        <div key={billet.id} id={`billet-${billet.id}`} style={{ border: "2px solid #0055A4", marginBottom: 15, padding: 15, borderRadius: 8, textAlign: "center" }}>
-          <p><strong>Billet n°{billet.numeroBillet}</strong> - {billet.titreEvenement}</p>
-          <p>Lieu: {billet.lieuEvenement}</p>
-          <p>Date: {billet.dateEvenement}</p>
-          <p>Type: {billet.typeOffre}</p>
-          <p>Prix total: {billet.total} €</p>
-          {billet.qrCode && <img src={billet.qrCode} alt="QR Code" style={{ width: 100, height: 100 }} />}
-          <div style={{ marginTop: 10 }}>
-            <button onClick={() => telechargerPDF(billet)} style={{ marginRight: 10, padding: "5px 10px" }}>📥 PDF</button>
-            <button onClick={() => imprimerBillet(billet)} style={{ padding: "5px 10px" }}>🖨️ Imprimer</button>
+        <div key={billet.id} id={`billet-${billet.id}`} style={{ marginBottom: 30, border: "3px solid #0055A4", padding: 25, borderRadius: 12, background: "white", boxShadow: "0 8px 25px rgba(0,0,0,0.1)" }}>
+          <h2 style={{ color: "#0055A4", margin: "0 0 15px 0" }}>🎫 {billet.titreEvenement}</h2>
+          <p><strong>📍 Lieu:</strong> {billet.lieuEvenement}</p>
+          <p><strong>📅 Date:</strong> {billet.dateEvenement}</p>
+          <p><strong>🎯 Type:</strong> {billet.typeOffre}</p>
+          <p><strong>🎟️ Place:</strong> {billet.numeroBillet}</p>
+          <p><strong>💰 Prix total:</strong> {billet.total} €</p>
+          <p><strong>📋 Commande:</strong> {billet.numeroCommande}</p>
+          {billet.qrCode && <img src={billet.qrCode} alt="QR Code" style={{ width: 150, height: 150, border: "1px solid #ddd", borderRadius: 8, margin: "15px 0" }} />}
+          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+            <button onClick={() => telechargerPDF(billet)} style={{ padding: "8px 15px", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}>📥 PDF</button>
+            <button onClick={() => imprimerBillet(billet)} style={{ padding: "8px 15px", backgroundColor: "#007bff", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}>🖨️ Imprimer</button>
           </div>
         </div>
       ))}
 
-      <p>{statut}</p>
+      {statut && <p style={{ color: "#0055A4", fontStyle: "italic", marginTop: 15 }}>{statut}</p>}
     </div>
   );
 }
