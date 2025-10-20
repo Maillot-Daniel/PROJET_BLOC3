@@ -20,16 +20,7 @@ function SuccessPage() {
     console.log("🔍 DEBUG Stockage Local:");
     console.log("🛒 panier_olympiques:", localStorage.getItem("panier_olympiques"));
     console.log("🎫 oly_billets:", localStorage.getItem(CLE_STOCKAGE));
-    console.log("🔗 sessionId:", sessionId);
-
-    try {
-      const panier = JSON.parse(localStorage.getItem("panier_olympiques") || "[]");
-      console.log("📊 CONTENU DU PANIER:", panier);
-      console.log("🔢 Nombre d'articles dans le panier:", panier.length);
-    } catch (erreur) {
-      console.error("❌ Erreur analyse panier:", erreur);
-    }
-  }, [sessionId, CLE_STOCKAGE]);
+  }, [CLE_STOCKAGE]);
 
   // Récup session Stripe
   const recupererSessionStripe = useCallback(async (sessionId) => {
@@ -49,6 +40,7 @@ function SuccessPage() {
     return null;
   }, [URL_API]);
 
+  // Générer QR Code
   const genererQRCodePourEvenement = useCallback(async (numeroCommande, evenement) => {
     try {
       const contenuQR = {
@@ -77,75 +69,10 @@ function SuccessPage() {
     }
   }, [CLE_STOCKAGE]);
 
-  // Créer billets depuis Stripe
-  const creerBilletsDepuisStripe = useCallback(async (sessionStripe, numeroCommande) => {
-    if (!sessionStripe) return [];
-    const billetsGeneres = [];
-    const dateAchatISO = new Date().toISOString();
-
-    if (sessionStripe.line_items && sessionStripe.line_items.data) {
-      let billetIndex = 0;
-      for (const item of sessionStripe.line_items.data) {
-        billetIndex++;
-        const description = item.description || "Événement Olympique";
-        const quantite = item.quantity || 1;
-        const prixUnitaire = item.price?.unit_amount ? item.price.unit_amount / 100 : 1683.00;
-
-        const qrCode = await genererQRCodePourEvenement(numeroCommande, {
-          eventTitle: description,
-          prix: prixUnitaire,
-          quantite: quantite
-        });
-
-        billetsGeneres.push({
-          id: `${numeroCommande}-STRIPE-${billetIndex}`,
-          numeroCommande,
-          idEvenement: billetIndex,
-          titreEvenement: description,
-          dateEvenement: "2024",
-          lieuEvenement: "Paris",
-          typeOffre: "Standard",
-          quantite: quantite,
-          prix: prixUnitaire,
-          total: (prixUnitaire * quantite).toFixed(2),
-          qrCode,
-          dateAchat: dateAchatISO,
-          statut: "actif",
-          source: "stripe"
-        });
-      }
-    } else {
-      const montantTotal = parseFloat(totalStripe) || 1683.00;
-      const qrCode = await genererQRCodePourEvenement(numeroCommande, {
-        eventTitle: "Événement Olympique",
-        prix: montantTotal,
-        quantite: 1
-      });
-      billetsGeneres.push({
-        id: `${numeroCommande}-FALLBACK`,
-        numeroCommande,
-        titreEvenement: "Événement Olympique",
-        dateEvenement: "2024",
-        lieuEvenement: "Paris",
-        typeOffre: "Standard",
-        quantite: 1,
-        prix: montantTotal,
-        total: montantTotal.toFixed(2),
-        qrCode,
-        dateAchat: dateAchatISO,
-        statut: "actif",
-        source: "fallback"
-      });
-    }
-
-    return billetsGeneres;
-  }, [totalStripe, genererQRCodePourEvenement]);
-
-  // Génération principale des billets
+  // Créer billets depuis Stripe ou panier
   const genererBillets = useCallback(async () => {
     setStatut("Création de vos billets...");
     debugStockageLocal();
-
     try {
       const panier = JSON.parse(localStorage.getItem("panier_olympiques") || "[]");
       const numeroCommande = "OLY-" + Date.now();
@@ -153,86 +80,113 @@ function SuccessPage() {
 
       if (sessionId) {
         const sessionStripe = await recupererSessionStripe(sessionId);
-        if (sessionStripe) {
-          billetsGeneres = await creerBilletsDepuisStripe(sessionStripe, numeroCommande);
+        if (sessionStripe && sessionStripe.line_items?.data?.length) {
+          let index = 0;
+          for (const item of sessionStripe.line_items.data) {
+            index++;
+            const prixUnitaire = item.price?.unit_amount ? item.price.unit_amount / 100 : 1683.00;
+            const qrCode = await genererQRCodePourEvenement(numeroCommande, {
+              eventTitle: item.description || "Événement Olympique",
+              prix: prixUnitaire,
+              quantite: item.quantity || 1
+            });
+            billetsGeneres.push({
+              id: `${numeroCommande}-STRIPE-${index}`,
+              numeroCommande,
+              ticket_number: `${numeroCommande}-${index}`,
+              qr_code_url: qrCode,
+              event_id: item.price?.product || 1,
+              user_id: 1,
+              offer_type_id: 1,
+              purchase_date: new Date().toISOString(),
+              validated: false,
+              quantity: item.quantity || 1,
+              price: prixUnitaire,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              primary_key: `${numeroCommande}-${index}`,
+              hashed_key: "",
+              signature: "",
+              used: false,
+              used_at: null,
+              secondary_key: "",
+              titreEvenement: item.description || "Événement Olympique",
+              lieuEvenement: "Paris",
+              dateEvenement: "2024",
+              typeOffre: "Standard",
+              total: ((prixUnitaire) * (item.quantity || 1)).toFixed(2),
+            });
+          }
         }
       }
 
       if (billetsGeneres.length === 0 && panier.length > 0) {
         let totalCalculé = 0;
         for (const article of panier) {
-          const qrCode = await genererQRCodePourEvenement(numeroCommande, article);
           const prixUnitaire = article.prix || article.price || 0;
           const quantite = article.quantite || article.quantity || 1;
-          const totalArticle = prixUnitaire * quantite;
-          totalCalculé += totalArticle;
-
+          totalCalculé += prixUnitaire * quantite;
+          const qrCode = await genererQRCodePourEvenement(numeroCommande, article);
           billetsGeneres.push({
-            id: `${numeroCommande}-${article.eventId || article.id || Date.now()}`,
+            id: `${numeroCommande}-${article.eventId || Date.now()}`,
             numeroCommande,
+            ticket_number: `${numeroCommande}-${article.eventId || Date.now()}`,
+            qr_code_url: qrCode,
+            event_id: article.eventId || 1,
+            user_id: 1,
+            offer_type_id: 1,
+            purchase_date: new Date().toISOString(),
+            validated: false,
+            quantity: quantite,
+            price: prixUnitaire,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            primary_key: `${numeroCommande}-${article.eventId || Date.now()}`,
+            hashed_key: "",
+            signature: "",
+            used: false,
+            used_at: null,
+            secondary_key: "",
             titreEvenement: article.eventTitle || article.nom || "Événement Olympique",
-            dateEvenement: article.eventDate || article.date || "2024",
             lieuEvenement: article.eventLocation || article.lieu || "Paris",
+            dateEvenement: article.eventDate || article.date || "2024",
             typeOffre: article.offerType || article.type || "Standard",
-            quantite,
-            prix: prixUnitaire,
-            total: totalArticle.toFixed(2),
-            qrCode,
-            dateAchat: new Date().toISOString(),
-            statut: "actif",
-            source: "panier_local"
+            total: (prixUnitaire * quantite).toFixed(2),
           });
         }
-
         if (totalStripe === "0.00") setTotalStripe(totalCalculé.toFixed(2));
-      }
-
-      if (billetsGeneres.length === 0) {
-        const montant = parseFloat(totalStripe) > 0 ? totalStripe : "1683.00";
-        const qrCode = await genererQRCodePourEvenement(numeroCommande, {
-          eventTitle: "Événement Olympique",
-          prix: parseFloat(montant),
-          quantite: 1
-        });
-
-        billetsGeneres.push({
-          id: `${numeroCommande}-SECOURS`,
-          numeroCommande,
-          titreEvenement: "Événement Olympique",
-          dateEvenement: "2024",
-          lieuEvenement: "Paris",
-          typeOffre: "Standard",
-          quantite: 1,
-          prix: parseFloat(montant),
-          total: montant,
-          qrCode,
-          dateAchat: new Date().toISOString(),
-          statut: "actif",
-          source: "secours"
-        });
       }
 
       setBillets(billetsGeneres);
       sauvegarderBilletsStockage(billetsGeneres);
-
       if (billetsGeneres.length > 0) localStorage.removeItem("panier_olympiques");
       setChargement(false);
       setStatut(`✅ ${billetsGeneres.length} billet(s) créé(s) avec succès !`);
-
     } catch (erreur) {
       console.error("❌ Erreur création billets:", erreur);
       setStatut("Erreur lors de la création des billets");
       setChargement(false);
     }
-  }, [
-    sessionId,
-    totalStripe,
-    debugStockageLocal,
-    recupererSessionStripe,
-    creerBilletsDepuisStripe,
-    genererQRCodePourEvenement,
-    sauvegarderBilletsStockage
-  ]);
+  }, [sessionId, totalStripe, debugStockageLocal, recupererSessionStripe, genererQRCodePourEvenement, sauvegarderBilletsStockage]);
+
+  // Envoyer tous les billets au backend
+  const envoyerBilletsBackend = async () => {
+    if (!billets.length) return;
+    setStatut("Envoi des billets au backend...");
+    try {
+      for (const billet of billets) {
+        await fetch(`${URL_API}/api/tickets/create-and-send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(billet),
+        });
+      }
+      setStatut("✅ Tous les billets ont été envoyés au backend !");
+    } catch (erreur) {
+      console.error("❌ Erreur envoi billets backend:", erreur);
+      setStatut("Erreur lors de l'envoi au backend");
+    }
+  };
 
   // Télécharger PDF
   const telechargerBilletPDF = async (billet) => {
@@ -258,21 +212,13 @@ function SuccessPage() {
   const imprimerBillet = (billet) => {
     const elementBillet = document.getElementById(`billet-${billet.id}`);
     if (!elementBillet) return;
-
     const printWindow = window.open("", "_blank");
-    printWindow.document.write(`
-      <html>
-        <head><title>Billet ${billet.titreEvenement}</title></head>
-        <body>${elementBillet.outerHTML}</body>
-      </html>
-    `);
+    printWindow.document.write(`<html><head><title>Billet ${billet.titreEvenement}</title></head><body>${elementBillet.outerHTML}</body></html>`);
     printWindow.document.close();
     printWindow.print();
   };
 
-  useEffect(() => {
-    genererBillets();
-  }, [genererBillets]);
+  useEffect(() => { genererBillets(); }, [genererBillets]);
 
   if (chargement) {
     return (
@@ -298,13 +244,16 @@ function SuccessPage() {
     <div style={{ textAlign: "center", padding: 30, maxWidth: 800, margin: "0 auto" }}>
       <div style={{ background: "linear-gradient(135deg, #0055A4 0%, #EF4135 100%)", color: "white", padding: 30, borderRadius: 15, marginBottom: 30 }}>
         <h1 style={{ margin: 0, fontSize: "2.5em" }}>🎉 Paiement Réussi !</h1>
-        <p style={{ fontSize: "1.2em", marginTop: 10 }}>
-          Vous avez {billets.length} billet{billets.length > 1 ? "s" : ""}
-        </p>
-        <p style={{ fontSize: "1.1em", marginTop: 5 }}>
-          <strong>Total payé: {totalStripe} €</strong>
-        </p>
+        <p style={{ fontSize: "1.2em", marginTop: 10 }}>Vous avez {billets.length} billet{billets.length > 1 ? "s" : ""}</p>
+        <p style={{ fontSize: "1.1em", marginTop: 5 }}><strong>Total payé: {totalStripe} €</strong></p>
       </div>
+
+      <button 
+        onClick={envoyerBilletsBackend} 
+        style={{ padding: "10px 20px", backgroundColor: "#FFA500", color: "white", border: "none", borderRadius: 6, cursor: "pointer", marginBottom: 20 }}
+      >
+        🚀 Envoyer tous les billets au backend
+      </button>
 
       {billets.map((billet) => (
         <div key={billet.id} style={{ marginBottom: 30 }}>
@@ -313,19 +262,15 @@ function SuccessPage() {
             <p><strong>📍 Lieu:</strong> {billet.lieuEvenement}</p>
             <p><strong>📅 Date:</strong> {billet.dateEvenement}</p>
             <p><strong>🎯 Type:</strong> {billet.typeOffre}</p>
-            <p><strong>🎟️ Quantité:</strong> {billet.quantite}</p>
+            <p><strong>🎟️ Quantité:</strong> {billet.quantity || billet.quantite}</p>
             <p><strong>💰 Total:</strong> {billet.total} €</p>
             <p><strong>📋 Commande:</strong> {billet.numeroCommande}</p>
-            {billet.qrCode && <img src={billet.qrCode} alt="QR Code" style={{ width: 150, height: 150, margin: "15px 0" }} />}
+            {billet.qr_code_url && <img src={billet.qr_code_url} alt="QR Code" style={{ width: 150, height: 150, margin: "15px 0" }} />}
           </div>
 
           <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 15 }}>
-            <button onClick={() => telechargerBilletPDF(billet)} style={{ padding: "8px 15px", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}>
-              📥 PDF
-            </button>
-            <button onClick={() => imprimerBillet(billet)} style={{ padding: "8px 15px", backgroundColor: "#007bff", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}>
-              🖨️ Imprimer
-            </button>
+            <button onClick={() => telechargerBilletPDF(billet)} style={{ padding: "8px 15px", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}>📥 PDF</button>
+            <button onClick={() => imprimerBillet(billet)} style={{ padding: "8px 15px", backgroundColor: "#007bff", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}>🖨️ Imprimer</button>
           </div>
         </div>
       ))}
