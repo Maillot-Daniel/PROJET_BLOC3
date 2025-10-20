@@ -16,36 +16,21 @@ class UsersService {
   });
 
   static init() {
-    // Interceptor pour ajouter le token à chaque requête
     this.apiClient.interceptors.request.use(
       (config) => {
         const token = this.getToken();
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
-          console.log("REQUEST - Token ajouté à la requête:", config.url);
-        } else {
-          console.warn("REQUEST - Aucun token trouvé");
         }
         return config;
       },
       (error) => Promise.reject(error)
     );
 
-    // Interceptor pour gérer l'expiration du token
     this.apiClient.interceptors.response.use(
-      (response) => {
-        console.log("RESPONSE - Succès:", response.config.url, response.status);
-        return response;
-      },
+      (response) => response,
       (error) => {
-        console.error("RESPONSE - Erreur:", {
-          url: error.config?.url,
-          status: error.response?.status,
-          message: error.message
-        });
-        
         if (error.response?.status === 401) {
-          console.log("RESPONSE - Token expiré, déconnexion...");
           this.clearAuth();
           window.dispatchEvent(new CustomEvent("authExpired"));
         }
@@ -62,16 +47,11 @@ class UsersService {
     localStorage.setItem(this.TOKEN_KEY, token);
     localStorage.setItem(this.ROLE_KEY, role);
     localStorage.setItem(this.USER_ID_KEY, userId || "");
-    
     if (userProfile) {
       localStorage.setItem(this.USER_PROFILE_KEY, JSON.stringify(userProfile));
     }
-    
-    // Mettre à jour les headers axios immédiatement
     this.apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    
     window.dispatchEvent(new CustomEvent("authChanged"));
-    console.log("🔐 Données d'authentification stockées");
   }
 
   static clearAuth() {
@@ -79,9 +59,7 @@ class UsersService {
     localStorage.removeItem(this.ROLE_KEY);
     localStorage.removeItem(this.USER_ID_KEY);
     localStorage.removeItem(this.USER_PROFILE_KEY);
-    
     delete this.apiClient.defaults.headers.common["Authorization"];
-    
     window.dispatchEvent(new CustomEvent("authChanged"));
   }
 
@@ -102,8 +80,7 @@ class UsersService {
     try {
       const profile = localStorage.getItem(this.USER_PROFILE_KEY);
       return profile ? JSON.parse(profile) : null;
-    } catch (error) {
-      console.error("Erreur lecture profil stocké:", error);
+    } catch {
       return null;
     }
   }
@@ -111,11 +88,7 @@ class UsersService {
   // Auth
   static async login(email, password) {
     try {
-      console.log("LOGIN - Tentative de connexion:", email);
       const response = await this.apiClient.post("/auth/login", { email, password });
-      console.log("LOGIN - Succès:", response.data);
-      
-      // Stocker immédiatement les données d'authentification
       if (response.data?.token) {
         this.setAuthData(
           response.data.token,
@@ -123,10 +96,8 @@ class UsersService {
           response.data.userId
         );
       }
-      
       return response.data;
     } catch (error) {
-      console.error("LOGIN - Erreur:", error.message);
       throw this.normalizeError(error, "Échec de la connexion");
     }
   }
@@ -142,23 +113,9 @@ class UsersService {
 
   static async getProfile() {
     try {
-      console.log("GET PROFILE - Début de la requête");
-      const token = this.getToken();
-      console.log("GET PROFILE - Token:", token ? "PRÉSENT" : "ABSENT");
-      
       const response = await this.apiClient.get("/adminuser/get-profile");
-      
-      console.log("GET PROFILE - Réponse reçue:", response.data);
-      console.log("GET PROFILE - Statut HTTP:", response.status);
-      
       return response.data;
     } catch (error) {
-      console.error("GET PROFILE - Erreur détaillée:", {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data,
-        url: error.config?.url
-      });
       throw this.normalizeError(error, "Échec de la récupération du profil");
     }
   }
@@ -200,8 +157,7 @@ class UsersService {
     }
   }
 
-  // ============ MÉTHODES MOT DE PASSE ============
-
+  // ============ MOT DE PASSE ============
   static async requestPasswordReset(email) {
     try {
       const response = await this.apiClient.post("/auth/password-reset-request", { email });
@@ -213,10 +169,7 @@ class UsersService {
 
   static async resetPassword(token, newPassword) {
     try {
-      const response = await this.apiClient.post("/auth/reset-password", {
-        token,
-        password: newPassword
-      });
+      const response = await this.apiClient.post("/auth/reset-password", { token, password: newPassword });
       return response.data;
     } catch (error) {
       throw this.normalizeError(error, "Erreur lors de la réinitialisation");
