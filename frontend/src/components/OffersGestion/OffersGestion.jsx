@@ -26,13 +26,11 @@ function OffersGestion() {
 
   const testAPI = useCallback(async () => {
     try {
-      // Test 1: Sans authentification
       try {
         const testRes = await axios.get(`${API_URL}/api/offer_types`);
         return testRes.data;
       } catch {}
 
-      // Test 2: Avec authentification
       if (token) {
         const authRes = await axios.get(`${API_URL}/api/offer_types`, {
           headers: { 
@@ -43,7 +41,6 @@ function OffersGestion() {
         return authRes.data;
       }
 
-      // Utiliser les données statiques
       return STATIC_OFFERS;
 
     } catch {
@@ -56,8 +53,8 @@ function OffersGestion() {
     setError(null);
     try {
       const offersData = await testAPI();
-      
       let normalizedOffers = [];
+
       if (Array.isArray(offersData)) {
         normalizedOffers = offersData;
       } else if (offersData && Array.isArray(offersData.content)) {
@@ -65,7 +62,7 @@ function OffersGestion() {
       } else {
         normalizedOffers = STATIC_OFFERS;
       }
-      
+
       setOffers(normalizedOffers);
     } catch {
       setError('Impossible de charger les offres');
@@ -79,7 +76,7 @@ function OffersGestion() {
     fetchOffers();
   }, [fetchOffers]);
 
-  // CRUD Operations
+  // CRUD
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!token) {
@@ -257,30 +254,32 @@ function OffersGestion() {
       {offers.length === 0 ? (
         <p className="no-data">Aucune offre trouvée.</p>
       ) : (
-        <table className="offers-table">
-          <thead>
-            <tr>
-              <th>Nom</th>
-              <th>Personnes</th>
-              <th>Multiplicateur</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {offers.map(offer => (
-              <tr key={offer.id}>
-                <td>{offer.name}</td>
-                <td>{offer.people}</td>
-                <td>{offer.multiplier}</td>
-                <td className="actions">
-                  <button className="btn-edit" onClick={() => handleEdit(offer)}>Modifier</button>
-                  <button className="btn-duplicate" onClick={() => handleDuplicate(offer)}>Dupliquer</button>
-                  <button className="btn-delete" onClick={() => handleDelete(offer.id)}>Supprimer</button>
-                </td>
+        <div className="table-responsive">
+          <table className="offers-table">
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Personnes</th>
+                <th>Multiplicateur</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {offers.map(offer => (
+                <tr key={offer.id}>
+                  <td>{offer.name}</td>
+                  <td>{offer.people}</td>
+                  <td>{offer.multiplier}</td>
+                  <td className="actions">
+                    <button className="btn-edit" onClick={() => handleEdit(offer)}>Modifier</button>
+                    <button className="btn-duplicate" onClick={() => handleDuplicate(offer)}>Dupliquer</button>
+                    <button className="btn-delete" onClick={() => handleDelete(offer.id)}>Supprimer</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

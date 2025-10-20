@@ -1,7 +1,7 @@
 .offers-container {
   padding: 20px;
   max-width: 1200px;
-  margin: 0 auto;
+  margin: 100px auto;
   font-family: Arial, sans-serif;
 }
 
@@ -9,14 +9,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
-  padding-bottom: 15px;
-  border-bottom: 2px solid #eee;
-}
-
-.offers-header h2 {
-  color: #333;
-  margin: 0;
+  margin-bottom: 20px;
 }
 
 .btn-primary {
@@ -27,21 +20,22 @@
   border-radius: 5px;
   cursor: pointer;
   font-size: 14px;
-  transition: background 0.3s;
 }
 
 .btn-primary:hover {
   background: #0056b3;
 }
 
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .offers-table {
   width: 100%;
+  min-width: 600px; /* pour scroll horizontal */
   border-collapse: collapse;
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  margin-top: 20px;
 }
 
 .offers-table th,
@@ -52,202 +46,58 @@
 }
 
 .offers-table th {
-  background: #f8f9fa;
-  font-weight: 600;
-  color: #495057;
+  background: #2d3748;
+  color: white;
 }
 
-.offers-table tr:hover {
-  background: #f8f9fa;
+tr:hover {
+  background-color: #f8f9fa;
 }
 
 .actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .btn-edit {
   background: #ffc107;
   color: black;
-  border: none;
   padding: 6px 12px;
   border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: background 0.3s;
-}
-
-.btn-edit:hover {
-  background: #e0a800;
 }
 
 .btn-duplicate {
   background: #17a2b8;
   color: white;
-  border: none;
   padding: 6px 12px;
   border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: background 0.3s;
-}
-
-.btn-duplicate:hover {
-  background: #138496;
 }
 
 .btn-delete {
   background: #dc3545;
   color: white;
-  border: none;
   padding: 6px 12px;
   border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: background 0.3s;
-}
-
-.btn-delete:hover {
-  background: #c82333;
-}
-
-/* Formulaire */
-.form-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.form-container {
-  background: white;
-  padding: 30px;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 500px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-}
-
-.form-container h3 {
-  margin-top: 0;
-  margin-bottom: 20px;
-  color: #333;
-}
-
-.form-group {
-  margin-bottom: 20px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: 500;
-  color: #555;
-}
-
-.form-group input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  box-sizing: border-box;
-}
-
-.form-group input:focus {
-  outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
-}
-
-.form-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 25px;
-}
-
-.btn-success {
-  background: #28a745;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background 0.3s;
-}
-
-.btn-success:hover {
-  background: #218838;
-}
-
-.btn-cancel {
-  background: #6c757d;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background 0.3s;
-}
-
-.btn-cancel:hover {
-  background: #5a6268;
-}
-
-/* États */
-.loading, .error, .no-data {
-  text-align: center;
-  padding: 40px;
-  font-size: 18px;
-}
-
-.loading {
-  color: #007bff;
-}
-
-.error {
-  color: #dc3545;
-  background: #f8d7da;
-  padding: 15px;
-  border-radius: 4px;
-  border: 1px solid #f5c6cb;
-}
-
-.no-data {
-  color: #6c757d;
-  background: #f8f9fa;
-  padding: 30px;
-  border-radius: 8px;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .offers-header {
-    flex-direction: column;
-    gap: 15px;
-    align-items: flex-start;
-  }
-  
-  .actions {
-    flex-direction: column;
-  }
-  
-  .offers-table {
+  .offers-table th, .offers-table td {
+    padding: 8px 10px;
     font-size: 14px;
   }
-  
-  .offers-table th,
-  .offers-table td {
-    padding: 8px 10px;
+
+  .btn-edit, .btn-duplicate, .btn-delete {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .btn-edit, .btn-duplicate, .btn-delete {
+    padding: 3px 6px;
+    font-size: 11px;
   }
 }
