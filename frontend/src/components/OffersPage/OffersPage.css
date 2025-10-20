@@ -1,4 +1,68 @@
-/* Formulaire overlay */
+.offers-page {
+  max-width: 1200px;
+  margin: 50px auto;
+  padding: 0 1rem;
+  box-sizing: border-box;
+}
+
+.offers-page h1 {
+  text-align: center;
+  margin-bottom: 2rem;
+  color: #333;
+  font-size: 2rem;
+}
+
+/* Liste des offres */
+.offer-list {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+/* Carte d'offre */
+.offer-card {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 20px;
+  flex: 1 1 280px; /* flexible et responsive */
+  max-width: 350px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.offer-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+.offer-card h2 {
+  margin: 1rem 0 0.5rem;
+  font-size: 1.5rem;
+  color: #2d3748;
+}
+
+.offer-card p {
+  font-size: 0.95rem;
+  color: #555;
+  margin-bottom: 1rem;
+}
+
+.offer-card ul {
+  list-style-type: disc;
+  padding-left: 20px;
+  text-align: left;
+}
+
+.offer-icon {
+  font-size: 2.5rem;
+}
+
+/* Form overlay */
 .form-overlay {
   position: fixed;
   top: 0;
@@ -10,7 +74,7 @@
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  padding: 10px; /* pour réduire le débordement sur mobile */
+  padding: 10px;
 }
 
 .form-container {
@@ -23,26 +87,120 @@
   box-sizing: border-box;
 }
 
-/* Responsive Mobile */
-@media (max-width: 480px) {
-  .form-container {
-    padding: 20px;
-    width: 95%;
-  }
+/* Form group */
+.form-group {
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+}
 
-  .form-group input {
-    padding: 8px 10px;   /* plus petit padding */
-    font-size: 0.9rem;   /* texte plus petit */
+.form-group label {
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #333;
+}
+
+.form-group input {
+  padding: 10px 12px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  outline: none;
+  transition: border 0.2s ease;
+}
+
+.form-group input:focus {
+  border-color: #3182ce;
+}
+
+/* Form actions (boutons) */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.btn-success {
+  background-color: #38a169;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-success:hover {
+  background-color: #2f855a;
+}
+
+.btn-cancel {
+  background-color: #e53e3e;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel:hover {
+  background-color: #c53030;
+}
+
+/* Responsive mobile */
+@media (max-width: 768px) {
+  .offer-list {
+    flex-direction: column;
+    align-items: center;
   }
 
   .form-actions {
-    flex-direction: column;  /* boutons en colonne */
+    flex-direction: column;
     gap: 8px;
   }
 
   .btn-success, .btn-cancel {
-    width: 100%; /* boutons remplissent le conteneur */
-    font-size: 0.9rem; /* plus petits */
+    width: 100%;
+    font-size: 0.95rem;
+    padding: 10px 0;
+  }
+
+  .form-container {
+    padding: 20px;
+    width: 95%;
+  }
+}
+
+@media (max-width: 480px) {
+  .offer-card {
+    flex: 1 1 100%;
+    max-width: 100%;
+    padding: 15px;
+  }
+
+  .offer-card h2 {
+    font-size: 1.3rem;
+  }
+
+  .offer-card p, .offer-card ul {
+    font-size: 0.9rem;
+  }
+
+  .offer-icon {
+    font-size: 2rem;
+  }
+
+  .form-group input {
+    padding: 8px 10px;
+    font-size: 0.9rem;
+  }
+
+  .btn-success, .btn-cancel {
+    font-size: 0.9rem;
     padding: 8px 0;
   }
 }
