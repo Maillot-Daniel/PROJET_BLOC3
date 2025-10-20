@@ -30,9 +30,9 @@
 }
 
 .offer-card:hover {
-  transform: translateY(-8px);
+  transform: translateY(-5px);
   box-shadow: 
-    0 15px 35px rgba(0,0,0,0.15),
+    0 12px 30px rgba(0,0,0,0.15),
     0 5px 15px rgba(0,0,0,0.1);
 }
 
@@ -93,25 +93,6 @@
   color: #4a84f0;
   font-weight: bold;
   font-size: 1.1rem;
-}
-
-.offer-button {
-  background: linear-gradient(135deg, #4a84f0, #3250c9);
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 0.95rem;
-  margin-top: 1rem;
-  width: 100%;
-}
-
-.offer-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(74, 132, 240, 0.4);
 }
 
 /* Responsive */

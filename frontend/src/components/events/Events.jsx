@@ -40,15 +40,12 @@ function Events() {
 
         try {
           const offersRes = await axios.get(`${API_URL}/api/offer_types`);
-          console.log('✅ Offres chargées depuis API:', offersRes.data);
           setOffers(offersRes.data);
-        } catch (offersErr) {
-          console.error('❌ Erreur chargement offres, utilisation du fallback:', offersErr);
+        } catch {
           setOffers(STATIC_OFFERS);
         }
 
-      } catch (err) {
-        console.error('Erreur chargement événements:', err);
+      } catch {
         setError("Erreur lors du chargement des événements");
       } finally {
         setLoading(false);
@@ -108,9 +105,7 @@ function Events() {
                 src={event.image} 
                 alt={event.title}
                 className="event-image"
-                onError={(e) => {
-                  e.target.src = '/images/events/default-event.jpg';
-                }}
+                onError={(e) => { e.target.src = '/images/events/default-event.jpg'; }}
               />
               {event.remainingTickets === 0 && (
                 <div className="sold-out-badge">COMPLET</div>
