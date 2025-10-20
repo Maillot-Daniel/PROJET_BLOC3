@@ -18,10 +18,8 @@ function UserManagementPage() {
       setError(null);
 
       const usersData = await UsersService.getAllUsers();
-      console.log("Users fetched:", usersData);
       setUsers(usersData.ourUsersList || []);
     } catch (err) {
-      console.error("Fetch users error:", err);
       setError(err.message || "Erreur lors de la récupération des utilisateurs");
 
       if (err.status === 401) {
@@ -64,7 +62,6 @@ function UserManagementPage() {
       await UsersService.deleteUser(userId);
       fetchUsers(); // rafraîchir la liste après suppression
     } catch (err) {
-      console.error("Error deleting user:", err);
       setError(err.message || "Erreur lors de la suppression de l'utilisateur");
     }
   };

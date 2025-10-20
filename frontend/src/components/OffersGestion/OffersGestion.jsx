@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import './OffersGestion.css';
 
-// Données statiques de secours (comme dans Events.jsx)
+// Données statiques de secours
 const STATIC_OFFERS = [
   { id: 1, name: 'SOLO', people: 1, multiplier: 1 },
   { id: 2, name: 'DUO', people: 2, multiplier: 1.9 },
@@ -24,59 +24,39 @@ function OffersGestion() {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
   const token = localStorage.getItem('olympics_auth_token');
 
-  // Test complet de l'API - version useCallback pour éviter les dépendances circulaires
   const testAPI = useCallback(async () => {
-    console.log('🔍 Début du test API...');
-    console.log('🔑 Token:', token);
-    console.log('🌐 API URL:', API_URL);
-    
     try {
       // Test 1: Sans authentification
-      console.log('🧪 Test sans authentification...');
       try {
         const testRes = await axios.get(`${API_URL}/api/offer_types`);
-        console.log('✅ API accessible sans auth:', testRes.data);
         return testRes.data;
-      } catch (noAuthErr) {
-        console.log('❌ API refuse sans auth:', noAuthErr.response?.status);
-      }
+      } catch {}
 
       // Test 2: Avec authentification
       if (token) {
-        console.log('🧪 Test avec authentification...');
         const authRes = await axios.get(`${API_URL}/api/offer_types`, {
           headers: { 
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         });
-        console.log('✅ API avec auth:', authRes.data);
         return authRes.data;
       }
 
-      // Si on arrive ici, utiliser les données statiques
-      console.log('📋 Utilisation des données statiques');
+      // Utiliser les données statiques
       return STATIC_OFFERS;
 
-    } catch (err) {
-      console.error('💥 Erreur API:', {
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message
-      });
-      console.log('📋 Retour aux données statiques à cause de l\'erreur');
+    } catch {
       return STATIC_OFFERS;
     }
-  }, [API_URL, token]); // Dépendances de testAPI
+  }, [API_URL, token]);
 
-  // fetchOffers en useCallback pour stabiliser la référence
   const fetchOffers = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const offersData = await testAPI();
       
-      // Normaliser les données
       let normalizedOffers = [];
       if (Array.isArray(offersData)) {
         normalizedOffers = offersData;
@@ -87,26 +67,21 @@ function OffersGestion() {
       }
       
       setOffers(normalizedOffers);
-      console.log('📦 Offres chargées:', normalizedOffers);
-      
-    } catch (err) {
-      console.error('Erreur finale:', err);
+    } catch {
       setError('Impossible de charger les offres');
-      setOffers(STATIC_OFFERS); // Fallback aux données statiques
+      setOffers(STATIC_OFFERS);
     } finally {
       setLoading(false);
     }
-  }, [testAPI]); // Dépendance de fetchOffers
+  }, [testAPI]);
 
-  // useEffect avec les bonnes dépendances
   useEffect(() => {
     fetchOffers();
-  }, [fetchOffers]); // Maintenant fetchOffers est stable grâce à useCallback
+  }, [fetchOffers]);
 
-  // CRUD Operations (version API)
+  // CRUD Operations
   const handleCreate = async (e) => {
     e.preventDefault();
-    
     if (!token) {
       alert("Vous devez être connecté pour créer une offre");
       return;
@@ -131,14 +106,12 @@ function OffersGestion() {
       setShowForm(false);
       alert('Offre créée avec succès');
     } catch (err) {
-      console.error('Erreur création offre:', err);
       alert(err.response?.data?.message || 'Erreur lors de la création');
     }
   };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
-    
     if (!token) {
       alert("Vous devez être connecté pour modifier une offre");
       return;
@@ -158,14 +131,11 @@ function OffersGestion() {
         }
       });
 
-      setOffers(offers.map(offer => 
-        offer.id === editingOffer.id ? res.data : offer
-      ));
+      setOffers(offers.map(offer => offer.id === editingOffer.id ? res.data : offer));
       resetForm();
       setShowForm(false);
       alert('Offre modifiée avec succès');
     } catch (err) {
-      console.error('Erreur modification offre:', err);
       alert(err.response?.data?.message || 'Erreur lors de la modification');
     }
   };
@@ -186,7 +156,6 @@ function OffersGestion() {
       setOffers(offers.filter(o => o.id !== id));
       alert('Offre supprimée avec succès');
     } catch (err) {
-      console.error('Erreur suppression offre:', err);
       alert(err.response?.data?.message || 'Erreur lors de la suppression');
     }
   };
@@ -214,12 +183,11 @@ function OffersGestion() {
       setOffers([...offers, res.data]);
       alert('Offre dupliquée avec succès');
     } catch (err) {
-      console.error('Erreur duplication offre:', err);
       alert(err.response?.data?.message || 'Erreur lors de la duplication');
     }
   };
 
-  // Fonctions helpers
+  // Helpers
   const handleEdit = (offer) => {
     setEditingOffer(offer);
     setFormData({
@@ -231,20 +199,13 @@ function OffersGestion() {
   };
 
   const resetForm = () => {
-    setFormData({
-      name: '',
-      people: '',
-      multiplier: ''
-    });
+    setFormData({ name: '', people: '', multiplier: '' });
     setEditingOffer(null);
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleCancel = () => {
@@ -259,15 +220,11 @@ function OffersGestion() {
     <div className="offers-container">
       <div className="offers-header">
         <h2>Gestion des Offres</h2>
-        <button 
-          className="btn-primary"
-          onClick={() => setShowForm(true)}
-        >
+        <button className="btn-primary" onClick={() => setShowForm(true)}>
           + Nouvelle Offre
         </button>
       </div>
 
-      {/* Formulaire de création/modification */}
       {showForm && (
         <div className="form-overlay">
           <div className="form-container">
@@ -275,57 +232,28 @@ function OffersGestion() {
             <form onSubmit={editingOffer ? handleUpdate : handleCreate}>
               <div className="form-group">
                 <label>Nom de l'offre:</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="Ex: SOLO, DUO, FAMILLE"
-                  required
-                />
+                <input type="text" name="name" value={formData.name} onChange={handleInputChange} placeholder="Ex: SOLO, DUO, FAMILLE" required />
               </div>
               
               <div className="form-group">
                 <label>Nombre de personnes:</label>
-                <input
-                  type="number"
-                  name="people"
-                  value={formData.people}
-                  onChange={handleInputChange}
-                  min="1"
-                  placeholder="Ex: 1, 2, 3"
-                  required
-                />
+                <input type="number" name="people" value={formData.people} onChange={handleInputChange} min="1" placeholder="Ex: 1, 2, 3" required />
               </div>
               
               <div className="form-group">
                 <label>Multiplicateur:</label>
-                <input
-                  type="number"
-                  name="multiplier"
-                  step="0.01"
-                  value={formData.multiplier}
-                  onChange={handleInputChange}
-                  min="0"
-                  placeholder="Ex: 1.0, 1.5, 2.0"
-                  required
-                />
+                <input type="number" name="multiplier" step="0.01" value={formData.multiplier} onChange={handleInputChange} min="0" placeholder="Ex: 1.0, 1.5, 2.0" required />
               </div>
 
               <div className="form-actions">
-                <button type="submit" className="btn-success">
-                  {editingOffer ? 'Modifier' : 'Créer'}
-                </button>
-                <button type="button" className="btn-cancel" onClick={handleCancel}>
-                  Annuler
-                </button>
+                <button type="submit" className="btn-success">{editingOffer ? 'Modifier' : 'Créer'}</button>
+                <button type="button" className="btn-cancel" onClick={handleCancel}>Annuler</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* Liste des offres */}
       {offers.length === 0 ? (
         <p className="no-data">Aucune offre trouvée.</p>
       ) : (
@@ -345,24 +273,9 @@ function OffersGestion() {
                 <td>{offer.people}</td>
                 <td>{offer.multiplier}</td>
                 <td className="actions">
-                  <button 
-                    className="btn-edit"
-                    onClick={() => handleEdit(offer)}
-                  >
-                    Modifier
-                  </button>
-                  <button 
-                    className="btn-duplicate"
-                    onClick={() => handleDuplicate(offer)}
-                  >
-                    Dupliquer
-                  </button>
-                  <button 
-                    className="btn-delete"
-                    onClick={() => handleDelete(offer.id)}
-                  >
-                    Supprimer
-                  </button>
+                  <button className="btn-edit" onClick={() => handleEdit(offer)}>Modifier</button>
+                  <button className="btn-duplicate" onClick={() => handleDuplicate(offer)}>Dupliquer</button>
+                  <button className="btn-delete" onClick={() => handleDelete(offer.id)}>Supprimer</button>
                 </td>
               </tr>
             ))}
